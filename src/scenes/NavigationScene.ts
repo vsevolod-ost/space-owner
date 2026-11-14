@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { services } from '@/core/services';
-import type { AutopilotState, Vec2 } from '@/core/simulation/types';
+import { deltaVMS } from '@/core/simulation/rocket';
+import type { Telemetry } from '@/core/simulation/telemetry';
+import type { AutopilotState, SimulationSnapshot, Vec2 } from '@/core/simulation/types';
 import type { LegForecast } from '@/core/voyage/forecast';
 import type { Voyage } from '@/core/voyage/Voyage';
 import { SceneKey } from '@/scenes/keys';
@@ -20,6 +22,7 @@ import {
   ROW_IDS,
   shownDay,
   statusOf,
+  telemetryLines,
   type Level,
   type RowId,
   type RowView,
@@ -51,6 +54,17 @@ export interface NavigationDebugInfo {
   detail: string;
   /** Simulated seconds per real second (not shown: GDD `ux-panel-layout`). */
   timeScale: number;
+  /**
+   * The ship's mass now, kg, unrounded (M(t), `ShipState.massKg`; the first telemetry line);
+   * 0 when not started.
+   */
+  massKg: number;
+  /** The flight data now, unrounded (`SimulationService.telemetry`); null when not started. */
+  telemetry: Telemetry | null;
+  /** The column's telemetry lines as shown (empty when not started). */
+  telemetryLines: string[];
+  /** Delta-v the fuel gives now, m/s, unrounded (the FUEL row's "Δv"); 0 when not running. */
+  dvMS: number;
   /** Each resource row: value text and level, as shown (null when not started). */
   rows: Record<RowId, { value: string; level: Level }> | null;
   /** Death causes whose alarm is on (red rows, D14). */
@@ -103,7 +117,9 @@ const ALARM_SOUND = 'sfx-alarm';
  *   out (D7, D27);
  * - the column on the right: RUN / HOLD / DRIFTING / LANDED / LOST, the day, "Next: MARS in
  *   51 d", six resource rows (OXYGEN, SUPPLIES, POWER in days, FUEL in gates, HEAT and COMMS
- *   as states with a trend; normal / low / critical), the log, the key legend and buttons;
+ *   as states with a trend; normal / low / critical), two telemetry lines (mass, its rate and
+ *   the engine's acceleration; local gravity and escape speed), the log, the key legend and
+ *   buttons;
  * - at a gate or an event the column gives way to a card (`GateCard`, `EventCard`).
  *
  * Keys: `confirm` (Enter, Space) or the button switches Run / Hold (simulated time runs only in
@@ -296,6 +312,10 @@ export class NavigationScene extends PanelScene {
       next: column?.next ?? '',
       detail: column?.detail ?? '',
       timeScale: Math.round(snapshot?.timeScale ?? 0),
+      massKg: snapshot?.ship.massKg ?? 0,
+      dvMS: snapshot && simulation.content ? fuelDv(simulation.content.ship.ispS, snapshot) : 0,
+      telemetry: simulation.telemetry(),
+      telemetryLines: this.column?.telemetryText ?? [],
       rows,
       alarms: [...this.shown.alarms],
       card,
@@ -453,6 +473,7 @@ export class NavigationScene extends PanelScene {
         nextColor: theme.text.dim,
         detail: '',
         rows: null,
+        telemetry: [],
       };
       this.shown = { column: view, alarms: [] };
       return view;
@@ -492,11 +513,13 @@ export class NavigationScene extends PanelScene {
         ? forecast
         : null;
     const legs = content.legs;
+    const telemetry = simulation.telemetry();
     const rows: Record<RowId, RowView> = resourceRows({
       snapshot,
       forecast: legForecast,
       alarms,
       drifting: phase === 'drifting',
+      fuelDvMS: fuelDv(content.ship.ispS, snapshot),
       comms: { now: legs[target]?.comms ?? 'ok', next: legs[target + 1]?.comms ?? null },
     });
     const view: ColumnView = {
@@ -506,6 +529,7 @@ export class NavigationScene extends PanelScene {
       nextColor,
       detail: `Leg ${target + 1}/${gates.length} · ${engineWord(snapshot.autopilot)}`,
       rows,
+      telemetry: telemetry ? telemetryLines(telemetry) : [],
     };
     this.shown = { column: view, alarms };
     return view;
@@ -545,6 +569,11 @@ export class NavigationScene extends PanelScene {
     if (!id) return '';
     return services.simulation.system?.get(id).name ?? id;
   }
+}
+
+/** Delta-v the fuel of `snapshot` gives at its mass, m/s (the rocket equation). */
+function fuelDv(ispS: number, snapshot: SimulationSnapshot): number {
+  return deltaVMS(ispS, snapshot.ship.massKg, snapshot.resources.fuel.value);
 }
 
 /** What the engine does, for the detail line. OWNER: script */

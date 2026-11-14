@@ -4,6 +4,7 @@ import { defineDialogue } from '@/core/dialogue/types';
 import type { Dialogue } from '@/core/dialogue/types';
 import type { GameState } from '@/core/state/GameState';
 import { formatText } from '@/core/text/format';
+import { tonnesText } from '@/core/text/units';
 import { cargoFlag } from '@/core/voyage/loadout';
 import type { VoyageService } from '@/core/voyage/VoyageService';
 import type { WorldContext } from '@/world/WorldContext';
@@ -33,18 +34,22 @@ function baysFree(voyage: VoyageService, s: GameState): number {
   return voyage.cargo.bays - baysUsed(voyage, s);
 }
 
-/** The toast after a take or a put back: `Cargo 3/7`. OWNER: script */
+/**
+ * The toast after a take or a put back: bays in use and the ship's start mass with the cargo
+ * of the flags now (plan variable-mass D7), `Cargo 3/7 · 134.5 t`. OWNER: script
+ */
 function cargoToast(voyage: VoyageService, s: GameState): string {
-  return formatText('Cargo {used}/{bays}', {
+  return formatText('Cargo {used}/{bays} · {mass} t', {
     used: baysUsed(voyage, s),
     bays: voyage.cargo.bays,
+    mass: tonnesText(voyage.startMassKg(s.flags)),
   });
 }
 
 /**
  * The stand at place `place` (1-based) of cargo `itemId` (plan D21, GDD `act1-hands`): a
- * narrator line with the item's label and `line`, then "Take it" / "Put it back" / "Leave it"
- * by `when`. Place `place` holds a crate while fewer than `place` copies are aboard (`crates`),
+ * narrator line with the item's label and `line` and the crate's mass, then "Take it" /
+ * "Put it back" / "Leave it" by `when`. Place `place` holds a crate while fewer than `place` copies are aboard (`crates`),
  * so copies are taken in place order and put back in reverse: "Take it" only at the next
  * standing place (`count + 1`) while the hold has room (otherwise the line ends with
  * `NO_SPACE`), "Put it back" only at the last emptied place (`count`); the crate that moves is
@@ -69,6 +74,8 @@ export function cargoStand(
   };
   const text = (s: GameState): string => {
     const lines = [formatText('{label}. {line}', { label: def.label, line: def.line })];
+    // The crate's mass with its start contents (plan variable-mass D7). OWNER: script
+    lines.push(formatText('Mass {mass} t.', { mass: tonnesText(voyage.itemMassKg(itemId)) }));
     if (def.maxCopies > 1) {
       lines.push(formatText('Aboard: {n} of {max}.', { n: count(s), max: def.maxCopies }));
     }
@@ -108,7 +115,7 @@ export function cargoStand(
  * `fuel-1..3`). Place `n` of a kind empties once `n` crates of it are taken: with `cargo.fuel`
  * = 1 `fuel-1` is empty, `fuel-2` and `fuel-3` stand. A crate shows the item's icon frame. The
  * place stays usable when empty (its stand puts the crate back); E opens `cargoStand`, and a
- * take or a put back ends with the toast `Cargo n/7`.
+ * take or a put back ends with the toast `Cargo n/7 · <start mass> t`.
  */
 function crates(voyage: VoyageService): Record<string, Binding> {
   const bindings: Record<string, Binding> = {};

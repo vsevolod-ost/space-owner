@@ -70,8 +70,8 @@ export type LegMode = 'physics' | 'rail';
 export interface LegDef extends LegConditions {
   /**
    * Delta-v budget of this leg, m/s: the autopilot plans to spend `AUTOPILOT.planFraction` of
-   * it (`chargeDv` in `Simulation.ts`) and keeps the rest as a reserve; one fuel charge is that
-   * planned delta-v, so a leg flown as planned burns one charge (D13).
+   * it and keeps the rest as a reserve; the fuel that takes follows from the rocket equation
+   * (`rocket.ts`). Short of fuel, the ship drifts (D13).
    */
   dvBudget: number;
   /**
@@ -89,7 +89,7 @@ export interface LegDef extends LegConditions {
  * - `flying` - on the leg to gate `legIndex` (thrusting or coasting, see `thrusting`);
  * - `docking` - inside the gate's capture radius, pulled smoothly onto its parking orbit;
  * - `arrived` - parked at gate `legIndex`, waiting for `Simulation.departToNextGate`;
- * - `drifting` - out of fuel charges on the leg: the engine is off for good;
+ * - `drifting` - out of fuel on the leg: the engine is off for good;
  * - `finished` - parked at the last gate.
  */
 export type AutopilotPhase = 'flying' | 'docking' | 'arrived' | 'drifting' | 'finished';
@@ -103,13 +103,17 @@ export interface AutopilotState {
    * Guidance stage on the leg: -1 - climbing out of the gravity of `climbBody`, which pulls
    * harder than the engine where the leg begins (full thrust along the velocity relative to
    * it); 0 - towards the gate
-   * body (or, for a moon deep in its planet's gravity, towards a standoff point by the planet);
-   * 1 - from the standoff point, aiming the fall at the moon.
+   * body (or, for a moon deep in its planet's gravity, towards a standoff point by the planet;
+   * on a transfer leg, the Lambert cruise); 1 - from the standoff point, aiming the fall at the
+   * moon; 2 - a transfer's arrival burn (the rendezvous guidance).
    */
   stage: number;
   /** Stage -1: index of the body the ship climbs away from (in `SimulationContent.bodies`). */
   climbBody: number;
-  /** Stage 0 of a moon leg: direction from the planet to the standoff point (unit vector). */
+  /**
+   * Stage 0 of a moon leg: direction from the planet to the standoff point (unit vector); on a
+   * transfer leg: direction from the gate body to the side the ship arrives from.
+   */
   wayX: number;
   wayY: number;
   /** Simulated time the leg began, s. */
@@ -124,8 +128,18 @@ export interface AutopilotState {
   dirY: number;
   /** Delta-v spent on this leg so far, m/s. */
   dvSpent: number;
+  /**
+   * Delta-v planned for this leg when it began, m/s: `AUTOPILOT.planFraction` of the delta-v
+   * the fuel gave then, at most of the leg's `dvBudget` (plan variable-mass D16, D20).
+   */
+  dvPlan: number;
   /** Closest distance to the gate body's centre on this leg so far, m. */
   closestM: number;
+  /**
+   * Transfer leg (stage 0): the speed against the gate body the Lambert arc arrives with at
+   * the last guidance update, m/s (the arrival burn brakes it); 0 before the first one.
+   */
+  arriveSpeedMS: number;
   /**
    * Rail legs: where the ship started the leg (position and velocity, m and m/s); docking:
    * where it was captured, relative to the gate body.
@@ -150,6 +164,10 @@ export interface ShipState {
   /** Velocity, m/s. */
   vx: number;
   vy: number;
+  /**
+   * Mass now, kg (M(t), plan variable-mass D15): `shipMassKg` of the cargo and the resources,
+   * kept up to date on every substep. The engine's acceleration is its thrust over it.
+   */
   massKg: number;
   /** Current engine thrust, N; 0 = engine off. */
   thrustN: number;
@@ -159,7 +177,7 @@ export interface ShipState {
 
 /**
  * Every ship resource, in the order the navigation panel lists them (D14, GDD `res-list`):
- * - `fuel` - fuel charges (D13);
+ * - `fuel` - kilograms of propellant; `ratePerS` is the engine's burn while it fires (kg/s);
  * - `oxygen`, `water`, `food` - days of stock for the one person aboard;
  * - `power` - days of stock at the ship's base load;
  * - `heat` - days the cabin stays warm without power (`frozen` at 0);
@@ -174,7 +192,7 @@ export type ResourceId = (typeof RESOURCE_IDS)[number];
 
 /** One resource: amount now, the most it holds, and its change per simulated second. */
 export interface Resource {
-  /** Amount now, 0..max (charges, days or a level, see `RESOURCE_IDS`). */
+  /** Amount now, 0..max (kg, days or a level, see `RESOURCE_IDS`). */
   value: number;
   max: number;
   /** Change per simulated second: negative drains it, positive fills it (heat grows). */
@@ -220,9 +238,13 @@ export interface ShipStart {
 
 /** The ship as content describes it (src/content/simulation/ship.ts). */
 export interface ShipConfig {
-  massKg: number;
   /** Thrust of the engine when the autopilot fires it (always full or off), N. */
   thrustN: number;
+  /**
+   * Specific impulse of the engine, s: exhaust speed `ispS * G0` (plan variable-mass D3, D5).
+   * The ship's mass is not here: it comes from the cargo (`shipMassKg`).
+   */
+  ispS: number;
   start: ShipStart;
 }
 

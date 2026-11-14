@@ -62,19 +62,13 @@ export function loadoutOf(
 
 /**
  * The ship's resources at the start of a voyage with `loadout`: every `start` amount times
- * copies. The bars' `max` is the start amount (oxygen, water, food, power, heat), the most the
- * hold can give for fuel (the base and every fuel crate), 2 for comms. Rates are 0 until the
- * first step.
+ * copies (fuel in kg, the rest in days). The bars' `max` is the start amount (the fuel's too:
+ * the bar shows the share of this loadout's tank left, plan variable-mass S3), 2 for comms.
+ * Rates are 0 until the first step.
  */
-export function startResources(catalog: CargoCatalog, loadout: Loadout): Resources {
+export function startResources(loadout: Loadout): Resources {
   const value = (id: StockId) =>
     loadout.entries.reduce((sum, entry) => sum + (entry.def.start?.[id] ?? 0) * entry.count, 0);
-  const fuelMax =
-    (catalog.base.start?.fuel ?? 0) +
-    Object.values(catalog.items).reduce(
-      (sum, def) => sum + (def.start?.fuel ?? 0) * def.maxCopies,
-      0,
-    );
   const resources = {} as Resources;
   for (const id of RESOURCE_IDS) {
     if (id === 'comms') {
@@ -82,14 +76,13 @@ export function startResources(catalog: CargoCatalog, loadout: Loadout): Resourc
       continue;
     }
     const amount = value(id);
-    const max = id === 'fuel' ? Math.max(fuelMax, amount) : amount;
-    resources[id] = { value: amount, max: max > 0 ? max : 1, ratePerS: 0 };
+    resources[id] = { value: amount, max: amount > 0 ? amount : 1, ratePerS: 0 };
   }
   return resources;
 }
 
 /**
- * Cargo ids as they stand in the hold, one per copy: fuel (items that add fuel charges) first,
+ * Cargo ids as they stand in the hold, one per copy: fuel (items that add fuel) first,
  * then the other items in registry order (plan D21). The ship deck's bays show this list.
  */
 export function holdOrder(catalog: CargoCatalog, flags: FlagReader): string[] {

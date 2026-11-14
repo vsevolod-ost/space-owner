@@ -25,6 +25,8 @@ export interface ColumnView {
   detail: string;
   /** The rows, or null before the voyage (shown as "-"). */
   rows: Record<RowId, RowView> | null;
+  /** The two telemetry lines (`telemetryLines`), or empty before the voyage. */
+  telemetry: readonly string[];
 }
 
 /** A game object the column shows and hides. */
@@ -35,7 +37,10 @@ const NEXT_Y = 24;
 const DETAIL_Y = 36;
 const ROWS_Y = 56;
 const ROW_STEP = 16;
-const LOG_Y = 160;
+/** The telemetry lines under the rows (plan variable-mass D12, K7) and their step. */
+const TELEMETRY_Y = 148;
+const TELEMETRY_STEP = 12;
+const LOG_Y = 176;
 /** Lines of the log kept on screen. */
 const LOG_LINES = 6;
 /** Row layout: icon, name, bar, value, px from the column's left. */
@@ -48,7 +53,8 @@ const VALUE_X = 204;
 /**
  * The right column of the navigation panel (GDD `ux-panel-layout` B): the status word (RUN /
  * HOLD / DRIFTING / LANDED / LOST), the day, the next gate and when it comes, six resource rows
- * (icon, name, bar, value; normal / low / critical colours, D14), and the log of what happened.
+ * (icon, name, bar, value; normal / low / critical colours, D14), two telemetry lines (mass,
+ * acceleration, gravity, escape speed; plan variable-mass D12), and the log of what happened.
  * Gate and event cards hide it and take its place.
  */
 export class StatusColumn {
@@ -59,6 +65,7 @@ export class StatusColumn {
   private readonly detail: Phaser.GameObjects.Text;
   private readonly bars: Phaser.GameObjects.Graphics;
   private readonly values: Record<RowId, Phaser.GameObjects.Text>;
+  private readonly telemetry: Phaser.GameObjects.Text[];
   private readonly log: Phaser.GameObjects.Text;
   private readonly area: Phaser.Geom.Rectangle;
 
@@ -79,6 +86,11 @@ export class StatusColumn {
       values[id] = createText(scene, x + VALUE_X, rowY, '', 'body');
     });
     this.values = values as Record<RowId, Phaser.GameObjects.Text>;
+    this.telemetry = [0, 1].map((i) =>
+      createText(scene, x, y + TELEMETRY_Y + i * TELEMETRY_STEP, '', 'small', {
+        color: theme.text.dim,
+      }),
+    );
     this.log = createText(scene, x, y + LOG_Y, '', 'small', {
       lineSpacing: theme.lineSpacing,
       wordWrap: { width: area.width },
@@ -91,6 +103,7 @@ export class StatusColumn {
       this.bars,
       ...icons,
       ...Object.values(this.values),
+      ...this.telemetry,
       this.log,
     );
   }
@@ -120,6 +133,7 @@ export class StatusColumn {
       }
       this.values[id].setText(row?.value ?? '-').setColor(levelColor(row?.level ?? 'normal'));
     });
+    this.telemetry.forEach((line, i) => line.setText(view.telemetry[i] ?? ''));
   }
 
   /** Shows the log's last entries, oldest first, as many as fit in `LOG_LINES` wrapped lines. */
@@ -129,6 +143,11 @@ export class StatusColumn {
       shown = shown.slice(1);
     }
     this.log.setText(shown.join('\n'));
+  }
+
+  /** The telemetry lines as shown (debug). */
+  get telemetryText(): string[] {
+    return this.telemetry.map((line) => line.text);
   }
 
   /** Text of the value of row `id` as shown (debug). */

@@ -1,17 +1,17 @@
+import { AUTOPILOT } from '@/core/simulation/autopilot';
 import { DAY_S } from '@/core/simulation/constants';
+import { deltaVMS } from '@/core/simulation/rocket';
 import type { Simulation } from '@/core/simulation/Simulation';
 import type { FlowId } from '@/core/voyage/types';
 
 /**
  * Stock left on arrival under this many days is TIGHT (GDD `gate-decision-info` B: the
- * threshold sets the gamble). OWNER: design
+ * threshold sets the gamble); a stock row under it is yellow. OWNER: design - 60: four times
+ * the 53-day voyage's 15, as the stocks and the events' losses (plan variable-mass S9: the
+ * voyage is 190-270 days), so it still means "one bad event away" and a row turns yellow a few
+ * real seconds before the alarm (about 30 days ahead in cruise) turns it red.
  */
-export const FORECAST_TIGHT_DAYS = 15;
-/**
- * Fuel charges left on arrival under this are TIGHT (the next leg then surely needs more).
- * OWNER: design
- */
-export const FORECAST_TIGHT_CHARGES = 0.25;
+export const FORECAST_TIGHT_DAYS = 60;
 /**
  * Substeps one forecast slice integrates: the work is split in slices this small so a frame's
  * share of the forecast stays near its budget even where substeps are short (near bodies).
@@ -66,7 +66,7 @@ export interface LegForecast {
    */
   legDays: number;
   /**
-   * The charges run out on the way and the ship drifts (D13): the crew is lost a few real
+   * The fuel runs out on the way and the ship drifts (D13): the crew is lost a few real
    * seconds of Run later (`drift`). The stocks' `onArrival` are then the amounts at that moment.
    */
   drifts: boolean;
@@ -79,16 +79,33 @@ export interface LegForecast {
    * up (an autopilot failure, not a fuel shortage; not expected on the shipped legs).
    */
   gaveUp: boolean;
-  /** Fuel charges now, burnt on the leg (to the drift: all of them), left on arrival. */
-  fuelNow: number;
-  charges: number;
-  fuelOnArrival: number;
+  /** Fuel now, burnt on the leg (to the drift: all of it), left on arrival, kg. */
+  fuelNowKg: number;
+  fuelBurntKg: number;
+  fuelOnArrivalKg: number;
   /**
-   * Not enough charges to reach the gate (D6, plan I7): true exactly when `drifts`. Go on is
+   * Delta-v the fuel gives now ("have", the rocket equation at the ship's mass now), m/s
+   * (plan variable-mass D21).
+   */
+  dvNowMS: number;
+  /**
+   * Delta-v the leg needs ("need", plan variable-mass D21), m/s, with the autopilot's reserve
+   * (over `AUTOPILOT.planFraction`): on a transfer leg (Mars) the Lambert delta-v of the
+   * slowest allowed transfer from here (`Simulation.dvNeedMS`); on another leg (the Moon) the
+   * delta-v the flight spends, measured on the copy - null when that copy drifts. The flight
+   * decides `fuelShort`, not this number: near the threshold they may disagree.
+   */
+  dvNeedMS: number | null;
+  /**
+   * Not enough fuel to reach the gate (D6, plan I7): true exactly when `drifts`. Go on is
    * allowed, the ship drifts and the crew is lost (`drift`); the gate card must warn.
    */
   fuelShort: boolean;
-  /** Fuel verdict: short when `fuelShort`, tight under `FORECAST_TIGHT_CHARGES` left. */
+  /**
+   * Fuel verdict: short when `fuelShort`; tight when the ship arrives but has less delta-v
+   * than the leg needs (`dvNeedMS`: it eats into the reserve), or arrives with less than the
+   * next leg will need (its `dvNeedMS` at the gate); else ok.
+   */
   fuelVerdict: ForecastVerdict;
   stocks: Record<FlowId, StockForecast>;
   /** The worst of the stocks' and the fuel's verdicts; short when `gaveUp`. */
@@ -124,7 +141,12 @@ export class ForecastJob {
   private readonly startS: number;
   private readonly planEndS: number;
   private readonly start: Record<FlowId, number>;
-  private readonly fuelNow: number;
+  private readonly fuelNowKg: number;
+  private readonly dvNowMS: number;
+  /** The leg's need from the start (`Simulation.dvNeedMS`), null for a leg without one. */
+  private readonly dvNeedNowMS: number | null;
+  private readonly massNowKg: number;
+  private readonly ispS: number;
   private readonly leg: number;
   private done: LegForecast | null = null;
 
@@ -138,7 +160,11 @@ export class ForecastJob {
     this.leg = pilot.legIndex;
     this.startS = copy.time;
     this.planEndS = Math.max(pilot.arrivalS, copy.time);
-    this.fuelNow = snapshot.resources.fuel.value;
+    this.fuelNowKg = snapshot.resources.fuel.value;
+    this.dvNowMS = copy.dvAvailable;
+    this.dvNeedNowMS = copy.dvNeedMS();
+    this.massNowKg = snapshot.ship.massKg;
+    this.ispS = copy.ispS;
     this.start = Object.fromEntries(
       FORECAST_STOCKS.map((id) => [id, snapshot.resources[id].value]),
     ) as Record<FlowId, number>;
@@ -185,7 +211,8 @@ export class ForecastJob {
     const drifts = end === 'drifts';
     const endS = arrives ? copy.time : this.planEndS;
     const legDays = (endS - this.startS) / DAY_S;
-    const fuelOnArrival = snapshot.resources.fuel.value;
+    const fuelOnArrivalKg = snapshot.resources.fuel.value;
+    const fuelBurntKg = Math.max(0, this.fuelNowKg - fuelOnArrivalKg);
     const fuelShort = drifts;
     const depletions = copy.depletions;
     const stocks = {} as Record<FlowId, StockForecast>;
@@ -215,11 +242,14 @@ export class ForecastJob {
         };
       }
     }
-    const fuelVerdict: ForecastVerdict = fuelShort
-      ? 'short'
-      : fuelOnArrival < FORECAST_TIGHT_CHARGES
-        ? 'tight'
-        : 'ok';
+    const dvNeedMS =
+      this.dvNeedNowMS ??
+      (drifts ? null : deltaVMS(this.ispS, this.massNowKg, fuelBurntKg) / AUTOPILOT.planFraction);
+    const nextNeedMS = arrives ? nextLegNeed(copy) : null;
+    const tight =
+      (dvNeedMS !== null && this.dvNowMS < dvNeedMS) ||
+      (nextNeedMS !== null && copy.dvAvailable < nextNeedMS);
+    const fuelVerdict: ForecastVerdict = fuelShort ? 'short' : tight ? 'tight' : 'ok';
     // A forecast that gave up does not reach the gate either.
     let verdict: ForecastVerdict = end === 'gaveUp' ? 'short' : fuelVerdict;
     for (const id of FORECAST_STOCKS) verdict = worseVerdict(verdict, stocks[id].verdict);
@@ -236,9 +266,11 @@ export class ForecastJob {
           : 0
         : null,
       gaveUp: end === 'gaveUp',
-      fuelNow: this.fuelNow,
-      charges: Math.max(0, this.fuelNow - fuelOnArrival),
-      fuelOnArrival,
+      fuelNowKg: this.fuelNowKg,
+      fuelBurntKg,
+      fuelOnArrivalKg,
+      dvNowMS: this.dvNowMS,
+      dvNeedMS,
       fuelShort,
       fuelVerdict,
       stocks,
@@ -246,4 +278,14 @@ export class ForecastJob {
       firstDepletion: first,
     };
   }
+}
+
+/**
+ * The next leg's need (`Simulation.dvNeedMS`) for a forecast copy parked at a gate, m/s; null
+ * at the last gate or when the next leg has none (only a transfer leg has it without flying).
+ */
+function nextLegNeed(parked: Simulation): number | null {
+  if (parked.autopilot.phase !== 'arrived') return null;
+  const next = parked.forecastCopy();
+  return next.departToNextGate() ? next.dvNeedMS() : null;
 }

@@ -33,7 +33,7 @@ export interface AnsweredEvent {
   day: number;
   choiceId: string;
   hit: boolean;
-  /** Stocks the answer emptied (from above 0 to 0), and the fuel charges it took. */
+  /** Stocks the answer emptied (from above 0 to 0), and the fuel it took, kg. */
   emptied: ResourceId[];
   fuelLost: number;
 }

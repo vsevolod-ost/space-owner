@@ -35,8 +35,10 @@ export function parseLoadout(spec: string): Record<string, number> {
 export interface GateRow {
   gate: number;
   day: number;
-  /** Resource values at the arrival. */
+  /** Resource values at the arrival (fuel in kg). */
   values: Record<ResourceId, number>;
+  /** Delta-v the fuel gives the ship at its mass at the arrival, m/s. */
+  dvMS: number;
   /** Days of stock at the flows of the next leg (Infinity: not running down). */
   daysLeft: Partial<Record<ResourceId, number>>;
   offline: string[];
@@ -81,8 +83,11 @@ export function flyVoyage(simulation: Simulation, legs: readonly LegDef[]): Voya
     }
     simulation.advance(FRAME_S);
     realS += FRAME_S;
-    for (const gate of simulation.takeArrivals()) {
+    // Death wins over an arrival in the same substep (`Voyage.afterStep`, D14): no gate row.
+    const arrivals = simulation.dead ? [] : simulation.takeArrivals();
+    for (const gate of arrivals) {
       const snapshot = simulation.snapshot();
+      const dvMS = simulation.dvAvailable;
       if (simulation.departToNextGate()) legStartDistance = simulation.distanceToGate();
       // Days of stock at the flows of the leg ahead (the last gate: of the leg that ended).
       const rates = evaluateFlows(simulation.cargo, legs[Math.min(gate + 1, legs.length - 1)], {
@@ -100,6 +105,7 @@ export function flyVoyage(simulation: Simulation, legs: readonly LegDef[]): Voya
         values: Object.fromEntries(
           Object.entries(snapshot.resources).map(([id, r]) => [id, r.value]),
         ) as Record<ResourceId, number>,
+        dvMS,
         daysLeft,
         offline: [...snapshot.life.offline],
       });

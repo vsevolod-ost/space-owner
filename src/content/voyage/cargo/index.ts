@@ -7,6 +7,7 @@ import { oxygen } from '@/content/voyage/cargo/oxygen';
 import { reactor } from '@/content/voyage/cargo/reactor';
 import { regolithKit } from '@/content/voyage/cargo/regolith-kit';
 import { solar } from '@/content/voyage/cargo/solar';
+import { stockMass } from '@/content/voyage/cargo/stock-mass';
 import { supplies } from '@/content/voyage/cargo/supplies';
 import { thermalKit } from '@/content/voyage/cargo/thermal-kit';
 import type { CargoCatalog, CargoDef } from '@/core/voyage/types';
@@ -41,4 +42,4 @@ export type CargoId = keyof typeof cargoItems;
  * a change run `python3 tools/make_maps.py`, which reads it for the deck's `bay-N` and the
  * colony's `build-N` places.
  */
-export const cargo: CargoCatalog = { base, items: cargoItems, bays: 7 };
+export const cargo: CargoCatalog = { base, items: cargoItems, bays: 7, kgPerDay: stockMass };

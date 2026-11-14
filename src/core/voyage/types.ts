@@ -7,7 +7,8 @@
 
 /**
  * Resources a cargo item can add at the start (`CargoDef.start`):
- * - `fuel` - fuel charges (D13: one charge flies one leg as planned);
+ * - `fuel` - kilograms of propellant (plan variable-mass D3: the engine burns it by the rocket
+ *   equation, `src/core/simulation/rocket.ts`);
  * - `oxygen`, `water`, `food` - days of stock for the one person aboard;
  * - `power` - days of stock at the ship's base load (1 per day, without heating);
  * - `heat` - days the cabin stays warm with no power (then the crew freezes, `frozen`).
@@ -61,13 +62,19 @@ export interface CargoDef {
   label: string;
   /** One line about it for the warehouse stand, at most 60 characters. */
   line: string;
+  /**
+   * Mass of one copy with its stocks used up, kg: the crate, tanks and gear (for the base, the
+   * ship itself: hull, engine and its reactor, empty tank). Its stocks add their own mass
+   * (`CargoCatalog.kgPerDay`, `shipMassKg` in src/core/voyage/mass.ts).
+   */
+  dryMassKg: number;
   /** Bays of the hold one copy takes (all items take 1 for now; the base takes 0). */
   bays: number;
   /** How many copies can be aboard (the warehouse has this many crates of it). */
   maxCopies: number;
   /** Frame of the item's icon in the `items` sheet (art-order row 12); none for the base. */
   icon?: number;
-  /** Added at the start of the voyage, per copy (fuel in charges, the rest in days). */
+  /** Added at the start of the voyage, per copy (fuel in kg, the rest in days). */
   start?: Partial<Record<StockId, number>>;
   /** Production (+) or use (-) per simulated day, per copy, on a leg (`FlowContext`). */
   flows?: (ctx: FlowContext) => FlowRates;
@@ -100,6 +107,12 @@ export interface CargoCatalog {
   items: Readonly<Record<string, CargoDef>>;
   /** Bays of the hold (D11: 7). */
   bays: number;
+  /**
+   * Mass of one day of a stock, kg (plan variable-mass D4): a stock of `d` days weighs
+   * `d * kgPerDay`. A missing key weighs nothing (power, heat). Fuel is not here: it counts in
+   * kilograms already (`shipMassKg`).
+   */
+  kgPerDay: Readonly<Partial<Record<FlowId, number>>>;
 }
 
 /** One kind of cargo aboard and how many copies. */

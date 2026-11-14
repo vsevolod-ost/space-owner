@@ -5,6 +5,8 @@ export const regolithKit: CargoDef = {
   // OWNER: script
   label: 'Regolith kit',
   line: '[TODO: dig in and build walls from rock]',
+  // OWNER: physics - a small excavator and sintering tools.
+  dryMassKg: 3_000,
   // OWNER: design - bays taken and copies allowed
   bays: 1,
   maxCopies: 1,

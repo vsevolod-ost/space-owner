@@ -100,27 +100,38 @@ export function substepFor(
 }
 
 /**
- * One semi-implicit (symplectic) Euler step of `h` s: gravity at the current position plus the
- * engine's acceleration (`thrustAx`, `thrustAy`, m/s^2) change the velocity, the new velocity
- * moves the position. `work.gravity` must have been called for this position and time.
- * OWNER: physics - the integrator (RK4 or leapfrog would be more exact per step).
+ * One Velocity Verlet step of `h` s from `timeS`: the position moves with the velocity and the
+ * acceleration at the start (gravity plus the engine's `startAx`, `startAy`, m/s^2); gravity is
+ * then taken at the new position and time t + h, and the velocity changes by the mean of the
+ * start and end accelerations (the engine's at the end is `endAx`, `endAy`: it differs from the
+ * start one when the mass changes during the step). `work.gravity` must have been called for
+ * this position and `timeS`; on return it holds gravity at the new position and t + h (two
+ * gravity calls per step: the caller's and this one's).
+ * OWNER: physics - the integrator.
  */
 export function kick(
   state: Kinematics,
   work: Workspace,
-  thrustAx: number,
-  thrustAy: number,
+  timeS: number,
   h: number,
+  startAx: number,
+  startAy: number,
+  endAx: number,
+  endAy: number,
 ): void {
-  state.vx += (work.ax + thrustAx) * h;
-  state.vy += (work.ay + thrustAy) * h;
-  state.x += state.vx * h;
-  state.y += state.vy * h;
+  const ax0 = work.ax + startAx;
+  const ay0 = work.ay + startAy;
+  state.x += (state.vx + 0.5 * ax0 * h) * h;
+  state.y += (state.vy + 0.5 * ay0 * h) * h;
+  work.gravity(state.x, state.y, timeS + h);
+  state.vx += 0.5 * (ax0 + work.ax + endAx) * h;
+  state.vy += 0.5 * (ay0 + work.ay + endAy) * h;
 }
 
 /**
  * Where the ship would be after `durationS` s with the engine off, from `state` at `timeS`:
- * the "zero-effort" prediction of the autopilot. Changes `state` in place.
+ * the "zero-effort" prediction of the autopilot. Changes `state` in place. Gravity at the end of
+ * one step serves as the start of the next: nothing else moves the ship or uses `work` here.
  */
 export function coast(
   state: Kinematics,
@@ -132,10 +143,10 @@ export function coast(
 ): void {
   let t = timeS;
   const end = timeS + durationS;
+  work.gravity(state.x, state.y, t);
   while (t < end) {
-    work.gravity(state.x, state.y, t);
     const h = Math.min(substepFor(work, maxSubstepS, orbitFraction), end - t);
-    kick(state, work, 0, 0, h);
+    kick(state, work, t, h, 0, 0, 0, 0);
     t += h;
   }
 }
@@ -168,8 +179,9 @@ export function coastToClosest(
   let t = timeS;
   const end = timeS + durationS;
   let best: ClosestApproach = { timeS, ship: { ...ship }, distanceM: Infinity };
+  work.gravity(ship.x, ship.y, t);
   for (;;) {
-    work.gravity(ship.x, ship.y, t);
+    // `work` holds gravity and body positions at (ship, t): the last `kick` left them there.
     const dx = work.positions[bodyIndex * 2] - ship.x;
     const dy = work.positions[bodyIndex * 2 + 1] - ship.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -177,7 +189,7 @@ export function coastToClosest(
     else if (distance > 2 * best.distanceM) break;
     if (t >= end) break;
     const h = Math.min(substepFor(work, maxSubstepS, orbitFraction), end - t);
-    kick(ship, work, 0, 0, h);
+    kick(ship, work, t, h, 0, 0, 0, 0);
     t += h;
   }
   return best;

@@ -20,16 +20,16 @@ export const dustyPanels: VoyageEventDef = {
       // OWNER: script
       text: '[TODO: Go out and clean them]',
       result: '[TODO: clean again; the walk cost air]',
-      // OWNER: design
-      effect: { stocks: { oxygen: -4 } },
+      // OWNER: design - days of oxygen (four times the 53-day voyage's 4, plan variable-mass S9).
+      effect: { stocks: { oxygen: -16 } },
     },
     {
       id: 'leave',
       // OWNER: script
       text: '[TODO: Leave them]',
       result: '[TODO: the batteries make up for it]',
-      // OWNER: design
-      effect: { stocks: { power: -10 } },
+      // OWNER: design - days of power (four times the 53-day voyage's 10, plan variable-mass S9).
+      effect: { stocks: { power: -40 } },
     },
   ],
 };

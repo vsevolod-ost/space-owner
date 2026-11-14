@@ -13,7 +13,7 @@ import type {
 
 /**
  * Real seconds of Run a ship drifts out of fuel before the crew is lost (D13: the alarm shows
- * all that time). OWNER: design
+ * all that time; 20-36 simulated days in cruise at the current time scale). OWNER: design
  */
 export const DRIFT_DEATH_REAL_S = 3;
 /**
@@ -22,7 +22,9 @@ export const DRIFT_DEATH_REAL_S = 3;
  * whichever comes first, so no death comes without warning on a fast leg. The real seconds
  * are estimated at the pace the ship will have by then (`LifeForecastInput.realSecondsTo`):
  * the pace grows as the ship leaves a body (a death 3 s away at the current pace came 2.4 s
- * after the alarm). OWNER: design
+ * after the alarm). OWNER: design - kept in plan variable-mass S9 for the 190-270-day voyage:
+ * in cruise 10 days pass in about 1 real s, so the 3 s rule warns first (about 30 days ahead);
+ * near a gate, where time runs slowest, 10 days are about a minute of Run.
  */
 export const ALARM_SIM_DAYS = 10;
 export const ALARM_REAL_S = 3;

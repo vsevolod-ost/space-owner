@@ -23,7 +23,7 @@ npm run dev        # open the printed address, http://localhost:5173/
 npm run check      # type check, lint, format check, docs links
 npm run build      # check, then the production build into dist/
 npm run smoke      # build, then a headless browser check of the menu
-npm run balance    # the balance invariants over every cargo loadout (about a minute)
+npm run balance    # the balance invariants over every cargo loadout (~1.5 min on 16 threads)
 ```
 
 Controls: arrows or WASD to walk, E to interact, Enter or Space to confirm, Esc for the pause

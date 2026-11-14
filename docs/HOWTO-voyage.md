@@ -11,8 +11,9 @@ the integrator) is in [HOWTO-simulation.md](HOWTO-simulation.md).
 In the warehouse (act 1) the player takes up to 7 crates into the hold (`cargo.<id>` flags) and
 boards. On the ship deck the navigation panel flies the ship through two gates in order - the
 Moon, then Mars - while the player keeps it in Run. Every day of flight the cargo and the
-built-in base add or use oxygen, water, food, power and heat; the Moon leg burns about a third
-of a fuel charge, the Mars leg about one. On the way to Mars event cards may stop the flight and
+built-in base add or use oxygen, water, food, power and heat, and the engine burns fuel (the
+Moon leg a few tonnes, the Mars transfer most of the rest); the heavier the ship, the less far
+its fuel takes it. On the way to Mars event cards may stop the flight and
 ask for a choice. At the Moon a card shows the forecast of the next leg and offers **Go on** or
 **Stop here: build &lt;tier&gt;**; at Mars, the last gate, only Stop. Stop lands: the colony (act 3) on that body, its tier set by the cargo against the
 body's needs, then the ending. A death (a stock at 0, drift out of fuel, an event) runs the
@@ -24,30 +25,32 @@ death loop: the scientists' debrief and back to the warehouse with the same carg
 Every number and text meant for the team is marked in the code with its owner:
 `grep -rn "OWNER:" src` lists them all (`OWNER: design`, `physics`, `script`, `art`).
 
-| To change                                         | File                                                               | Owner                                                     |
-| ------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------- |
-| Gate order and bodies                             | `src/content/voyage/gates.ts`                                      | design                                                    |
-| A leg's delta-v budget, docking, rail / physics   | `src/content/voyage/legs.ts` (`dvBudget`, `dockS`, `mode`)         | physics                                                   |
-| A leg's sunlight, heating load, link to the Earth | `src/content/voyage/legs.ts` (`sunFactor`, `heatLoad`, `comms`)    | physics                                                   |
-| The ship's base: tank, start stocks, daily use    | `src/content/voyage/cargo/base.ts`                                 | physics                                                   |
-| A crate: start amounts, daily flows               | `src/content/voyage/cargo/<id>.ts` (`start`, `flows`)              | physics                                                   |
-| A crate: bays, copies, what it gives a colony     | `src/content/voyage/cargo/<id>.ts` (`bays`, `maxCopies`, `colony`) | design; physics where it depends on the site (solar, ice) |
-| A crate's name and line on the warehouse stand    | `src/content/voyage/cargo/<id>.ts` (`label`, `line`)               | script                                                    |
-| Bays of the hold (7; then regenerate the maps)    | `src/content/voyage/cargo/index.ts` (`bays`), see [Cargo](#cargo)  | design                                                    |
-| What the engineer at the hatch calls missing      | `GAPS` in `src/content/locations/warehouse.ts`                     | design / script                                           |
-| Events: leg, point, chance, prices, risks         | `src/content/voyage/events/<id>.ts`                                | design; physics for `reactor-failure` `at`                |
-| Events: title, text, choices, results             | `src/content/voyage/events/<id>.ts`                                | script                                                    |
-| Colony needs per body                             | `src/content/voyage/colony.ts` (`needs`)                           | design                                                    |
-| Colony colours per body                           | `src/content/voyage/colony.ts` (`sky`, `ground`)                   | art                                                       |
-| Which picture a colony item puts up               | `src/content/voyage/colony.ts` (`colonyBuildings`)                 | art                                                       |
-| Colony lines (shelter, systems, overlook)         | `src/content/locations/colony.ts`                                  | script                                                    |
-| Endings and the tier lines                        | `src/content/endings.ts`                                           | script                                                    |
-| Alarm thresholds, drift time                      | `src/core/voyage/flows.ts` (`ALARM_*`, `DRIFT_DEATH_REAL_S`)       | design (core: tell Vsevolod / PR review by the architect) |
-| TIGHT on the gate card                            | `src/core/voyage/forecast.ts` (`FORECAST_TIGHT_*`)                 | design (core: tell Vsevolod / PR review by the architect) |
-| Beats after a landing or a loss                   | `src/core/flow/FlowService.ts` (`LANDING_BEAT_MS`, `LOSS_BEAT_MS`) | design (core: tell Vsevolod / PR review by the architect) |
-| Balance invariant thresholds                      | `src/devtools/balance.ts` (`I3_*`, `I5_*`, `I8_*`)                 | design                                                    |
-| The debrief's lines by cause of death             | `src/content/cutscenes/debrief.ts` (`LINES`)                       | script                                                    |
-| The landing's title card ("Mars · day 54")        | `src/content/story/act3.ts`                                        | script                                                    |
+| To change                                          | File                                                               | Owner                                                     |
+| -------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------- |
+| Gate order and bodies                              | `src/content/voyage/gates.ts`                                      | design                                                    |
+| A leg's delta-v budget, docking, rail / physics    | `src/content/voyage/legs.ts` (`dvBudget`, `dockS`, `mode`)         | physics                                                   |
+| A leg's sunlight, heating load, link to the Earth  | `src/content/voyage/legs.ts` (`sunFactor`, `heatLoad`, `comms`)    | physics                                                   |
+| The ship's base: dry mass, tank, stocks, daily use | `src/content/voyage/cargo/base.ts`                                 | physics                                                   |
+| A crate: dry mass, start amounts, daily flows      | `src/content/voyage/cargo/<id>.ts` (`dryMassKg`, `start`, `flows`) | physics                                                   |
+| Mass of a day of oxygen, water, food               | `src/content/voyage/cargo/stock-mass.ts`                           | physics                                                   |
+| The engine: thrust, specific impulse               | `src/content/simulation/ship.ts`                                   | physics                                                   |
+| A crate: bays, copies, what it gives a colony      | `src/content/voyage/cargo/<id>.ts` (`bays`, `maxCopies`, `colony`) | design; physics where it depends on the site (solar, ice) |
+| A crate's name and line on the warehouse stand     | `src/content/voyage/cargo/<id>.ts` (`label`, `line`)               | script                                                    |
+| Bays of the hold (7; then regenerate the maps)     | `src/content/voyage/cargo/index.ts` (`bays`), see [Cargo](#cargo)  | design                                                    |
+| What the engineer at the hatch calls missing       | `GAPS` in `src/content/locations/warehouse.ts`                     | design / script                                           |
+| Events: leg, point, chance, prices, risks          | `src/content/voyage/events/<id>.ts`                                | design; physics for `reactor-failure` `at`                |
+| Events: title, text, choices, results              | `src/content/voyage/events/<id>.ts`                                | script                                                    |
+| Colony needs per body                              | `src/content/voyage/colony.ts` (`needs`)                           | design                                                    |
+| Colony colours per body                            | `src/content/voyage/colony.ts` (`sky`, `ground`)                   | art                                                       |
+| Which picture a colony item puts up                | `src/content/voyage/colony.ts` (`colonyBuildings`)                 | art                                                       |
+| Colony lines (shelter, systems, overlook)          | `src/content/locations/colony.ts`                                  | script                                                    |
+| Endings and the tier lines                         | `src/content/endings.ts`                                           | script                                                    |
+| Alarm thresholds, drift time                       | `src/core/voyage/flows.ts` (`ALARM_*`, `DRIFT_DEATH_REAL_S`)       | design (core: tell Vsevolod / PR review by the architect) |
+| TIGHT on the gate card                             | `src/core/voyage/forecast.ts` (`FORECAST_TIGHT_*`)                 | design (core: tell Vsevolod / PR review by the architect) |
+| Beats after a landing or a loss                    | `src/core/flow/FlowService.ts` (`LANDING_BEAT_MS`, `LOSS_BEAT_MS`) | design (core: tell Vsevolod / PR review by the architect) |
+| Balance invariant thresholds                       | `src/devtools/balance.ts` (`I3_*`, `I5_*`, `I8_*`)                 | design                                                    |
+| The debrief's lines by cause of death              | `src/content/cutscenes/debrief.ts` (`LINES`)                       | script                                                    |
+| The landing's title card ("Mars · day 203")        | `src/content/story/act3.ts`                                        | script                                                    |
 
 After changing any number in this table: **`npm run balance`** (below). The three files in
 `src/core/` are the engine's: change the constant, and tell Vsevolod (the architect reviews the
@@ -64,7 +67,7 @@ states): rename them everywhere in that file.
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | A crate's name and its line on the stand                                                                                                           | `src/content/voyage/cargo/<id>.ts` (`label`, `line`)                               |
 | An event card: title, text, choices, results                                                                                                       | `src/content/voyage/events/<id>.ts`                                                |
-| Warehouse: "Take it" / "Put it back" / "Leave it", the full-hold line, the "Cargo n/7" toast, the stand and hatch lines, the gap names             | `src/content/locations/warehouse.ts`                                               |
+| Warehouse: "Take it" / "Put it back" / "Leave it", the full-hold line, the "Cargo n/7 · m t" toast, the stand and hatch lines, the gap names       | `src/content/locations/warehouse.ts`                                               |
 | Ship deck: the porthole, radio and airlock toasts                                                                                                  | `src/content/locations/ship-deck.ts`                                               |
 | Colony: shelter, systems, overlook                                                                                                                 | `src/content/locations/colony.ts`                                                  |
 | Endings, tier lines                                                                                                                                | `src/content/endings.ts`                                                           |
@@ -76,7 +79,7 @@ states): rename them everywhere in that file.
 | Character names                                                                                                                                    | `src/content/characters.ts` (`name`)                                               |
 | Body names (panel, cards, landing title)                                                                                                           | `src/content/simulation/solar-system.ts` (`name`)                                  |
 | Panel rows, units, cabin states, the forecast block and its warnings ("NOT ENOUGH FUEL...", "... runs out on day N", "Tight..."), the ALARM toasts | `src/ui/navigation/navigationView.ts`                                              |
-| Gate card: "Gate n/6", "Day N. Next leg", "Go on to", "Stop here: build"                                                                           | `src/ui/navigation/GateCard.ts`                                                    |
+| Gate card: "Gate n/2", "Day N. Next leg", "Go on to", "Stop here: build"                                                                           | `src/ui/navigation/GateCard.ts`                                                    |
 | Event card: the "(needs: ...)" suffix; the cards' key legend; the map's note                                                                       | `src/ui/navigation/EventCard.ts`, `Card.ts`, `SystemMap.ts`                        |
 | Panel column: next / day / leg lines, the log, the key legend, "Run / Hold"                                                                        | `src/scenes/NavigationScene.ts`                                                    |
 | The HOLD strip's caption                                                                                                                           | `src/ui/HoldStrip.ts`                                                              |
@@ -91,11 +94,18 @@ Each gate's `body` is a body of `src/content/simulation/solar-system.ts` with ro
 `legs.ts` has one leg per gate, in the same order: leg 0 is the Earth to the Moon, leg 1 the
 Moon to Mars. Per leg:
 
-- `dvBudget` - the delta-v the autopilot may spend, m/s. It plans 85 % of it; **one fuel charge
-  is that planned delta-v**, so a leg flown as planned burns about one charge (the tank holds
-  1, each fuel crate adds 1, up to 3 crates). The Moon leg is short and burns 0.3 of a charge,
-  the Mars leg about 1.0: the tank alone reaches the Moon, Mars needs at least one fuel crate.
-- `dockS` - simulated seconds of the docking at the gate (about 0.9 real s of animation).
+- `dvBudget` - the most delta-v the autopilot may spend, m/s (Moon 4, Mars 10 km/s). It plans
+  85 % of what the fuel gives, at most of this, and keeps the rest as a reserve. Fuel is in
+  kilograms (the base's tank 23 t, each fuel crate 12 t, up to 3 crates); what it is worth is
+  its delta-v at the ship's mass (the rocket equation, see
+  [HOWTO-simulation.md](HOWTO-simulation.md#the-ship-mass-engine-fuel)). The Moon leg takes
+  about 1 km/s (3.5-5 t of fuel); the Mars leg is a transfer of 188-267 days: the more
+  delta-v the ship has, the faster (two crates already fly at the `dvBudget` cap, about 190
+  days); the slowest costs about 5.3 km/s. The tank alone always reaches the Moon, but Mars
+  only with a light hold (at most about 115-119 t at the start); a heavier one needs a fuel
+  crate.
+- `dockS` - simulated seconds of the docking at the gate (about 0.9 real s of Run at the
+  current time scale: Moon 3.75 h, Mars 6.75 h).
 - `mode` - `physics` (the autopilot flies the real gravity) or `rail` (a scripted curve, for
   a leg the autopilot cannot fly well; the reason is written next to it). Both legs are
   `physics` now; no leg uses rails.
@@ -132,15 +142,23 @@ export const solar: CargoDef = {
   bays: 1, // bays one copy takes
   maxCopies: 1, // crates of it in the warehouse (fuel: 3)
   icon: 4, // frame in ui/items.png
-  // start: { power: 40 } (the battery) - added at the start, per copy: fuel in charges, days
+  dryMassKg: 2_000, // the crate's own mass, kg, without its fuel and stocks
+  // start: { power: 160 } (the battery) - added at the start, per copy: fuel in kg, days
   flows: ({ sunFactor }) => ({ power: 2 * sunFactor }), // per simulated day, per copy
   colony: ({ sunFactor }) => ({ power: sunFactor >= SOLAR_COLONY_MIN_SUN ? 1 : 0 }),
 };
 ```
 
-- **Units.** Fuel in charges (one leg), oxygen / water / food in days for the one person
-  aboard, power in days of the ship's base load (1 a day plus the leg's `heatLoad`), heat in
-  days the cabin stays warm without power.
+- **Units.** Fuel in kilograms, oxygen / water / food in days for the one person aboard, power
+  in days of the ship's base load (1 a day plus the leg's `heatLoad`), heat in days the cabin
+  stays warm without power.
+- **Mass.** `dryMassKg` is the crate itself (the base 80 t; crates 0.5 t for oxygen and
+  supplies to 6 t for the reactor; the fuel crate 3 t of tank). Its fuel and stocks add their
+  own: fuel kilogram for kilogram, oxygen / water / food at `stockMass` in `stock-mass.ts` (0.84,
+  3, 1.8 kg a day), power and heat nothing. The warehouse stand shows a crate's whole mass
+  ("Mass 15.0 t." for a fuel crate), the toast after a take or a put back the ship's ("Cargo
+  3/7 · 134.5 t" with two fuel crates and oxygen). Mass slows the ship and shortens its fuel's
+  reach: a heavy hold flies a slower transfer to Mars and needs more days of life support.
 - **`flows(ctx)`** returns the change per day; `ctx` has the leg's `sunFactor`, `heatLoad`,
   `comms` and `powered` (power above 0). The base breathes, drinks and eats 1 a day each.
 - **`needsPower: true`**: the item dies for good when power reaches 0 (the greenhouse).
@@ -189,12 +207,12 @@ export const hullBreach: VoyageEventDef = {
   title: 'Hull breach',
   text: '[TODO: a micrometeoroid holed a module; air is leaking]',
   choices: [
-    { id: 'seal', text: '[TODO: Seal the module off]', effect: { stocks: { oxygen: -4 } } },
+    { id: 'seal', text: '[TODO: Seal the module off]', effect: { stocks: { oxygen: -16 } } },
     {
       id: 'patch',
       text: '[TODO: Patch it from outside]',
       risk: () => 0.5, // chance it goes wrong
-      onHit: { stocks: { oxygen: -12 } }, // then this, on top of `effect`
+      onHit: { stocks: { oxygen: -48 } }, // then this, on top of `effect`
       result: '[TODO: the patch holds]',
       hitResult: '[TODO: the patch tore, much air is gone]',
     },
@@ -203,15 +221,15 @@ export const hullBreach: VoyageEventDef = {
       text: '[TODO: Fill it with the regolith kit foam]',
       when: (ctx) => ctx.has('regolith-kit'), // otherwise shown dim with "Needs: ..."
       needs: 'Regolith kit',
-      effect: { stocks: { oxygen: -1 } },
+      effect: { stocks: { oxygen: -4 } },
     },
   ],
 };
 ```
 
 - An **effect** may have `waitDays` (the stocks flow that many days while the ship waits),
-  `stocks` (added: negative is lost; `fuel` in charges), `offline` (cargo ids that stop for
-  good) and `die` (the crew dies, cause `event:<id>`).
+  `stocks` (added: negative is lost; `fuel` in kg, the rest in days), `offline` (cargo ids
+  that stop for good) and `die` (the crew dies, cause `event:<id>`).
 - `ctx` in `chance`, `when` and `risk`: `has(id)`, `count(id)`, `stock(id)`, `comms`, `leg`.
 - The **first choice** is what the tools and the smoke test answer by default: make it the
   safe, ordinary answer.
@@ -249,18 +267,25 @@ tier lines); the common tier lines are `TIER_LINES` there.
 ## How to balance
 
 1. Change a number (a crate's flow, an event's chance, a colony need...).
-2. Run **`npm run balance`** (about a minute). It flies **every loadout the hold can take**
+2. Run **`npm run balance`** (about 1.5 minutes on a 16-thread machine: the sweep costs about
+   19 CPU-minutes spread over worker threads, one per CPU, so it stays under 5 minutes only
+   from about 4-5 cores; one core takes about 20). It flies **every loadout the hold can take**
    (1606 sets of at most 7 bays) through the whole voyage, without events and with 20 seeds,
    and prints one line per invariant: `I3 ok: ...` or `I3 failed: ...` with what was measured
    and an example loadout. It must end with every line `ok` (exit code 0).
 3. To see the numbers behind it, run **`npm run voyage-check -- --all`**: the same sweep, a
    summary (how many loadouts reach each gate, how they die, the colony tiers), and one line
    per loadout in **`tools/out/voyage-sweep.csv`** (open it in a spreadsheet; `tools/out/` is
-   not committed). Columns: `loadout`, `bays`, `range_gate` / `range_body` (the last gate
-   reached, -1 / `none` before the Moon), `result` (`landed` or `died`), `death_cause`,
-   `death_day`, `death_leg_to`, `drift_day`, `alarm_lead_real_s`, `tier_<body>` (the tier a
-   Stop there would build), `events_reach_<body>` (share of the 20 seeds that reach it, with
-   the first choice on every card), `dominates_share`, `dominated_by`.
+   not committed). Columns: `loadout`, `bays`, `start_mass_t` and `start_dv_km_s` (the ship's
+   mass and the delta-v of its fuel at the start), `range_gate` / `range_body` (the last gate
+   reached, -1 / `none` before the Moon), `result` (`landed`, `died`, or `gave up`: the flight
+   neither arrived nor drifted), `death_cause`, `death_day`, `death_leg_to`, `drift_day`,
+   `alarm_lead_real_s`, `end_day` (of the death or the landing), `fuel_t_<body>` and
+   `fuel_short_<body>` (the fuel at the gate and whether the gate card says it is short for
+   the next leg), `tier_<body>` (the tier a
+   Stop there would build), `events_reach_<body>` (share of the 20 seeds that reach it with
+   events, with the best fixed answers for that gate: the policy of answers, one per event,
+   that gets the most seeds there), `dominates_share`, `dominated_by`.
 4. To follow one loadout gate by gate:
    `npm run voyage-check -- --loadout fuel:1,oxygen:1,solar:1` (stocks at every gate, how it
    ended, how long the alarm warned); with events:
@@ -274,43 +299,48 @@ decisions; change one only on purpose, with the team.
 
 ### The invariants
 
-| Id  | In plain words                                                                                                                                                                                 | If it fails                                                                                                                                       |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| I1  | Any loadout, even an empty hold, reaches the Moon.                                                                                                                                             | The base's start stocks or the Moon leg's costs are too harsh: raise `base.ts` `start`, or lower the leg's `heatLoad`.                            |
-| I2  | The base alone dies before the last gate (Mars): the cargo matters.                                                                                                                            | The base is too generous: lower its `start` (power, oxygen...) or raise its daily use.                                                            |
-| I3  | Between 10 % and 50 % of loadouts reach the last gate (Mars) (`I3_MIN_LAST_SHARE`, `I3_MAX_LAST_SHARE`).                                                                                       | Too few: give the sets more (fuel charges per crate, life support, power). Too many: tighten the Mars leg (`heatLoad`) or the life-support flows. |
-| I4  | No loadout is at least as good as every other on range and on the tier at every body: there is no single right answer.                                                                         | Weaken the dominant set's strongest item, or give the others something it lacks (a colony axis, a body where it is worse).                        |
-| I5  | Every kind of cargo is in some best set (top 10 % by range or by the tier at some body): no dead cargo.                                                                                        | The named kind is never worth a bay: give it a colony axis a body needs, a better flow, or a choice in an event.                                  |
-| I6  | Every death comes at least 3 real seconds after its alarm: no death without warning.                                                                                                           | A stock falls too fast for the alarm (a big event loss, a steep flow): soften it, or raise the alarm thresholds (`ALARM_*`).                      |
-| I7  | Go on with too few fuel charges never reaches the next gate, and the gate card warns every time (in the game the card says "NOT ENOUGH FUEL: the ship drifts..."; the tool prints FUEL SHORT). | The forecast and the flight disagree: an engine problem, tell the programmer.                                                                     |
-| I8  | With events, the best loadout for each gate still reaches it in at least 60 % of seeds (events take at most 40 % off): luck tests, it never rules.                                             | An event is too deadly: lower its `chance`, its losses, or a `risk`.                                                                              |
+| Id  | In plain words                                                                                                                                                                            | If it fails                                                                                                                                  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| I1  | Any loadout, even an empty hold, reaches the Moon.                                                                                                                                        | The base's start stocks or the Moon leg's costs are too harsh: raise `base.ts` `start`, or lower the leg's `heatLoad`.                       |
+| I2  | The base alone dies before the last gate (Mars): the cargo matters.                                                                                                                       | The base is too generous: lower its `start` (power, oxygen...) or raise its daily use.                                                       |
+| I3  | Between 10 % and 50 % of loadouts reach the last gate (Mars) (`I3_MIN_LAST_SHARE`, `I3_MAX_LAST_SHARE`).                                                                                  | Too few: give the sets more (fuel kg per crate, life support, power). Too many: tighten the Mars leg (`heatLoad`) or the life-support flows. |
+| I4  | No loadout is at least as good as every other on range and on the tier at every body: there is no single right answer.                                                                    | Weaken the dominant set's strongest item, or give the others something it lacks (a colony axis, a body where it is worse).                   |
+| I5  | Every kind of cargo is in some best set (top 10 % by range or by the tier at some body): no dead cargo.                                                                                   | The named kind is never worth a bay: give it a colony axis a body needs, a better flow, or a choice in an event.                             |
+| I6  | Every death comes at least 3 real seconds after its alarm: no death without warning.                                                                                                      | A stock falls too fast for the alarm (a big event loss, a steep flow): soften it, or raise the alarm thresholds (`ALARM_*`).                 |
+| I7  | Go on with too little fuel never reaches the next gate, and the gate card warns every time (in the game the card says "NOT ENOUGH FUEL: the ship drifts..."; the tool prints FUEL SHORT). | The forecast and the flight disagree: an engine problem, tell the programmer.                                                                |
+| I8  | With events, the best loadout for each gate still reaches it in at least 60 % of seeds (events take at most 40 % off): luck tests, it never rules.                                        | An event is too deadly: lower its `chance`, its losses, or a `risk`.                                                                         |
 
 The full measured values are in the `ok` lines (e.g. `I2 ok: the base alone dies of frozen on
-day 28.4`). Now: all 1606 loadouts reach the Moon and 484 (30.1 %) reach Mars; the best sets
-of I5 are 128 for the Moon's tier and 28 for Mars's.
+day 83.0`). Now: all 1606 loadouts reach the Moon and 506 (31.5 %) reach Mars; the best sets
+of I5 are 128 for the Moon's tier and 28 for Mars's; the closest to dominant (I4) is at least
+as good as 98.3 % of the others; 177 gates are fuel-short (I7); with events the best set
+reaches Mars in 100 % of seeds (I8). How they end without events: landed at Mars 506, hypoxia
+410, frozen 361, dehydration 194, drift 135.
 
 ### What the sweep assumes, and its other failures
 
-- **The flight does not depend on the cargo.** The ship's mass is the same whatever it carries,
-  so the sweep flies both legs once (the "pre-flight") and follows every loadout along that
-  one flight with the game's own resource functions. If cargo ever changes the flight (mass,
-  thrust, a crate that changes `dvBudget`), the sweep is wrong and needs the programmer.
-- **A drift is flown for real.** Where a loadout runs out of fuel, the sweep does not convert
-  the 3 real seconds of drift with the pre-flight's pace: a drifting ship coasts while the
-  pre-flight thrusts, and the time scale follows the distance to the nearest body, so near a
-  body that estimate was off by days. The pre-flight saves its state every 30 frames; the
-  sweep flies the drift from the nearest saved state before it (`driftEndS` in
-  `src/devtools/voyageSweep.ts`, cached per leg and start).
-- **The cross-check.** The sweep's fast evaluator is compared with the game's own voyage on a
-  sample of loadouts and seeds; `sweep failed: the fast evaluator disagrees with the game ...`
+- **Every loadout flies its own voyage.** The ship's mass - the base, the crates, the stocks,
+  the fuel - sets its acceleration, its delta-v and the transfer the autopilot picks (a light
+  or fuel-rich ship flies a faster one), and it falls as the stocks are used and the fuel
+  burns. So the sweep flies each loadout with the game's own `Simulation`, frame by frame as
+  the game does: once without events (with the alarm, for I6) and once stopping where the
+  events fall due. An event that happens changes the stocks, hence the mass and the flight:
+  the sweep applies the answer with the game's own code to the state saved at that point and
+  flies on from there, once per loadout and answer path; every seed that takes that path
+  shares the flight (`LoadoutFlights` in `src/devtools/voyageEvaluator.ts`). The gate card's
+  "not enough fuel" is the loadout's own flight drifting on the next leg, as in the game. The
+  1606 loadouts are spread over worker threads (one per CPU).
+- **The cross-check.** The sweep's evaluator is compared with the game's own voyage on a
+  sample of loadouts and seeds; `sweep failed: the sweep's evaluator disagrees with the game ...`
   means they differ (an engine bug; tell the programmer, with the line).
 - **Coverage.** The cross-check also flies a voyage for every (event, choice, hit or not) the
   events can produce. `sweep failed: coverage: asteroid-belt/fly/hit never compared` means no
   loadout and seed it tried reaches that case: an event too rare to happen (`chance` near 0, a
   `when` no loadout meets), or a new choice nobody can pick. Make it reachable, or tell the
   programmer if it should not be.
-- **`flight failed: ...`**: the reference flight did not reach every gate (a leg's `dvBudget`
-  too small for the autopilot, say). Run `npm run voyage-check` and fix the leg first.
+- **`flight failed: ...`**: some loadout's flight neither arrived nor drifted within 1000 days
+  (the autopilot failed with these numbers). Run
+  `npm run voyage-check -- --check --loadout <the loadout named>` and fix the flight first.
 
 ## Testing in the game
 
@@ -321,7 +351,7 @@ of I5 are 128 for the Moon's tier and 28 for Mars's.
   gate, the open event and the forecast; `nasa.services.state.flags.set('cargo.fuel', 2)`
   puts two fuel crates aboard (before boarding).
 - The smoke test `voyage` plays the whole loop on seed 1 with `fuel`, `oxygen`, `supplies`
-  and `solar`: Moon, Go on, Mars (landing on day 53), Stop, the colony, the ending
+  and `solar`: Moon, Go on, Mars (landing on day 202), Stop, the colony, the ending
   (`node tools/smoke.mjs --scenario tools/smoke/scenarios/voyage.mjs --timeout 600000` after
   `npm run build`). After changing events, cargo or legs, check that seed 1 still lands at Mars
   with that loadout (`tools/smoke/voyage-seed.mjs` says how), or pick another seed.

@@ -3,9 +3,10 @@
  * (`voyageSweep.ts`) and its cross-check against the game (`voyageCrossCheck.ts`). Prints one
  * line per invariant - "I3 failed: 80 loadouts reach mars (5.0 %, need 10.0 %..50.0 %)" with an example set -
  * and exits non-zero if any fails or the sweep does not match the game. Run it after changing
- * any balance number (cargo, legs, colony needs, events, time scale); it is not part of
- * `npm run check` (it takes about a minute). If an invariant fails, change the numbers, not the
- * invariant. docs/CONTRIBUTING.md.
+ * any balance number (cargo, legs, colony needs, events, time scale, the ship and its cargo's
+ * masses); it is not part of `npm run check` (it takes a minute or two: every loadout flies its
+ * own voyage, on every CPU). If an invariant fails, change the numbers, not the invariant.
+ * docs/CONTRIBUTING.md.
  *
  * Must not import `@/config`, `@/core/services` or the event bus: they read `window` on load.
  */
@@ -18,10 +19,10 @@ import { FRAME_S } from '@/devtools/voyageFlight';
 import {
   loadoutSpec,
   metrics,
-  preflight,
   runSweep,
   type Sweep,
   type SweepRow,
+  sweepTiming,
 } from '@/devtools/voyageSweep';
 
 /**
@@ -61,6 +62,19 @@ export function checkInvariants(sweep: Sweep, cross: CrossCheck): InvariantResul
   const results: InvariantResult[] = [];
   const add = (id: string, ok: boolean, okLine: string, failLine: string) =>
     results.push({ id, ok, line: `${id} ${ok ? 'ok' : 'failed'}: ${ok ? okLine : failLine}` });
+
+  // Every set's own flight must end (arrive or drift): else the autopilot failed.
+  const gaveUp = rows.filter((r) => r.outcome.kind === 'gave up');
+  if (gaveUp.length > 0) {
+    results.push({
+      id: 'flight',
+      ok: false,
+      line:
+        `flight failed: ${gaveUp.length} loadouts' flights neither arrived nor drifted within ` +
+        `1000 days (the autopilot failed with these numbers; npm run voyage-check -- --check ` +
+        `--loadout <set>), e.g. ${gaveUp[0].spec} on its way to ${bodyOf(gaveUp[0].outcome.leg)}`,
+    });
+  }
 
   // I1: the Moon with any set, the empty hold included.
   const noMoon = rows.filter((r) => r.range < 0);
@@ -142,16 +156,31 @@ export function checkInvariants(sweep: Sweep, cross: CrossCheck): InvariantResul
       `${late[0]?.outcome.alarmLeadRealS?.toFixed(2) ?? 'no alarm'} s`,
   );
 
-  // I7: Go on with too few charges never reaches the next gate, and the gate card warns.
+  // I7: Go on with too little fuel never reaches the next gate, and the gate card warns.
   let shortGates = 0;
   const reachedShort: string[] = [];
+  /** Delta-v at the fuel-short gates (the most) and at the others that go on (the least). */
+  let shortMost: { dv: number; fuel: number; at: string } | null = null;
+  let enoughLeast: { dv: number; fuel: number; at: string } | null = null;
   for (const row of rows) {
     row.outcome.fuelShortAtGate.forEach((short, gate) => {
-      if (!short) return;
+      const o = row.outcome;
+      const at = {
+        dv: o.dvAtGate[gate],
+        fuel: o.fuelAtGate[gate],
+        at: `${row.spec} at ${bodyOf(gate)}`,
+      };
+      if (!short) {
+        if (gate < lastGate && (!enoughLeast || at.dv < enoughLeast.dv)) enoughLeast = at;
+        return;
+      }
       shortGates++;
+      if (!shortMost || at.dv > shortMost.dv) shortMost = at;
       if (row.range > gate) reachedShort.push(`${row.spec} at ${gates[gate].body}`);
     });
   }
+  const fuelText = (x: { dv: number; fuel: number; at: string } | null) =>
+    x ? `${(x.fuel / 1000).toFixed(1)} t, ${(x.dv / 1000).toFixed(2)} km/s (${x.at})` : 'none';
   const gameVoyages = cross.lines.filter((l) => l.seed !== null).length;
   const gameShort = cross.lines.flatMap((l) => l.fuelShortGates.map((g) => ({ ...g, l })));
   const gameBad = gameShort.filter((g) => g.reachedNext || !g.flagged);
@@ -162,8 +191,9 @@ export function checkInvariants(sweep: Sweep, cross: CrossCheck): InvariantResul
     `the game's gate card was checked on the ${gameVoyages} cross-checked voyages with ` +
       `events: it said FUEL SHORT at ${gameShort.length} gates, exactly where the sweep did ` +
       `(and at no other gate), and Go on from them never reached the next gate. The sweep ` +
-      `marks ${shortGates} gates fuel-short and passes none (by construction: its drift ` +
-      `reads the same pre-flown burn)`,
+      `marks ${shortGates} gates fuel-short (the most fuel there: ${fuelText(shortMost)}; ` +
+      `the least that is enough: ${fuelText(enoughLeast)}) and passes none (by construction: ` +
+      `each set's own flight decides both)`,
     reachedShort.length > 0
       ? `${reachedShort.length} fuel-short gates passed (need 0), e.g. ${reachedShort[0]}`
       : gameBad.length > 0
@@ -209,15 +239,19 @@ function sweepLine(cross: CrossCheck): string {
   const bad = cross.lines.filter((l) => !l.ok);
   const missing = cross.coverage.filter((c) => c.required && c.compared === 0);
   const covered = cross.coverage.filter((c) => c.compared > 0).length;
+  if (cross.rowDiffs.length > 0) {
+    return `sweep failed: a worker row differs from this thread: ${cross.rowDiffs[0]}`;
+  }
   if (bad.length === 0 && missing.length === 0) {
     return (
-      `sweep ok: the fast evaluator agrees with the game on ${cross.lines.length} voyages, ` +
-      `covering ${covered} of ${cross.coverage.length} event paths`
+      `sweep ok: the sweep's evaluator agrees with the game on ${cross.lines.length} voyages, ` +
+      `covering ${covered} of ${cross.coverage.length} event paths; worker event outcomes ` +
+      `equal this thread's on ${cross.rowsCompared} sets`
     );
   }
   if (bad.length > 0) {
     return (
-      `sweep failed: the fast evaluator disagrees with the game (${bad.length} of ` +
+      `sweep failed: the sweep's evaluator disagrees with the game (${bad.length} of ` +
       `${cross.lines.length} voyages), e.g. ${bad[0].spec} seed ${bad[0].seed}: ${bad[0].diff}`
     );
   }
@@ -296,21 +330,18 @@ function deadCargo(rows: SweepRow[]): { dead: string[]; examples: string[]; tops
   return { dead, examples, tops };
 }
 
-/** Runs the sweep, the cross-check and the invariants; prints them. Returns whether all hold. */
-export function runBalance(write: (line?: string) => void): boolean {
-  const flight = preflight();
-  if (flight.failure) {
-    write(`flight failed: ${flight.failure} - the sweep needs a reference flight to every gate`);
-    write();
-    write('BALANCE: 1 failed (flight) - change the numbers, not the invariants');
-    return false;
-  }
-  const sweep = runSweep(flight);
-  write(
-    `Sweep: ${sweep.rows.length} loadouts, ${(sweep.wallMs / 1000).toFixed(1)} s ` +
-      `(pre-flight ${(sweep.flight.wallMs / 1000).toFixed(1)} s)`,
-  );
+/** Runs the sweep, the cross-check and the invariants; prints them. Resolves whether all hold. */
+export async function runBalance(write: (line?: string) => void): Promise<boolean> {
+  const started = performance.now();
+  const sweep = await runSweep();
+  write(`Sweep: ${sweep.rows.length} loadouts, ${sweepTiming(sweep)}`);
   const cross = crossCheck(sweep);
+  write(
+    `Cross-check: ${cross.lines.length} game voyages, ${(cross.wallMs / 1000).toFixed(1)} s ` +
+      `(compared ${(cross.compareMs / 1000).toFixed(1)} s, searched ${cross.searchSets} sets ` +
+      `for coverage ${(cross.searchMs / 1000).toFixed(1)} s); ` +
+      `balance in all ${((performance.now() - started) / 1000).toFixed(1)} s`,
+  );
   const results = checkInvariants(sweep, cross);
   for (const result of results) write(result.line);
   if (!cross.ok) for (const line of crossCheckText(cross)) write(line);
@@ -326,6 +357,6 @@ export function runBalance(write: (line?: string) => void): boolean {
 }
 
 if (process.argv[1]?.endsWith('balance.ts')) {
-  const ok = runBalance((line = '') => process.stdout.write(`${line}\n`));
+  const ok = await runBalance((line = '') => process.stdout.write(`${line}\n`));
   process.exitCode = ok ? 0 : 1;
 }

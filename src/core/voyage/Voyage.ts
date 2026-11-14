@@ -328,7 +328,7 @@ export class Voyage {
   /** No event card open: the end if the crew died, the waiting gate, or flying on. */
   private afterEvents(): VoyageSignal[] {
     if (this.simulation.dead) return [this.died()];
-    // An answer that left the ship adrift (a leak of the charges) drops the cards still queued.
+    // An answer that left the ship adrift (a fuel leak) drops the cards still queued.
     if (this.simulation.autopilot.phase === 'drifting') this.dropEvents();
     if (this.queue.length > 0) {
       this.state = 'event';

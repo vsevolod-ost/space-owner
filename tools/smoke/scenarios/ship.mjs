@@ -2,22 +2,28 @@ import { VOYAGE_SEED } from '../voyage-seed.mjs';
 
 /**
  * Smoke scenario: act 2 on the ship and the navigation panel (plan S8). `?act=act2&seed=<smoke
- * seed>` (then act 2 again with one fuel crate aboard) opens the ship deck
+ * seed>` (then act 2 again with a fuel crate, the reactor and the greenhouse aboard) opens the
+ * ship deck
  * with the voyage started (its seed in `run.seed`) and saves a
  * checkpoint that marks it (no snapshot). Simulated time runs only on the navigation panel in
  * Run mode (GDD `act2-pause`): it stands on the deck and on the panel in Hold (status HOLD, the
  * column: "Next: MOON", six rows). Enter (`confirm`) switches to Run: in 3 s the ship moves, the
- * autopilot burns fuel charges, oxygen drops; the rows show days, gates and states (GDD D12);
+ * autopilot burns fuel (kg), food drops; the rows show days, fuel in tonnes with its delta-v
+ * ("21.0t Δv93.1", plan variable-mass D6) and states (GDD D12); two telemetry lines under the
+ * rows (mass, its rate, a; g, v_esc; plan variable-mass S7), and by the raw `debugInfo()`
+ * numbers the mass falls and the acceleration rises while the engine fires;
  * the debug warp speeds time up; "Run / Hold" holds again. With the warp the autopilot reaches
  * the Moon (`gateReached`, `gate` held, `voyage.*` flags): the gate card replaces the column;
  * while the forecast computes (stalled here) nothing can be chosen and the cursor stays on Go
- * on; Go on is enabled once the forecast of the Mars leg is in (FUEL, stocks now -> on arrival,
- * the leg's days); Esc does not dismiss it; Enter chooses Go on and holds `panel` (the same
+ * on; Go on is enabled once the forecast of the Mars leg is in (FUEL t, stocks now -> on arrival,
+ * the leg's days, "Δv need X, have Y km/s"); Esc does not dismiss it; Enter chooses Go on and holds `panel` (the same
  * press does not switch to Run). Run again: with the smoke seed the hull breach opens its card
  * at 0.4 of the Mars leg (portrait, text, the foam disabled for want of the regolith kit); an
- * Enter at once is ignored (cards lock input for 0.4 s); then Enter answers "seal" (4 days of oxygen, the result in the log and a toast), `panel` held.
+ * Enter at once is ignored (cards lock input for 0.4 s); then Enter answers "seal" (16 days of oxygen, the result in the log and a toast), `panel` held.
  * A new voyage on the open panel starts the trail and the log again; the fuel drained during
- * the Moon's docking makes the gate card warn in red (NOT ENOUGH FUEL, FUEL SHORT) while Go on
+ * the Moon's docking makes the gate card warn in red (NOT ENOUGH FUEL, FUEL SHORT, "Δv need X,
+ * have Y" with need over have)
+ * while Go on
  * stays allowed (D6); Go on and Run: DRIFTING, the drift alarm (toast, FUEL red), no event
  * card while adrift, and the crew is lost (LOST, shown for a moment before the death loop takes
  * the hero to the warehouse's debrief). After the event card, Esc closes the panel: time stands
@@ -90,10 +96,15 @@ export default async function ship(_page, h) {
   await h.waitReady('World', SLOW);
   await h.waitEvent('checkpointSaved', SLOW);
   await h.waitFor(faderClear, SLOW);
-  // The base's tank reaches only the Moon: board again with one fuel crate for the Mars leg.
+  // Board again with one fuel crate (the Mars leg then has fuel to spare: the base's tank alone
+  // is about what the slowest transfer needs) and the reactor and the greenhouse: the Mars
+  // transfer takes about 200 days, the base's stocks alone run out before the hull breach at
+  // 0.4 of it (plan variable-mass S4).
   await h.mark();
   await h.eval(() => {
     window.nasa.services.state.flags.set('cargo.fuel', 1);
+    window.nasa.services.state.flags.set('cargo.reactor', 1);
+    window.nasa.services.state.flags.set('cargo.greenhouse', 1);
     void window.nasa.services.flow.startAct('act2');
   });
   await h.waitReady('World', SLOW);
@@ -152,27 +163,75 @@ export default async function ship(_page, h) {
   await h.shot('ship-navigation-hold');
 
   // --- Enter (`confirm`) switches to Run: 3 s later the ship moved under the autopilot
-  // (fuel charges burnt), oxygen dropped.
+  // (fuel burnt, kg), food dropped (the greenhouse aboard makes all the oxygen).
   await h.press('Enter');
   await h.waitFor(() => window.nasa.services.simulation.isRunning, 2000);
   if (!(await h.eval(nav)).run) throw new Error('Enter did not switch the panel to Run');
   const before = await h.eval(snapshot);
-  await wait(3000);
+  await wait(2000);
+  const mid = await h.eval(nav);
+  await wait(1000);
   const after = await h.eval(snapshot);
   const panel = await h.eval(nav);
+  // --- "Run / Hold" holds again right after the timed reads (before the checks, evals and the
+  // screenshot below, whose real time must not let the ship reach the Moon): time stands.
+  await h.click(panel.buttons.run.x, panel.buttons.run.y);
+  await h.waitFor(() => !window.nasa.game.scene.getScene('Navigation').debugInfo().run, 2000);
+  await expectStill('on the panel after "Run / Hold"');
+  if ((await h.eval(nav)).status !== 'HOLD') throw new Error('the status is not HOLD after Hold');
   h.log(
     `3 s: day ${(before.timeS / 86400).toFixed(2)} -> ${(after.timeS / 86400).toFixed(2)}, ` +
       `ship.x ${before.ship.x.toExponential(4)} -> ${after.ship.x.toExponential(4)}, ` +
-      `oxygen ${before.resources.oxygen.value.toFixed(3)} -> ${after.resources.oxygen.value.toFixed(3)}, ` +
-      `fuel ${before.resources.fuel.value.toFixed(4)} -> ${after.resources.fuel.value.toFixed(4)}, ` +
+      `food ${before.resources.food.value.toFixed(3)} -> ${after.resources.food.value.toFixed(3)}, ` +
+      `fuel ${before.resources.fuel.value.toFixed(1)} -> ${after.resources.fuel.value.toFixed(1)} kg, ` +
+      `mass ${before.ship.massKg.toFixed(1)} -> ${after.ship.massKg.toFixed(1)} kg, ` +
       `panel ${JSON.stringify(panel)}`,
   );
   if (after.ship.x === before.ship.x) throw new Error('ship.x did not change in 3 s');
-  if (!(after.resources.oxygen.value < before.resources.oxygen.value)) {
-    throw new Error('oxygen did not decrease in 3 s');
+  if (!(after.resources.food.value < before.resources.food.value)) {
+    throw new Error('food did not decrease in 3 s');
   }
   if (!(after.resources.fuel.value < before.resources.fuel.value)) {
-    throw new Error('the autopilot burnt no fuel charge in 3 s');
+    throw new Error('the autopilot burnt no fuel in 3 s');
+  }
+  if (!(after.ship.massKg < before.ship.massKg)) {
+    throw new Error('the ship did not get lighter in 3 s of burning');
+  }
+  // Telemetry (plan variable-mass S7, D12): two lines under the rows; by the raw numbers the
+  // mass falls while the engine fires and the acceleration F / M rises (the rounded line hides
+  // a ~2 % change in 3 s). The engine fires from Run's start (the climb out of the Earth's
+  // gravity): read at 2 s and at 3 s of Run.
+  const t0 = mid.telemetry;
+  const t1 = panel.telemetry;
+  h.log(`telemetry: ${JSON.stringify(t0)} -> ${JSON.stringify(t1)}`);
+  h.log(`telemetry lines: ${JSON.stringify(panel.telemetryLines)}`);
+  const [line1, line2] = panel.telemetryLines;
+  if (
+    panel.telemetryLines.length !== 2 ||
+    !/^Mass \d+\.\dt [↑↓→]\d+\.\d\dkg\/s · a \d+\.\d{3}m\/s²$/.test(line1) ||
+    !/^g \d+\.\d+m\/s² · v_esc [A-Z][a-z]+ \d+(\.\d)?km\/s$/.test(line2) ||
+    line1.length > 37 ||
+    line2.length > 37
+  ) {
+    throw new Error(`telemetry lines: ${JSON.stringify(panel.telemetryLines)}`);
+  }
+  if (!t0 || !t1 || !(t1.massKg < t0.massKg) || !(t1.massRateKgPerS < 0)) {
+    throw new Error('telemetry: the mass should fall while the engine fires');
+  }
+  if (!mid.autopilot.thrusting || !panel.autopilot.thrusting) {
+    throw new Error('telemetry: the engine should fire through the first 3 s of Run');
+  }
+  if (!(t0.accelMS2 > 0 && t1.accelMS2 > t0.accelMS2)) {
+    throw new Error('telemetry: the acceleration should rise as the ship gets lighter');
+  }
+  const accelText = (lines) => / · a (\S+)m\/s²$/.exec(lines[0] ?? '')?.[1];
+  if (!accelText(mid.telemetryLines) || accelText(mid.telemetryLines) !== accelText([line1])) {
+    throw new Error(
+      `telemetry: the rounded a should not move in 1 s: ${mid.telemetryLines[0]} -> ${line1}`,
+    );
+  }
+  if (!(t1.gravityMS2 > 0 && t1.escapeMS > 0 && t1.escapeBody)) {
+    throw new Error('telemetry: local gravity and escape speed');
   }
   if (
     panel.status !== 'RUN' ||
@@ -183,14 +242,16 @@ export default async function ship(_page, h) {
   ) {
     throw new Error(`unexpected panel state ${JSON.stringify(panel)}`);
   }
-  // Six rows (GDD D12): oxygen, supplies, power in days, fuel in gates, heat and comms as
-  // states with a trend arrow.
+  // Six rows (GDD D12): oxygen, supplies, power in days, fuel in tonnes with its delta-v (at
+  // most 12 characters, plan variable-mass K14), heat and comms as states with a trend arrow.
   const rows = panel.rows;
   if (
     !/^\d+ d$/.test(rows.oxygen.value) ||
     !/^\d+ d$/.test(rows.supplies.value) ||
     !/^\d+ d$/.test(rows.power.value) ||
-    !/^\d\.\d gates$/.test(rows.fuel.value) ||
+    !/^\d+\.\dt Δv\d+(\.\d)?$/.test(rows.fuel.value) ||
+    rows.fuel.value.length > 12 ||
+    !(panel.dvMS > 0) ||
     !/^Normal [↑↓→]$/.test(rows.heat.value) ||
     !/^OK [↑↓→]$/.test(rows.comms.value)
   ) {
@@ -202,19 +263,6 @@ export default async function ship(_page, h) {
   if (recorded !== 0) throw new Error(`simulationTick recorded ${recorded} times in __nasaEvents`);
   await h.shot('ship-navigation');
 
-  // --- The debug warp (?debug=1) multiplies simulated time on top of the time scale.
-  const plain = await rate(1000);
-  await h.eval(() => window.nasa.services.simulation.setDebugWarp(10));
-  const warped = await rate(1000);
-  await h.eval(() => window.nasa.services.simulation.setDebugWarp(1));
-  h.log(`warp: ${plain.toFixed(0)} -> ${warped.toFixed(0)} simulated s per real s`);
-  if (!(warped > plain * 4)) throw new Error('setDebugWarp(10) did not speed up simulated time');
-
-  // --- "Run / Hold" holds again: time stands with the panel open.
-  await h.click(panel.buttons.run.x, panel.buttons.run.y);
-  await h.waitFor(() => !window.nasa.game.scene.getScene('Navigation').debugInfo().run, 2000);
-  await expectStill('on the panel after "Run / Hold"');
-  if ((await h.eval(nav)).status !== 'HOLD') throw new Error('the status is not HOLD after Hold');
   await h.press('Enter');
   await h.waitFor(() => window.nasa.services.simulation.isRunning, 2000);
 
@@ -291,7 +339,8 @@ export default async function ship(_page, h) {
     !/^Stop here: build an outpost$/.test(gateCard.choices[1]) ||
     gateCard.selected !== 0 ||
     gateCard.fuelShort !== false ||
-    !gateCard.lines.some((line) => /^FUEL +\d\.\d → +\d\.\d/.test(line)) ||
+    !gateCard.lines.some((line) => /^FUEL t +\d+\.\d → +\d+\.\d/.test(line)) ||
+    !gateCard.lines.some((line) => /^Δv need \d+\.\d, have \d+\.\d km\/s$/.test(line)) ||
     !gateCard.lines.some((line) => /^Leg \d+ d, arrive day \d+$/.test(line))
   ) {
     throw new Error(`unexpected gate card ${JSON.stringify(gateCard)}`);
@@ -345,6 +394,15 @@ export default async function ship(_page, h) {
   await h.mark();
   await h.press('Enter');
   await h.waitFor(() => window.nasa.services.simulation.isRunning, 2000);
+  // --- The debug warp (?debug=1) multiplies simulated time on top of the time scale (measured at
+  // the start of the long Mars leg, far from its gate and its events).
+  const plain = await rate(1000);
+  await h.eval(() => window.nasa.services.simulation.setDebugWarp(10));
+  const warped = await rate(1000);
+  await h.eval(() => window.nasa.services.simulation.setDebugWarp(1));
+  h.log(`warp: ${plain.toFixed(0)} -> ${warped.toFixed(0)} simulated s per real s`);
+  if (!(warped > plain * 4)) throw new Error('setDebugWarp(10) did not speed up simulated time');
+
   await h.eval(() => window.nasa.services.simulation.setDebugWarp(20));
   await h.waitEvent('voyageEvent', 60000);
   await h.eval(() => window.nasa.services.simulation.setDebugWarp(1));
@@ -401,7 +459,7 @@ export default async function ship(_page, h) {
   await expectStill('on the event card');
   await h.shot('ship-navigation-event');
 
-  // --- Enter answers "seal" (the first row): 4 days of oxygen lost, `event` released, `panel`
+  // --- Enter answers "seal" (the first row): 16 days of oxygen lost, `event` released, `panel`
   // held: time stands until Run is pressed again; the result goes to the log and a toast.
   await unlocked();
   await h.press('Enter');
@@ -427,7 +485,7 @@ export default async function ship(_page, h) {
     answered.flag !== 'seal' ||
     answered.hit !== false ||
     answered.resolved !== 1 ||
-    Math.abs(card.oxygen - answered.oxygen - 4) > 1e-6
+    Math.abs(card.oxygen - answered.oxygen - 16) > 1e-6
   ) {
     throw new Error(`answering the hull breach went wrong: ${JSON.stringify(answered)}`);
   }
@@ -463,8 +521,9 @@ export default async function ship(_page, h) {
   await frames(3);
 
   // --- A new voyage on the open panel (base cargo, smoke seed): the trail and the log start
-  // again. Fly to the Moon and drain the fuel during the docking (no fuel is burnt there), so
-  // the Mars leg is short of charges: the gate card warns in red (D6) and Go on stays allowed.
+  // again. Fly to the Moon and drain the fuel during the docking (no fuel is burnt there) to
+  // 400 kg (about 0.1 km/s of delta-v at Isp 3000 s on the ~100 t base ship), so the Mars leg
+  // is short of fuel: the gate card warns in red (D6) and Go on stays allowed.
   await h.eval((s) => {
     const simulation = window.nasa.services.simulation;
     simulation.start(s);
@@ -483,7 +542,7 @@ export default async function ship(_page, h) {
   await h.eval(() => {
     const simulation = window.nasa.services.simulation.voyage.simulation;
     const fuel = simulation.snapshot().resources.fuel.value;
-    simulation.applyEvent('smoke', { stocks: { fuel: 0.4 - fuel } });
+    simulation.applyEvent('smoke', { stocks: { fuel: 400 - fuel } });
   });
   await h.waitEvent('gateReached', 30000);
   await h.eval(() => window.nasa.services.simulation.setDebugWarp(1));
@@ -497,7 +556,8 @@ export default async function ship(_page, h) {
   if (
     shortCard.fuelShort !== true ||
     !shortCard.lines.some((line) => line.startsWith('NOT ENOUGH FUEL')) ||
-    !shortCard.lines.some((line) => /^FUEL .* SHORT$/.test(line)) ||
+    !shortCard.lines.some((line) => /^FUEL t .* SHORT$/.test(line)) ||
+    !shortCard.lines.some((line) => /^Δv need \d+\.\d, have \d+\.\d km\/s$/.test(line)) ||
     shortCard.choices[0] !== 'Go on to MARS'
   ) {
     throw new Error(
@@ -506,7 +566,7 @@ export default async function ship(_page, h) {
   }
   await h.shot('ship-navigation-fuel-short');
 
-  // --- Go on anyway (D6), Run: the charges run out on the way: DRIFTING, the drift alarm (a
+  // --- Go on anyway (D6), Run: the fuel runs out on the way: DRIFTING, the drift alarm (a
   // toast, the FUEL row red), and within a few real seconds of Run the crew is lost.
   await unlocked();
   await h.press('Enter');
@@ -537,7 +597,7 @@ export default async function ship(_page, h) {
   h.log(`lost: ${lost.status}, ${lost.next}, log ${JSON.stringify(lost.log.slice(-2))}`);
   // The drift kills within a few real seconds; a stock may run out first in that window (plan
   // S6 notes: `frozen` with the smoke seed), so any cause will do here.
-  // The FUEL row stays red after the end: the tank is empty ("0.0 gates").
+  // The FUEL row stays red after the end: the tank is empty ("0.0t Δv0.0").
   if (
     lost.status !== 'LOST' ||
     !/^Lost: [\w:-]+, day \d+$/.test(lost.next) ||

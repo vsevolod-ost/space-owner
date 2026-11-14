@@ -234,7 +234,8 @@ with `// OWNER: physics` marks; see [HOWTO-simulation.md](HOWTO-simulation.md).
 Three layers, none with Phaser:
 
 - `Simulation` (`core/simulation`): the physics of one flight - bodies, the ship, the
-  autopilot, fuel charges, the resource flows per substep, deaths. Deterministic: the same
+  autopilot (Lambert transfers), the ship's mass M(t) and its fuel in kilograms burnt by the
+  rocket equation, the resource flows per substep, deaths. Deterministic: the same
   start flies the same, whatever the frame rate ([HOWTO-simulation.md](HOWTO-simulation.md)).
 - `Voyage` (`core/voyage/Voyage.ts`): drives a `Simulation` through the gate chain - parks at a
   gate, `goOn()` / `stopHere()`, rolls and applies the events with the run's seed, computes the

@@ -16,8 +16,9 @@ export const hullBreach: VoyageEventDef = {
       // OWNER: script
       text: '[TODO: Seal the module off]',
       result: '[TODO: the module is lost with the air in it]',
-      // OWNER: design - a sure price in days of oxygen.
-      effect: { stocks: { oxygen: -4 } },
+      // OWNER: design - a sure price in days of oxygen (four times the 53-day voyage's 4, as
+      // every stock: the voyage is now 190-270 days, plan variable-mass S9).
+      effect: { stocks: { oxygen: -16 } },
     },
     {
       id: 'patch',
@@ -25,9 +26,10 @@ export const hullBreach: VoyageEventDef = {
       text: '[TODO: Patch it from outside]',
       result: '[TODO: the patch holds]',
       hitResult: '[TODO: the patch tore, much air is gone]',
-      // OWNER: design - the chance it goes wrong, and the loss then.
+      // OWNER: design - the chance it goes wrong, and the loss then (days: four times the
+      // 53-day voyage's 12, plan variable-mass S9).
       risk: () => 0.5,
-      onHit: { stocks: { oxygen: -12 } },
+      onHit: { stocks: { oxygen: -48 } },
     },
     {
       id: 'foam',
@@ -36,8 +38,8 @@ export const hullBreach: VoyageEventDef = {
       needs: 'Regolith kit',
       result: '[TODO: the foam sets, little air lost]',
       when: (ctx) => ctx.has('regolith-kit'),
-      // OWNER: design
-      effect: { stocks: { oxygen: -1 } },
+      // OWNER: design - days of oxygen (four times the 53-day voyage's 1, plan variable-mass S9).
+      effect: { stocks: { oxygen: -4 } },
     },
   ],
 };

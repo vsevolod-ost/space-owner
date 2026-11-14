@@ -5,6 +5,8 @@ export const thermalKit: CargoDef = {
   // OWNER: script
   label: 'Thermal kit',
   line: '[TODO: keep a colony warm far from the Sun]',
+  // OWNER: physics - insulation blankets and heaters.
+  dryMassKg: 1_500,
   // OWNER: design - bays taken and copies allowed
   bays: 1,
   maxCopies: 1,

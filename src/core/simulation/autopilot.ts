@@ -10,16 +10,17 @@ import type { Body } from '@/core/simulation/types';
  */
 export const AUTOPILOT = {
   /**
-   * Share of a leg's `dvBudget` the autopilot plans to spend; the rest is the reserve for
-   * gravity it did not foresee. One fuel charge is this planned delta-v (`chargeDv` in
-   * `Simulation.ts`, D13), so a leg flown as planned burns about one charge.
+   * Share of the delta-v the fuel gives (at most of the leg's `dvBudget`) the autopilot plans
+   * to spend on a leg (plan variable-mass D16, D20); the rest is the reserve for gravity it did
+   * not foresee and for the burns being longer than impulses. The fuel this takes follows from
+   * the rocket equation (`rocket.ts`, plan variable-mass D3).
    */
   planFraction: 0.85,
   /**
-   * Planning: the guidance's least-effort delta-v (`guidanceEffort`) times this is about what
-   * the full-or-nothing burns spend (measured: 0.76-0.82 between planets). When that is more
-   * than the plan, the flight time is stretched, at most `maxStretch` times, in
-   * `stretchIterations` rounds of bisection.
+   * Planning a straight leg (not a transfer, see `minTransferS`: the Moon): the guidance's
+   * least-effort delta-v (`guidanceEffort`) times this is about what the full-or-nothing burns
+   * spend (measured: 0.76-0.82 between planets). When that is more than the plan, the flight
+   * time is stretched, at most `maxStretch` times, in `stretchIterations` rounds of bisection.
    */
   effortFactor: 0.8,
   maxStretch: 1.4,
@@ -79,6 +80,54 @@ export const AUTOPILOT = {
   interceptOffFraction: 0.1,
   /** Aiming the fall: the prediction's share of the dynamical time (finer: the aim is tight). */
   interceptOrbitFraction: 0.005,
+
+  /**
+   * Transfer legs (a gate body that orbits the Sun, plan variable-mass S4, D10, D20): the ship
+   * flies a Lambert arc around the Sun - a departure burn, a long coast with small corrections,
+   * an arrival burn. The flight time is the shortest whose Lambert delta-v (departure plus
+   * arrival, `transferDv`) fits the plan, between `minTransferS` and the slowest allowed
+   * transfer: the cheapest one up to `maxTransferS` (about a Hohmann transfer, 259 days to
+   * Mars; with the Moon leg the whole voyage stays under about 300 days, plan D8). Times are
+   * tried every `transferGridS`, then refined in `transferIterations` bisection rounds.
+   */
+  minTransferS: 100 * 86_400,
+  maxTransferS: 290 * 86_400,
+  transferGridS: 5 * 86_400,
+  transferIterations: 12,
+  /**
+   * Cruise of a transfer: every guidance update solves Lambert from where the ship is to the
+   * aim at the planned arrival and fires the engine along the velocity change it asks for once
+   * that is over `cruiseOnMS` (m/s), until it is under `cruiseOffMS`. While it fires, the next
+   * update comes when the engine would have given the change asked for, at least
+   * `cruiseBurnReplanS` later (and at most `minReplanS`).
+   */
+  cruiseOnMS: 20,
+  cruiseOffMS: 2,
+  cruiseBurnReplanS: 60,
+  /**
+   * Departure of a transfer from a parking orbit: while the body left behind pulls with over
+   * `departPullFraction` of the engine's acceleration, the departure burn waits on the orbit
+   * until it points within acos(`departMinCos`) of straight away from that body (at most about
+   * two thirds of an orbit, a few days of a transfer of hundreds).
+   */
+  departPullFraction: 0.2,
+  departMinCos: 0.5,
+  /** Cruise of a transfer: the longest interval between guidance updates while coasting, s. */
+  cruiseMaxReplanS: 2 * 86_400,
+  /**
+   * Arrival of a transfer: the arrival burn brakes the speed against the gate body at this
+   * share of the engine's acceleration (the full-or-nothing burns of the guidance law then have
+   * room to correct), so it begins that braking time before the planned arrival; from then on
+   * the rendezvous guidance (`guidance`) flies the rest.
+   */
+  brakeShare: 0.7,
+  /**
+   * Arrival of a transfer: the ship aims to stop at this share of the capture radius from the
+   * gate body, on the side it comes from - so it is captured nearly at rest, having braked
+   * (aiming at the body itself it would be captured before the arrival burn, which the docking
+   * would then absorb for free).
+   */
+  aimCaptureShare: 0.99,
 };
 
 /** Capture radius as a share of the gate body's Hill sphere (the Moon: about 6e7 m). */

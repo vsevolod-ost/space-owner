@@ -15,6 +15,7 @@ import {
   type FlagReader,
 } from '@/core/voyage/loadout';
 import type { CargoCatalog, CargoDef, Loadout } from '@/core/voyage/types';
+import { cargoMassKg, startMassKg } from '@/core/voyage/mass';
 import type { VoyageEventCatalog } from '@/core/voyage/voyageEvents';
 
 /**
@@ -124,6 +125,19 @@ export class VoyageService {
   /** What the ship carries by the flags now (`buildLoadout`). */
   buildLoadout(flags: FlagReader = this.state.flags): Loadout {
     return buildLoadout(this.cargo, flags);
+  }
+
+  /**
+   * Mass of one copy of cargo `id` as it leaves the warehouse, kg (`cargoMassKg`: dry mass and
+   * start contents); the warehouse stand shows it.
+   */
+  itemMassKg(id: string): number {
+    return cargoMassKg(this.cargo, this.item(id));
+  }
+
+  /** The ship's mass at the start of a voyage with the cargo of the flags now, kg. */
+  startMassKg(flags: FlagReader = this.state.flags): number {
+    return startMassKg(this.cargo, this.buildLoadout(flags));
   }
 
   /** The loadout of saved copy counts (`SimulationSnapshot.cargo`). */

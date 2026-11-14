@@ -3,6 +3,7 @@ import type { EventBus } from '@/core/events/EventBus';
 import type { GameEvents } from '@/core/events/events';
 import type { Simulation } from '@/core/simulation/Simulation';
 import { SolarSystem } from '@/core/simulation/SolarSystem';
+import type { Telemetry } from '@/core/simulation/telemetry';
 import type {
   AutopilotState,
   SimulationContent,
@@ -400,6 +401,11 @@ export class SimulationService {
       }
     }
     this.alarms = on;
+  }
+
+  /** The ship's flight data now (`Simulation.telemetry`), or null when not started. */
+  telemetry(): Telemetry | null {
+    return this.simulation?.telemetry() ?? null;
   }
 
   /**

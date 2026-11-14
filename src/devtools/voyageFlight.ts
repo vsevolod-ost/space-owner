@@ -9,7 +9,7 @@ const LEG_LIMIT_S = 1000 * 86_400;
 export interface LegResult {
   /** Whether the gate was reached (docking finished). */
   arrived: boolean;
-  /** Autopilot phase at the end (`arrived`, `finished`, or why it stopped). */
+  /** Autopilot phase at the end (`arrived`, `finished`, or why it stopped; `dead`: the crew). */
   phase: string;
   /** Simulated time of the leg, s. */
   simS: number;
@@ -21,13 +21,14 @@ export interface LegResult {
   captureM: number;
   /** Delta-v spent on the leg, m/s. */
   dv: number;
-  /** Fuel charges left at the end. */
+  /** Fuel left at the end, kg. */
   fuelLeft: number;
 }
 
 /**
  * Flies `simulation`, which is at the start of leg `leg` (or parked before it is departed by
- * the caller), frame by frame as the game would until the gate is reached or the leg fails.
+ * the caller), frame by frame as the game would until the gate is reached or the leg fails
+ * (drifting, the crew dead, or over the time limit).
  */
 export function flyLeg(simulation: Simulation, leg: number): LegResult {
   const startS = simulation.time;
@@ -41,11 +42,12 @@ export function flyLeg(simulation: Simulation, leg: number): LegResult {
     if (near) approachS += FRAME_S;
     const pilot = simulation.autopilot;
     const done = pilot.phase === 'arrived' || pilot.phase === 'finished';
-    if (done || pilot.phase === 'drifting' || simulation.time - startS > LEG_LIMIT_S) {
+    const stuck = pilot.phase === 'drifting' || simulation.dead;
+    if (done || stuck || simulation.time - startS > LEG_LIMIT_S) {
       const snapshot = simulation.snapshot();
       return {
         arrived: done && pilot.legIndex === leg,
-        phase: pilot.phase,
+        phase: simulation.dead ? 'dead' : pilot.phase,
         simS: simulation.time - startS,
         realS,
         approachS,

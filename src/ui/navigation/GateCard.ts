@@ -4,6 +4,7 @@ import type { LegForecast } from '@/core/voyage/forecast';
 import type { ColonyTier } from '@/core/voyage/colony';
 import { Card } from '@/ui/navigation/Card';
 import {
+  dvLine,
   forecastHeading,
   forecastRows,
   forecastWarning,
@@ -37,15 +38,17 @@ const SUBTITLE_Y = 24;
 const HEADING_Y = 40;
 const ROWS_Y = 52;
 const ROW_STEP = 12;
-const LEG_Y = 116;
-const WARNING_Y = 132;
+const LEG_Y = 114;
+const DV_Y = 126;
+const WARNING_Y = 140;
 const HAZARD_Y = 172;
 const CHOICES_Y = 208;
 
 /**
  * The gate card (plan S8, D6, D15; GDD `gate-panel-view` A, `ux-decision-support` B): the
  * gate, then the forecast of the next leg (fuel and stocks now and on arrival, the leg's days,
- * an explicit red warning when the charges do not reach the next gate or a stock runs out,
+ * the delta-v it needs against what the fuel gives, an explicit red warning when the fuel does
+ * not reach the next gate or a stock runs out,
  * "events are not in the forecast"), and "Go on to <next>" / "Stop here: <tier>". While the
  * forecast computes nothing can be chosen and the cursor waits on Go on; then Go on is always
  * allowed (D6) and the cursor starts on it. Only Stop at the last gate.
@@ -57,6 +60,7 @@ export class GateCard extends Card {
   private readonly heading: Phaser.GameObjects.Text;
   private readonly rows: Phaser.GameObjects.Text[] = [];
   private readonly leg: Phaser.GameObjects.Text;
+  private readonly dv: Phaser.GameObjects.Text;
   private readonly warning: Phaser.GameObjects.Text;
   private readonly title: Phaser.GameObjects.Text;
   private readonly subtitle: Phaser.GameObjects.Text;
@@ -84,6 +88,7 @@ export class GateCard extends Card {
     this.heading = this.text(x, y + HEADING_Y, '', 'small');
     for (let i = 0; i < 5; i++) this.rows.push(this.text(x, y + ROWS_Y + i * ROW_STEP, ''));
     this.leg = this.text(x, y + LEG_Y, '', 'small');
+    this.dv = this.text(x, y + DV_Y, '', 'small');
     this.warning = this.text(x, y + WARNING_Y, '', 'body', true);
     this.hazard = this.text(
       x,
@@ -103,6 +108,7 @@ export class GateCard extends Card {
       this.heading.setText('');
       this.rows.forEach((row) => row.setText(''));
       this.leg.setText('');
+      this.dv.setText('');
       this.warning.setText('Only Stop here: no gate lies beyond.').setColor(theme.text.normal);
       this.setChoices([this.stopText()], 0, [false]);
       return;
@@ -111,6 +117,7 @@ export class GateCard extends Card {
       this.heading.setText('Computing the forecast...');
       this.rows.forEach((row) => row.setText(''));
       this.leg.setText('');
+      this.dv.setText('');
       this.warning.setText('');
     } else {
       this.heading.setText(forecastHeading());
@@ -118,6 +125,8 @@ export class GateCard extends Card {
         this.rows[i]?.setText(line.text).setColor(levelColor(line.level)),
       );
       this.leg.setText(legLine(forecast));
+      const dv = dvLine(forecast);
+      this.dv.setText(dv.text).setColor(levelColor(dv.level));
       const warning = forecastWarning(forecast, data.next.toUpperCase());
       this.warning.setText(warning?.text ?? '').setColor(levelColor(warning?.level ?? 'normal'));
     }
@@ -127,7 +136,7 @@ export class GateCard extends Card {
     this.setChoices([goOn, this.stopText()], 0, [computing, computing]);
   }
 
-  /** Whether the forecast on the card says the charges do not reach the next gate (D6). */
+  /** Whether the forecast on the card says the fuel does not reach the next gate (D6). */
   get fuelShort(): boolean {
     return this.forecast?.fuelShort === true;
   }
@@ -144,6 +153,7 @@ export class GateCard extends Card {
       this.heading,
       ...this.rows,
       this.leg,
+      this.dv,
       this.warning,
       this.hazard,
     ]

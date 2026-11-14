@@ -26,19 +26,19 @@ formats on save.
 
 ## Commands
 
-| Command                         | What it does                                                                    |
-| ------------------------------- | ------------------------------------------------------------------------------- |
-| `npm run dev`                   | Dev server with hot reload; `window.nasa` debug hooks are on.                   |
-| `npm run check`                 | Type check, ESLint, Prettier check and the docs link check. Must pass for a PR. |
-| `npm run build`                 | `check`, then the production build into `dist/`.                                |
-| `npm run preview`               | Serves `dist/` as the players get it.                                           |
-| `npm run smoke`                 | Builds, serves the build and runs the menu scenario in headless Chromium.       |
-| `npm run lint:fix`              | ESLint with automatic fixes.                                                    |
-| `npm run format`                | Formats every file (code and Markdown) with Prettier.                           |
-| `npm run typecheck`             | TypeScript only (`tsc --noEmit`).                                               |
-| `npm run check:links`           | Checks that relative links in `README.md` and `docs/` resolve.     |
-| `npm run balance`               | Balance invariants I1-I8 over every loadout (about a minute); see below.        |
-| `npm run voyage-check -- --all` | The loadout sweep: summary, CSV in `tools/out/`, check against the game.        |
+| Command                         | What it does                                                                     |
+| ------------------------------- | -------------------------------------------------------------------------------- |
+| `npm run dev`                   | Dev server with hot reload; `window.nasa` debug hooks are on.                    |
+| `npm run check`                 | Type check, ESLint, Prettier check and the docs link check. Must pass for a PR.  |
+| `npm run build`                 | `check`, then the production build into `dist/`.                                 |
+| `npm run preview`               | Serves `dist/` as the players get it.                                            |
+| `npm run smoke`                 | Builds, serves the build and runs the menu scenario in headless Chromium.        |
+| `npm run lint:fix`              | ESLint with automatic fixes.                                                     |
+| `npm run format`                | Formats every file (code and Markdown) with Prettier.                            |
+| `npm run typecheck`             | TypeScript only (`tsc --noEmit`).                                                |
+| `npm run check:links`           | Checks that relative links in `README.md` and `docs/` resolve.      |
+| `npm run balance`               | Balance invariants I1-I8 over every loadout (~1.5 min on 16 threads); see below. |
+| `npm run voyage-check -- --all` | The loadout sweep: summary, CSV in `tools/out/`, check against the game.         |
 
 ## Checks
 
@@ -75,10 +75,11 @@ Before you open a pull request:
    card warns (I7), events take at most 40 % off the best loadout's chance for any gate (I8).
    "Top 10 %" in I5 is strict: a metric's top is the loadouts strictly above its cut, the cut
    being the lowest value with at most 10 % of loadouts above it (ties at the cut are out). The
-   sweep's fast evaluator is checked against the game's own `Voyage` on every (event, choice,
-   hit or not) the events can produce; `sweep failed: coverage: ... never compared` means a new
-   event or choice no voyage reaches yet. A reference flight that cannot reach every gate (an
-   autopilot broken by `dvBudget`, say) is reported as `flight failed: ...`.
+   sweep's evaluator (every loadout flies its own voyage: the mass sets the flight) is checked
+   against the game's own `Voyage` on every (event, choice, hit or not) the events can produce;
+   `sweep failed: coverage: ... never compared` means a new event or choice no voyage reaches
+   yet. A loadout whose flight neither arrives nor drifts (an autopilot broken by `dvBudget`,
+   say) is reported as `flight failed: ...`.
    A failure prints what was measured and an example loadout, e.g.
    `I2 failed: the base alone reaches mars (need to die before mars)`. Change the numbers, not the invariants; the
    thresholds are `OWNER: design` constants in `src/devtools/balance.ts`. It is not part of

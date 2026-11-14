@@ -1,5 +1,7 @@
 import { DAY_S } from '@/core/simulation/constants';
+import type { Telemetry } from '@/core/simulation/telemetry';
 import type { Resource, SimulationSnapshot } from '@/core/simulation/types';
+import { kmPerSText, tonnesText } from '@/core/text/units';
 import {
   FORECAST_TIGHT_DAYS,
   worseVerdict,
@@ -19,7 +21,10 @@ import { theme } from '@/ui/theme';
  * warnings, alarms); each such declaration is marked.
  */
 
-/** The panel's resource rows, top to bottom (GDD D12: four in days, fuel in gates, two states). */
+/**
+ * The panel's resource rows, top to bottom (GDD D12: four in days, fuel in tonnes with its
+ * delta-v, two states).
+ */
 export const ROW_IDS = ['oxygen', 'supplies', 'power', 'fuel', 'heat', 'comms'] as const;
 
 /** Id of a resource row. `supplies` is water and food together: the lower of the two. */
@@ -50,7 +55,7 @@ export type Level = 'normal' | 'low' | 'critical';
 
 /** One resource row as shown. */
 export interface RowView {
-  /** Value text: "57 d", "2.8 gates", "Cold ↓", "Weak →". */
+  /** Value text: "57 d", "31.9t Δv8.6", "Cold ↓", "Weak →". */
   value: string;
   /** Filled part of the bar, 0..1. */
   fraction: number;
@@ -80,6 +85,8 @@ export interface RowInputs {
   alarms: readonly string[];
   /** The ship drifts out of fuel (D13). */
   drifting: boolean;
+  /** Delta-v the fuel gives now, m/s (`Simulation.dvAvailable`, plan variable-mass D6). */
+  fuelDvMS: number;
   /** The link on this leg and on the next one (null: no next leg), for the trend arrow. */
   comms: { now: CommsLevel; next: CommsLevel | null };
 }
@@ -102,8 +109,8 @@ export function resourceRows(input: RowInputs): Record<RowId, RowView> {
     return { value: daysText(value), fraction, level };
   };
 
-  // Empty as shown ("0.0 gates"): red also after the voyage, when no alarm or forecast is left.
-  const fuelEmpty = Math.floor(r.fuel.value * 10) <= 0;
+  // Empty as shown ("0.0t"): red also after the voyage, when no alarm or forecast is left.
+  const fuelEmpty = tonnesText(r.fuel.value) === '0.0';
   let fuelLevel: Level = 'normal';
   if (alarmed('fuel') || input.drifting || fuelEmpty || forecast?.fuelShort) fuelLevel = 'critical';
   else if (forecast && forecast.fuelVerdict !== 'ok') fuelLevel = 'low';
@@ -121,7 +128,11 @@ export function resourceRows(input: RowInputs): Record<RowId, RowView> {
     oxygen: days('oxygen', [r.oxygen], ['oxygen']),
     supplies: days('supplies', [r.water, r.food], ['water', 'food']),
     power: days('power', [r.power], ['power']),
-    fuel: { value: gatesText(r.fuel.value), fraction: fractionOf(r.fuel), level: fuelLevel },
+    fuel: {
+      value: fuelText(r.fuel.value, input.fuelDvMS),
+      fraction: fractionOf(r.fuel),
+      level: fuelLevel,
+    },
     heat: {
       value: `${heat} ${trendArrow(heatTrend)}`,
       fraction: fractionOf(r.heat),
@@ -197,9 +208,30 @@ export function daysText(days: number): string {
   return `${Math.max(0, Math.floor(days))} d`;
 }
 
-/** Fuel charges as gates, one decimal rounded down: "2.8 gates". OWNER: script */
-export function gatesText(charges: number): string {
-  return `${(Math.max(0, Math.floor(charges * 10)) / 10).toFixed(1)} gates`;
+/**
+ * The column's two telemetry lines (plan variable-mass D12, K14: at most 37 characters each,
+ * no ṁ in the font): "Mass 160.6t ↓0.07kg/s · a 0.012m/s²" (mass, its rate with the
+ * arrow of `trendArrow`, the engine's acceleration) and "g 0.0059m/s² · v_esc Sun 42.1km/s"
+ * (local gravity; escape speed from the body that pulls hardest). Rounded so they do not
+ * flicker from frame to frame. OWNER: script - the words and units; design - the precision.
+ */
+export function telemetryLines(t: Telemetry): [string, string] {
+  const rate = Math.round(t.massRateKgPerS * 100) / 100;
+  const g = t.gravityMS2 >= 1 ? t.gravityMS2.toFixed(2) : t.gravityMS2.toFixed(4);
+  return [
+    `Mass ${tonnesText(t.massKg)}t ${trendArrow(rate)}${Math.abs(rate).toFixed(2)}kg/s` +
+      ` · a ${t.accelMS2.toFixed(3)}m/s²`,
+    `g ${g}m/s² · v_esc ${t.escapeBody} ${kmPerSText(t.escapeMS)}km/s`,
+  ];
+}
+
+/**
+ * The FUEL row's value (plan variable-mass D6): tonnes of fuel and the delta-v they give at
+ * the ship's mass now, "31.9t Δv8.6" (at most 12 characters: the row's room, K14).
+ * OWNER: script
+ */
+export function fuelText(kg: number, dvMS: number): string {
+  return `${tonnesText(kg)}t Δv${kmPerSText(dvMS)}`;
 }
 
 /**
@@ -260,7 +292,7 @@ export function forecastHeading(): string {
 
 /**
  * The forecast rows of the gate card (GDD D15: exact amounts now and on arrival): fuel in
- * gates, oxygen, supplies, power in days, heat as a state; each with its verdict.
+ * tonnes, oxygen, supplies, power in days, heat as a state; each with its verdict.
  * OWNER: script - the row names.
  * `heatMax`: the cabin warmth's full amount (for the state names).
  */
@@ -273,11 +305,10 @@ export function forecastRows(f: LegForecast, heatMax: number): ForecastLine[] {
   });
   const s = f.stocks;
   const supplies = worseVerdict(s.water.verdict, s.food.verdict);
-  const charges = (value: number) => gatesText(value).replace(' gates', '');
   const d = (value: number) => daysText(value);
   const warmth = (value: number) => heatState({ value, max: heatMax });
   return [
-    row('FUEL', charges(f.fuelNow), charges(f.fuelOnArrival), f.fuelVerdict),
+    row('FUEL t', tonnesText(f.fuelNowKg), tonnesText(f.fuelOnArrivalKg), f.fuelVerdict),
     row('OXYGEN', d(s.oxygen.now), d(s.oxygen.onArrival), s.oxygen.verdict),
     row(
       'SUPPLIES',
@@ -288,6 +319,23 @@ export function forecastRows(f: LegForecast, heatMax: number): ForecastLine[] {
     row('POWER', d(s.power.now), d(s.power.onArrival), s.power.verdict),
     row('HEAT', warmth(s.heat.now), warmth(s.heat.onArrival), s.heat.verdict),
   ];
+}
+
+/**
+ * Delta-v the leg needs against what the fuel gives (plan variable-mass D6, D21):
+ * "Δv need 6.5, have 8.3 km/s" (need: the slowest allowed transfer with the autopilot's
+ * reserve, `LegForecast.dvNeedMS`); "need >5.7" when the forecast has no number (a leg other
+ * than a transfer that would drift). Need over have is tight or short: the flight decides which
+ * (the line takes the fuel verdict's colour).
+ * OWNER: script
+ */
+export function dvLine(f: LegForecast): ForecastLine {
+  const have = kmPerSText(f.dvNowMS);
+  const need = f.dvNeedMS === null ? `>${have}` : kmPerSText(f.dvNeedMS);
+  return {
+    text: `Δv need ${need}, have ${have} km/s`,
+    level: VERDICT_LEVEL[f.fuelVerdict],
+  };
 }
 
 /** The leg's length and arrival day: "Leg 41 d, arrive day 53". OWNER: script */

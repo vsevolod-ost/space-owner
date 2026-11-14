@@ -1,6 +1,7 @@
 /**
  * Smoke scenario: the warehouse of act 1 (plan S9). The hero takes three crates at their stands
- * (fuel-1, fuel-2, oxygen: `cargo.*` flags, toasts `Cargo n/7`, crates gone, HOLD strip), puts
+ * (fuel-1, fuel-2, oxygen: `cargo.*` flags, toasts `Cargo n/7 · M t` with the ship's start
+ * mass, each stand's "Mass M t." line, crates gone, HOLD strip), puts
  * the oxygen back at its empty place and leaves a crate standing ("Leave it": no change, no
  * toast). With the hold full (7 of 7 by flags) a crate's stand has no "Take it" and says "No
  * cargo space", while a taken crate's place still offers "Put it back". The astronomer's
@@ -54,19 +55,44 @@ export default async function warehouse(page, h) {
     await h.waitFor(() => window.nasa.game.scene.getScene('Ui').debugInfo().dialogue === null);
   }
 
-  /** E at `name` (standing at x, y), then `label` at its stand; returns the stand's info. */
-  async function stand(name, x, y, label) {
+  /**
+   * E at `name` (standing at x, y), then `label` at its stand; returns the stand's info. `shot`
+   * names a screenshot of the open stand.
+   */
+  async function stand(name, x, y, label, shot) {
     await standAt(name, x, y);
     await h.press('KeyE');
     const info = await choicesOf('cargo-stand');
+    if (shot) await h.shot(shot);
     await choose(info, label);
     return info;
   }
 
-  /** Waits for the toast `text`, then until it has gone. */
-  async function toast(text) {
-    await waitArg((t) => window.nasa.game.scene.getScene('Ui').debugInfo().toast === t, text);
+  /**
+   * Waits for the toast `Cargo <used>/7 · <mass> t` (plan variable-mass S8: the ship's start
+   * mass), then until it has gone; returns the mass in tonnes. `shot` names a screenshot of it.
+   */
+  async function toast(used, shot) {
+    const prefix = `Cargo ${used}/7 · `;
+    await waitArg(
+      (p) => window.nasa.game.scene.getScene('Ui').debugInfo().toast?.startsWith(p) === true,
+      prefix,
+    );
+    const text = (await h.eval(ui)).toast;
+    if (shot) await h.shot(shot);
     await h.waitFor(() => window.nasa.game.scene.getScene('Ui').debugInfo().toast === null, 5000);
+    const match = /^Cargo \d\/7 · (\d+\.\d) t$/.exec(text ?? '');
+    if (!match) throw new Error(`the toast should read "Cargo n/7 · M.M t": "${text}"`);
+    h.log(`toast: ${text}`);
+    return Number(match[1]);
+  }
+
+  /** The crate's mass on a stand's text, "Mass 14.0 t.", in tonnes. */
+  function standMass(info) {
+    const match = /^Mass (\d+\.\d) t\.$/m.exec(info.text);
+    if (!match)
+      throw new Error(`the stand should show the crate's mass: ${JSON.stringify(info.text)}`);
+    return Number(match[1]);
   }
 
   // The stand points: above a crate of the top row, below one of the bottom row.
@@ -96,11 +122,21 @@ export default async function warehouse(page, h) {
   if (JSON.stringify(first.choices.items) !== '["Take it","Leave it"]') {
     throw new Error('a standing crate with room should offer Take it / Leave it');
   }
-  await toast('Cargo 1/7');
-  await stand('crate-fuel-2', ...at('crate-fuel-2'), 'Take it');
-  await toast('Cargo 2/7');
-  await stand('crate-oxygen', ...at('crate-oxygen'), 'Take it');
-  await toast('Cargo 3/7');
+  const fuelCrate = standMass(first);
+  const mass1 = await toast(1);
+  const second = await stand('crate-fuel-2', ...at('crate-fuel-2'), 'Take it');
+  const mass2 = await toast(2);
+  const oxygen = await stand('crate-oxygen', ...at('crate-oxygen'), 'Take it', 'warehouse-stand');
+  const mass3 = await toast(3, 'warehouse-toast');
+  const oxygenCrate = standMass(oxygen);
+  h.log(
+    `crate mass: fuel ${fuelCrate} t, oxygen ${oxygenCrate} t; start mass ${mass1} ${mass2} ${mass3} t`,
+  );
+  // The total grows by the crate's own mass (one function in core, rounding to 0.1 t aside).
+  if (standMass(second) !== fuelCrate) throw new Error('two fuel crates of different mass');
+  if (Math.abs(mass2 - mass1 - fuelCrate) > 0.11 || Math.abs(mass3 - mass2 - oxygenCrate) > 0.11) {
+    throw new Error("the start mass should grow by the taken crate's mass");
+  }
   const three = await h.eval(world);
   const f3 = await h.eval(flags);
   h.log(
@@ -120,7 +156,7 @@ export default async function warehouse(page, h) {
   const back = await stand('crate-oxygen', ...at('crate-oxygen'), 'Put it back');
   h.log(`empty oxygen place: ${JSON.stringify(back.choices.items)}`);
   if (back.choices.items.includes('Take it')) throw new Error('an empty place offers Take it');
-  await toast('Cargo 2/7');
+  if ((await toast(2)) !== mass2) throw new Error('putting the oxygen back: start mass');
   await h.waitFor(
     () => 'crate-oxygen' in window.nasa.game.scene.getScene('World').debugInfo().props.props,
   );
@@ -159,7 +195,7 @@ export default async function warehouse(page, h) {
   await choose(full, 'Leave it');
   const putBack = await stand('crate-supplies', ...at('crate-supplies'), 'Put it back');
   if (!putBack.choices.items.includes('Put it back')) throw new Error('no Put it back when full');
-  await toast('Cargo 6/7');
+  await toast(6);
   for (const id of fill) await setFlag(`cargo.${id}`, 0);
   await h.waitFor(
     () => window.nasa.game.scene.getScene('World').debugInfo().hold?.text === 'HOLD 2/7',

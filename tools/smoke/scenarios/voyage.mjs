@@ -8,7 +8,7 @@ import { VOYAGE_SEED } from '../voyage-seed.mjs';
  * event card) -> the Moon's gate card: "Go on" -> Mars's gate card: "Stop here" -> LANDED,
  * the title "Mars · day N" -> act 3 in the colony on Mars, its checkpoint without the `voyage`
  * mark -> the overlook -> the end screen of Mars. Seed 1 with these four crates reaches Mars
- * on day 53.1 (`npm run voyage-check`, tools/smoke/voyage-seed.mjs).
+ * on day 202.4 (`npm run voyage-check`, tools/smoke/voyage-seed.mjs).
  * Screenshots: voyage-1-home .. voyage-10-ending (voyage-7-event if an event card shows).
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/voyage.mjs --timeout 600000
  *

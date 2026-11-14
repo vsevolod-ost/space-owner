@@ -77,6 +77,9 @@ export const solarSystem: readonly Body[] = [
     orbitRadiusM: 2.2794e11,
     periodS: 686.98 * DAY_S,
     color: 0xd8613c,
-    phaseRad: 0.52,
+    // OWNER: physics - Mars about 0.85 rad ahead of the Earth when the ship leaves the Moon
+    // (day 2-3): the slowest transfer then is about a Hohmann one (250 days, 5.6 km/s), and 0.3
+    // rad either way costs about the same (6.9 km/s; plan variable-mass S4, K11).
+    phaseRad: 0.87,
   },
 ];

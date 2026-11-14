@@ -8,9 +8,13 @@ import {
 } from '@/core/simulation/autopilot';
 import { DAY_S, G } from '@/core/simulation/constants';
 import { Workspace, coast, coastToClosest, kick, substepFor } from '@/core/simulation/dynamics';
+import { type LambertSolution, solveLambert } from '@/core/simulation/lambert';
+import { deltaVMS, fuelFlowKgPerS, fuelForDvKg } from '@/core/simulation/rocket';
 import type { SolarSystem } from '@/core/simulation/SolarSystem';
+import { computeTelemetry, type Telemetry } from '@/core/simulation/telemetry';
 import type {
   AutopilotState,
+  Body,
   GateDef,
   LegDef,
   Resources,
@@ -28,6 +32,7 @@ import {
   stepLife,
 } from '@/core/voyage/flows';
 import { loadoutOf, startResources } from '@/core/voyage/loadout';
+import { shipMassKg, shipMassRateKgPerS, startMassKg } from '@/core/voyage/mass';
 import type {
   CargoCatalog,
   DeathCause,
@@ -42,21 +47,46 @@ import { applyEventEffect, type EventEffect } from '@/core/voyage/voyageEvents';
 // replace them freely. Keep the contract: `step(realDtS)` advances the world by one frame and
 // returns a JSON-safe `SimulationSnapshot` (docs/HOWTO-simulation.md).
 
+// Time scale (GDD D9: logarithmic in the distance to the places of the voyage, the `home`,
+// `gate` and `parent` bodies): simulated seconds per real second for every factor of 10 in that
+// distance beyond `TIME_SCALE_REFERENCE_M`, within a floor..`MAX_TIME_SCALE`. The floor is
+// `MIN_TIME_SCALE` by the body of the gate the ship flies to (the approach and the docking the
+// player watches) and `DEPARTURE_MIN_TIME_SCALE` by every other one (the body the ship leaves,
+// the Earth on the way to Mars): `timeScaleAt`. Tuned with `npm run voyage-check` (plan
+// variable-mass D8, S5) to the old pace of act 2 with the realistic engine: the whole voyage
+// about 49 s of Run (47-52 s with a body's phase shifted), the Moon leg about 17 s, at least
+// 2-3 s of slow approach to every gate before the capture radius. The flight itself does not
+// depend on these constants (only how long it takes in real time); a leg's docking lasts `dockS`
+// simulated seconds, sized in src/content/voyage/legs.ts to about 0.9 real s at these constants -
+// resize it after changing them. The real-time alarm and the drift death (`ALARM_REAL_S`,
+// `DRIFT_DEATH_REAL_S`, src/core/voyage/flows.ts) and invariant I6 depend on them too: run
+// `npm run balance` after a change. OWNER: physics - every time-scale constant below.
+
 /**
- * Time scale (GDD D9: logarithmic in the distance to the nearest `home`, `gate` or `parent`
- * body): simulated seconds per real second for every factor of 10 in that distance beyond
- * `TIME_SCALE_REFERENCE_M`, within `MIN_TIME_SCALE`..`MAX_TIME_SCALE`. Tuned with
- * `npm run voyage-check` to the pace of GDD `res-balance`: the whole voyage about 250 s of Run,
- * no leg over 90 s, at least 2-3 s of slow approach to every gate before the capture radius.
- * The flight itself does not depend on these constants (only how long it takes in real time);
- * a leg's docking lasts `dockS` simulated seconds, sized in src/content/voyage/legs.ts to about
- * 0.9 real s at these constants - resize it after changing them.
+ * Time scale: simulated s per real s for every factor of 10 in the distance. 450 000 (was
+ * 300 000 for a 51-day Mars leg): the realistic engine's transfer coasts about 160 days at
+ * 1e10-1e11 m from the bodies, and this flies them in about 22 s of Run, as long as the old
+ * 51-day leg took in all.
  */
-const TIME_SCALE_PER_DECADE = 300_000;
-/** Time scale: distance at which the logarithmic part is 0, m. */
+const TIME_SCALE_PER_DECADE = 450_000;
+/** Time scale: distance at which the logarithmic part is 0, m (beyond the Moon's orbit). */
 const TIME_SCALE_REFERENCE_M = 5e8;
-/** Time scale limits, simulated seconds per real second (12 000: 200 minutes a second). */
-const MIN_TIME_SCALE = 12_000;
+/**
+ * Time scale floor by the gate body the ship flies to, sim s per real s (15 000: 250 minutes a
+ * second). The whole Moon leg (2-3 days, all within 5e8 m of the Moon) runs at it: about 16 s
+ * of Run, the old Moon leg's length; the Mars approach (within 10 capture radii, 1.1e10 m) takes
+ * about 6 s.
+ */
+const MIN_TIME_SCALE = 15_000;
+/**
+ * Time scale floor by every other `home`, `gate` or `parent` body (the one the ship leaves),
+ * sim s per real s. The Mars transfer waits up to 3 days on the Moon's parking orbit for its
+ * departure direction and then burns 2-4 days near the Moon and the Earth: at the approach
+ * floor that alone was 30-45 s of Run; at 150 000 (about 1.7 days a second) it is 2-4 s, still
+ * long enough to see the ship spiral out.
+ */
+const DEPARTURE_MIN_TIME_SCALE = 150_000;
+/** Time scale ceiling, sim s per real s (not reached on the current route: 1e12 m gives 1.5e6). */
 const MAX_TIME_SCALE = 2_000_000;
 /** Substeps a docking is split into. */
 const DOCKING_SUBSTEPS = 24;
@@ -84,6 +114,9 @@ export interface Depletion {
   y: number;
 }
 
+/** A Lambert arc of a transfer leg and the gate body's velocity on arrival (`lambertTo`), m/s. */
+type TransferArc = LambertSolution & { arriveVx: number; arriveVy: number };
+
 /** A gate as the simulation uses it: its body's index, capture and parking radii. */
 interface GatePlace {
   index: number;
@@ -95,6 +128,12 @@ interface GatePlace {
    */
   planetIndex: number;
   standoffM: number;
+  /**
+   * A transfer (the gate body orbits the Sun, plan variable-mass S4): the autopilot flies a
+   * Lambert arc around `centralIndex` (`AUTOPILOT.minTransferS`).
+   */
+  transfer: boolean;
+  centralIndex: number;
 }
 
 /**
@@ -116,6 +155,8 @@ export class Simulation {
   private readonly life: LifeState;
   private readonly work: Workspace;
   private readonly predictWork: Workspace;
+  /** Scratch of `telemetry` (made on first use: forecast copies never need it). */
+  private telemetryWork: Workspace | null = null;
   private readonly places: readonly GatePlace[];
   /** Body indices the time scale looks at (roles `home`, `gate`, `parent`). */
   private readonly pacers: readonly number[];
@@ -138,7 +179,10 @@ export class Simulation {
     this.work = new Workspace(system);
     this.predictWork = new Workspace(system);
     this.pacers = system.bodies.flatMap((body, i) => (body.role === 'scenery' ? [] : [i]));
-    const accel = route.ship.thrustN / route.ship.massKg;
+    const loadout = 'entries' in from ? from : loadoutOf(route.cargo, from.cargo);
+    // Parking and standoff distances from the mass at the start of the voyage (plan
+    // variable-mass D16), so they stay put while the ship gets lighter.
+    const accel = route.ship.thrustN / startMassKg(route.cargo, loadout);
     this.places = route.gates.map((gate) => {
       const body = system.get(gate.body);
       const index = system.indexOf(gate.body);
@@ -153,6 +197,8 @@ export class Simulation {
         parkM: parkingRadius(system.gm[index], body.radiusM, captureM, accel),
         planetIndex: deep ? planetIndex : -1,
         standoffM: deep ? Math.sqrt(planetGm / (AUTOPILOT.standoffPullFraction * accel)) : 0,
+        transfer: body.parent === undefined,
+        centralIndex: system.indexOf(parent.id),
       };
     });
     if (route.legs.length !== route.gates.length) {
@@ -164,9 +210,9 @@ export class Simulation {
       this.timeScale = snapshot.timeScale;
       this.pendingS = snapshot.pendingS;
       this.ship = { ...snapshot.ship };
-      this.loadout = loadoutOf(route.cargo, snapshot.cargo);
+      this.loadout = loadout;
       this.resources = cloneResources({
-        ...startResources(route.cargo, this.loadout),
+        ...startResources(this.loadout),
         ...snapshot.resources,
       });
       this.pilot = { ...snapshot.autopilot };
@@ -174,13 +220,13 @@ export class Simulation {
     } else {
       this.timeS = 0;
       this.pendingS = 0;
-      this.ship = initialShip(system, route.ship);
       this.loadout = from;
-      this.resources = startResources(route.cargo, from);
+      this.resources = startResources(from);
+      this.ship = initialShip(system, route.ship, shipMassKg(route.cargo, from, this.resources));
       this.pilot = emptyPilot();
       this.life = freshLife();
       this.beginLeg(0);
-      this.timeScale = timeScaleAt(this.distanceToNearestPacer());
+      this.timeScale = this.timeScaleNow();
       // Rates of the first leg, so the panel shows days of stock before Run.
       stepLife(this.resources, this.loadout, this.leg, this.life, 0);
     }
@@ -212,7 +258,7 @@ export class Simulation {
    * the state alone, so where it stops does not depend on frame times either.
    */
   advance(realDtS: number, untilS?: number): void {
-    this.timeScale = timeScaleAt(this.distanceToNearestPacer());
+    this.timeScale = this.timeScaleNow();
     if (this.parked || this.dead) {
       this.pendingS = 0;
       return;
@@ -275,8 +321,9 @@ export class Simulation {
   /**
    * Applies an event's effect (plan S7) to the ship: `applyEventEffect` - waiting days of the
    * flows (the ship, the bodies and the voyage's clock stay where they are: a working
-   * approximation, GDD `evt-asteroid`), stocks within 0..max (fuel at 0 on a leg leaves the ship
-   * drifting, D13; a resource at 0 kills as usual), items offline, the event's own death.
+   * approximation, GDD `evt-asteroid`), stocks within 0..max (fuel, in kg, at 0 on a leg leaves
+   * the ship drifting, D13; a resource at 0 kills as usual), items offline, the event's own
+   * death. The ship's mass follows (`shipMassKg`).
    */
   applyEvent(eventId: string, effect: EventEffect | undefined): void {
     applyEventEffect(
@@ -287,14 +334,14 @@ export class Simulation {
         fuelOut: () => {
           if (this.pilot.phase !== 'flying') return;
           this.pilot.phase = 'drifting';
-          this.pilot.thrusting = false;
-          this.ship.thrustN = 0;
+          this.engineOff();
         },
         die: (cause) => this.die(cause),
       },
       eventId,
       effect,
     );
+    this.updateMass();
   }
 
   /** Whether the crew is dead (`life.cause` set): nothing moves any more. */
@@ -321,8 +368,7 @@ export class Simulation {
     if (this.dead) return;
     this.life.cause = cause;
     this.life.deathDay = this.timeS / DAY_S;
-    this.pilot.thrusting = false;
-    this.ship.thrustN = 0;
+    this.engineOff();
   }
 
   /**
@@ -379,6 +425,33 @@ export class Simulation {
     return this.timeS;
   }
 
+  /**
+   * Delta-v the fuel aboard gives the ship at its mass now, m/s (the rocket equation, plan
+   * variable-mass D16): the panel's FUEL row and the gate card's "have".
+   */
+  get dvAvailable(): number {
+    return deltaVMS(this.route.ship.ispS, this.ship.massKg, this.resources.fuel.value);
+  }
+
+  /**
+   * The ship's flight data now (`computeTelemetry`, plan variable-mass D12): mass, its rate,
+   * the engine's acceleration, local gravity, escape speed. Shown by the navigation panel.
+   */
+  telemetry(): Telemetry {
+    this.telemetryWork ??= new Workspace(this.system);
+    return computeTelemetry(
+      this.telemetryWork,
+      this.ship,
+      this.timeS,
+      shipMassRateKgPerS(this.route.cargo, this.resources),
+    );
+  }
+
+  /** Specific impulse of the ship's engine, s (`ShipConfig.ispS`). */
+  get ispS(): number {
+    return this.route.ship.ispS;
+  }
+
   /** The autopilot's state now (a copy). */
   get autopilot(): AutopilotState {
     return { ...this.pilot };
@@ -411,9 +484,25 @@ export class Simulation {
     return true;
   }
 
-  /** Distance from the ship to the closest `home`, `gate` or `parent` body, m. */
-  distanceToNearestPacer(): number {
-    return this.nearestPacer().distanceM;
+  /**
+   * The time scale at the ship's position now (`timeScaleAt`): its distance to the body of the
+   * gate it flies to (or is parked at) and to the nearest other `home`, `gate` or `parent` body.
+   */
+  private timeScaleNow(): number {
+    const positions = this.work.positions;
+    this.system.fillPositions(this.timeS, positions);
+    const gate = this.places[this.pilot.legIndex]?.index ?? -1;
+    let gateM = Infinity;
+    let otherM = Infinity;
+    for (const i of this.pacers) {
+      const distance = Math.hypot(
+        positions[i * 2] - this.ship.x,
+        positions[i * 2 + 1] - this.ship.y,
+      );
+      if (i === gate) gateM = distance;
+      else otherM = Math.min(otherM, distance);
+    }
+    return timeScaleAt(gateM, otherM);
   }
 
   /** The closest `home`, `gate` or `parent` body: distance and the ship's speed against it. */
@@ -445,6 +534,7 @@ export class Simulation {
     return Math.hypot(p.x - this.ship.x, p.y - this.ship.y);
   }
 
+  /** The engine's acceleration at the ship's mass now, m/s^2 (a = F / M(t)). */
   private get accel(): number {
     return this.route.ship.thrustN / this.ship.massKg;
   }
@@ -489,6 +579,8 @@ export class Simulation {
   private integrate(h: number): void {
     const pilot = this.pilot;
     const startS = this.timeS;
+    // The engine's burn of this substep (kg/s); `fly` and `followRail` set it while it fires.
+    this.resources.fuel.ratePerS = 0;
     switch (pilot.phase) {
       case 'flying':
         if (this.leg.mode === 'rail') this.followRail(h);
@@ -496,7 +588,7 @@ export class Simulation {
         break;
       case 'drifting':
         this.work.gravity(this.ship.x, this.ship.y, this.timeS);
-        kick(this.ship, this.work, 0, 0, h);
+        kick(this.ship, this.work, this.timeS, h, 0, 0, 0, 0);
         this.timeS += h;
         break;
       case 'docking':
@@ -518,13 +610,30 @@ export class Simulation {
     this.work.gravity(ship.x, ship.y, this.timeS);
     let ax = 0;
     let ay = 0;
+    let endAx = 0;
+    let endAy = 0;
     if (pilot.thrusting) {
+      const { thrustN, ispS } = this.route.ship;
       const a = this.accel;
       ax = a * pilot.dirX;
       ay = a * pilot.dirY;
-      this.burn(a * h);
+      const fuel = this.resources.fuel;
+      const flowKgPerS = fuelFlowKgPerS(thrustN, ispS);
+      fuel.ratePerS = -flowKgPerS;
+      // The engine pushes harder at the end of the step: the ship is lighter by then (M(t+h)
+      // from the mass rate of the burn and the flows; `flowResources` sets the exact mass
+      // after). A tank that empties during the step gives no thrust at its end (Verlet then
+      // averages half the push over the step; the fuel left is burnt all the same).
+      const lasts = flowKgPerS * h < fuel.value;
+      const endA = lasts
+        ? thrustN / (ship.massKg + shipMassRateKgPerS(this.route.cargo, this.resources) * h)
+        : 0;
+      endAx = endA * pilot.dirX;
+      endAy = endA * pilot.dirY;
+      pilot.dvSpent += ((a + endA) / 2) * h;
+      this.burn(flowKgPerS * h);
     }
-    kick(ship, this.work, ax, ay, h);
+    kick(ship, this.work, this.timeS, h, ax, ay, endAx, endAy);
     ship.thrustN = pilot.thrusting ? this.route.ship.thrustN : 0;
     if (pilot.thrusting) ship.heading = Math.atan2(pilot.dirY, pilot.dirX);
     else if (ship.vx !== 0 || ship.vy !== 0) ship.heading = Math.atan2(ship.vy, ship.vx);
@@ -533,20 +642,38 @@ export class Simulation {
   }
 
   /**
-   * Spends `dv` of delta-v from the fuel charges (D13: one charge = the leg's planned delta-v,
-   * `chargeDv`). With no charge left the engine stops for good: `drifting`.
+   * Burns `kg` of fuel (plan variable-mass D3), at most what the tank holds, and updates the
+   * ship's mass. With the tank empty the engine stops for good: `drifting` (D13).
    */
-  private burn(dv: number): void {
-    const pilot = this.pilot;
+  private burn(kg: number): void {
     const fuel = this.resources.fuel;
-    pilot.dvSpent += dv;
-    fuel.value -= dv / chargeDv(this.leg);
-    if (fuel.value <= 0) {
-      fuel.value = 0;
-      pilot.phase = 'drifting';
-      pilot.thrusting = false;
-      this.ship.thrustN = 0;
+    const empties = kg >= fuel.value;
+    fuel.value = empties ? 0 : fuel.value - kg;
+    this.updateMass();
+    if (empties) {
+      this.pilot.phase = 'drifting';
+      this.engineOff();
     }
+  }
+
+  /** The engine stops: no thrust, no burn. */
+  private engineOff(): void {
+    this.pilot.thrusting = false;
+    this.ship.thrustN = 0;
+    this.resources.fuel.ratePerS = 0;
+  }
+
+  /**
+   * Delta-v the leg has left of its plan, m/s: the plan (`dvPlan`) less what was spent. The
+   * fuel aboard does not cap it (see `beginLeg`): the tank emptying stops the engine instead.
+   */
+  private dvRemaining(): number {
+    return Math.max(0, this.pilot.dvPlan - this.pilot.dvSpent);
+  }
+
+  /** The ship's mass from the cargo and the resources now (M(t), `shipMassKg`). */
+  private updateMass(): void {
+    this.ship.massKg = shipMassKg(this.route.cargo, this.loadout, this.resources);
   }
 
   /** Inside the capture radius of the gate body: docking begins. */
@@ -611,7 +738,8 @@ export class Simulation {
 
   /**
    * Starts leg `index`: from a parking orbit (or the start orbit for leg 0), the arrival
-   * planned for the leg's delta-v (`AUTOPILOT.planFraction` of `dvBudget`).
+   * planned for the leg's delta-v plan (plan variable-mass D16, D20): `AUTOPILOT.planFraction`
+   * of the delta-v the fuel gives, at most of the leg's `dvBudget`.
    */
   private beginLeg(index: number): void {
     const pilot = this.pilot;
@@ -632,6 +760,9 @@ export class Simulation {
       fromVy: this.ship.vy,
     } satisfies Partial<AutopilotState>);
     pilot.closestM = this.distanceToGate();
+    // Less fuel, a slower transfer (D20); the budget caps the fastest one. Short of fuel even
+    // for the slowest allowed transfer, the ship flies that one and drifts when the tank empties.
+    pilot.dvPlan = AUTOPILOT.planFraction * Math.min(this.dvAvailable, this.leg.dvBudget);
     // Deep in a body's gravity (the Earth at the start, a giant planet after its moon): climb out first.
     this.work.gravity(this.ship.x, this.ship.y, this.timeS);
     const strongest = this.strongestPull();
@@ -654,17 +785,279 @@ export class Simulation {
   }
 
   /**
-   * Flight time to the aim (the gate body, or the standoff point) for the delta-v the leg has
-   * left of its plan (`AUTOPILOT.planFraction` of `dvBudget`), s: a straight "accelerate -
+   * Delta-v leg `pilot.legIndex` needs from here, m/s (plan variable-mass D21, the gate card's
+   * "need"): on a transfer leg the Lambert delta-v of the slowest allowed transfer
+   * (`chooseTransfer`) with the autopilot's reserve (over `AUTOPILOT.planFraction`); null on
+   * another leg (the forecast measures it by flying), while not flying, or when no transfer
+   * of the window has a Lambert arc (unknown: the flight decides).
+   */
+  dvNeedMS(): number | null {
+    const pilot = this.pilot;
+    if (pilot.phase !== 'flying' || !this.places[pilot.legIndex].transfer) return null;
+    const dv = this.chooseTransfer(0).dv;
+    return Number.isFinite(dv) ? dv / AUTOPILOT.planFraction : null;
+  }
+
+  /**
+   * A transfer leg's flight (D20): of the arrivals `AUTOPILOT.minTransferS` ..
+   * `maxTransferS` after the leg began (after now, if the ship is so late that a
+   * `minTransferS` transfer no longer fits), the earliest whose Lambert delta-v from here
+   * (`transferDv`) is within `planDv`, m/s; with none, the cheapest of them (the slowest
+   * allowed transfer, about a Hohmann one). Returns its time from now and delta-v, s and m/s
+   * (Infinity if no arrival of the window has an arc).
+   */
+  private chooseTransfer(planDv: number): { timeS: number; dv: number } {
+    // The window counts from the leg's start (the climb and the departure wait come out of it);
+    // a ship so late that not even a `minTransferS` transfer fits in it any more (it lost its
+    // schedule) counts a fresh window from now.
+    const late =
+      this.timeS + AUTOPILOT.minTransferS > this.pilot.legStartS + AUTOPILOT.maxTransferS;
+    const origin = late ? this.timeS : this.pilot.legStartS;
+    const grid: { timeS: number; dv: number }[] = [];
+    for (
+      let t = AUTOPILOT.minTransferS;
+      t <= AUTOPILOT.maxTransferS;
+      t += AUTOPILOT.transferGridS
+    ) {
+      const timeS = origin + t - this.timeS;
+      if (timeS > 0) grid.push({ timeS, dv: this.transferDv(timeS) });
+    }
+    let slowest = 0;
+    grid.forEach((cell, i) => {
+      if (cell.dv < grid[slowest].dv) slowest = i;
+    });
+    for (let i = 0; i <= slowest; i++) {
+      if (grid[i].dv > planDv) continue;
+      if (i === 0) return grid[0];
+      let low = grid[i - 1].timeS;
+      let high = grid[i].timeS;
+      for (let k = 0; k < AUTOPILOT.transferIterations; k++) {
+        const middle = (low + high) / 2;
+        if (this.transferDv(middle) > planDv) low = middle;
+        else high = middle;
+      }
+      return { timeS: high, dv: this.transferDv(high) };
+    }
+    return grid[slowest];
+  }
+
+  /**
+   * Lambert delta-v of a transfer from here to the gate body `timeS` from now, m/s: the
+   * velocity change to leave on the arc around the leg's central body (`GatePlace.centralIndex`,
+   * the Sun) plus the one to match the body's velocity on arrival, as impulses; Infinity when
+   * there is no such arc.
+   */
+  private transferDv(timeS: number): number {
+    const arc = this.lambertTo(this.gateBody(), 0, timeS);
+    if (!arc) return Number.POSITIVE_INFINITY;
+    const departure = this.departureDv(arc);
+    return (
+      Math.hypot(departure.x, departure.y) +
+      Math.hypot(arc.arriveVx - arc.v2x, arc.arriveVy - arc.v2y)
+    );
+  }
+
+  /**
+   * Velocity change that puts the ship on `arc` from here, m/s. Within a planet's sphere of
+   * influence (the Earth on the way out from the Moon) the arc's velocity is what is left
+   * after climbing out of the planet's gravity: the ship needs the speed against the planet
+   * that leaves it with that excess, sqrt(v_inf^2 + 2 GM / r), along the excess (patched
+   * conics; burning deep in the well is cheaper, the Oberth effect).
+   */
+  private departureDv(arc: TransferArc): { x: number; y: number } {
+    const place = this.places[this.pilot.legIndex];
+    const central = this.system.bodies[place.centralIndex];
+    const c = this.system.velocityOf(central, this.timeS);
+    const planet = this.departurePlanet();
+    if (planet < 0) {
+      return { x: arc.v1x - (this.ship.vx - c.x), y: arc.v1y - (this.ship.vy - c.y) };
+    }
+    const body = this.system.bodies[planet];
+    const p = this.system.positionOf(body, this.timeS);
+    const v = this.system.velocityOf(body, this.timeS);
+    // The excess speed against the planet, and the speed it takes from here.
+    const ex = arc.v1x - (v.x - c.x);
+    const ey = arc.v1y - (v.y - c.y);
+    const excess = Math.hypot(ex, ey);
+    if (excess === 0) return { x: v.x - this.ship.vx, y: v.y - this.ship.vy };
+    const r = Math.hypot(this.ship.x - p.x, this.ship.y - p.y);
+    const speed = Math.sqrt(excess * excess + (2 * this.system.gm[planet]) / r);
+    return {
+      x: (ex / excess) * speed - (this.ship.vx - v.x),
+      y: (ey / excess) * speed - (this.ship.vy - v.y),
+    };
+  }
+
+  /**
+   * Whether a burn along (`dirX`, `dirY`) would now lead the ship into the body it leaves (the
+   * previous gate, or the start body): close to it (it pulls with over
+   * `AUTOPILOT.departPullFraction` of the engine) and the burn points less than
+   * `AUTOPILOT.departMinCos` away from it - from the parking orbit's far side the ship would
+   * dive past the body and its gravity would throw the burn away.
+   */
+  private departureBlocked(dirX: number, dirY: number): boolean {
+    const pilot = this.pilot;
+    const body =
+      pilot.legIndex === 0
+        ? this.system.get(this.route.ship.start.around)
+        : this.system.bodies[this.places[pilot.legIndex - 1].index];
+    const p = this.system.positionOf(body, this.timeS);
+    const dx = this.ship.x - p.x;
+    const dy = this.ship.y - p.y;
+    const r = Math.hypot(dx, dy) || 1;
+    const pull = (G * body.massKg) / (r * r);
+    if (pull <= AUTOPILOT.departPullFraction * this.accel) return false;
+    return (dx * dirX + dy * dirY) / r < AUTOPILOT.departMinCos;
+  }
+
+  /**
+   * Index of the planet (a body orbiting the leg's central body, not the gate body) whose
+   * sphere of influence (a (m / M)^0.4) the ship is in, or -1.
+   */
+  private departurePlanet(): number {
+    const place = this.places[this.pilot.legIndex];
+    const central = this.system.bodies[place.centralIndex];
+    const positions = this.predictWork.positions;
+    this.system.fillPositions(this.timeS, positions);
+    let found = -1;
+    this.system.bodies.forEach((body, i) => {
+      // Bodies without a parent orbit the root (the Sun at the origin).
+      const orbitsCentral =
+        central.parent === undefined ? body.parent === undefined : body.parent === central.id;
+      if (!orbitsCentral || i === place.index || body.periodS === 0) return;
+      const soi = body.orbitRadiusM * (body.massKg / central.massKg) ** 0.4;
+      const r = Math.hypot(positions[i * 2] - this.ship.x, positions[i * 2 + 1] - this.ship.y);
+      if (r < soi) found = i;
+    });
+    return found;
+  }
+
+  /**
+   * The Lambert arc around the leg's central body from the ship now to `body`'s position
+   * `timeS` from now (moved by `offsetM` along `pilot.wayX`, `wayY` plus `extraX`, `extraY`, m),
+   * with the body's velocity then; velocities relative to the central body, m/s. Null if there
+   * is no such arc (or it dives into the central body).
+   */
+  private lambertTo(
+    body: Body,
+    offsetM: number,
+    timeS: number,
+    extraX = 0,
+    extraY = 0,
+  ): TransferArc | null {
+    const place = this.places[this.pilot.legIndex];
+    const central = this.system.bodies[place.centralIndex];
+    const arrivalS = this.timeS + timeS;
+    const c0 = this.system.positionOf(central, this.timeS);
+    const c1 = this.system.positionOf(central, arrivalS);
+    const cv1 = this.system.velocityOf(central, arrivalS);
+    const p = this.system.positionOf(body, arrivalS);
+    const v = this.system.velocityOf(body, arrivalS);
+    const arc = solveLambert(
+      this.ship.x - c0.x,
+      this.ship.y - c0.y,
+      p.x - c1.x + this.pilot.wayX * offsetM + extraX,
+      p.y - c1.y + this.pilot.wayY * offsetM + extraY,
+      timeS,
+      this.system.gm[place.centralIndex],
+      central.radiusM,
+    );
+    return arc && { ...arc, arriveVx: v.x - cv1.x, arriveVy: v.y - cv1.y };
+  }
+
+  /**
+   * Cruise of a transfer leg (stage 0): Lambert from here to the aim at the planned arrival,
+   * the engine fired along the velocity change it asks for (`AUTOPILOT.cruiseOnMS`). The aim
+   * stops short of the body (`aimAt`) and the arc passes it by the braking distance, so that
+   * the arrival burn - a constant braking at `AUTOPILOT.brakeShare` of the engine - ends there
+   * at rest. Once that burn is due returns false: stage 2, the rendezvous guidance flies the
+   * rest. An update without an arc coasts and tries again `AUTOPILOT.minReplanS` later.
+   */
+  private cruise(): boolean {
+    const pilot = this.pilot;
+    const place = this.places[pilot.legIndex];
+    const timeToGo = pilot.arrivalS - this.timeS;
+    const body = this.gateBody();
+    const aimM = AUTOPILOT.aimCaptureShare * place.captureM;
+    const accel = this.accel;
+    // The aim and the braking depend on the arrival speed and side, which depend on the arc:
+    // from the last update's (the first update starts from the arc to the body itself).
+    let arc: TransferArc | null = null;
+    let brakeS = pilot.arriveSpeedMS / (AUTOPILOT.brakeShare * accel);
+    for (let round = pilot.arriveSpeedMS > 0 ? 1 : 0; round < 2 && timeToGo > 0; round++) {
+      // Coasting, the ship passes the stop point by half the braking time at the arrival speed.
+      const speed = pilot.arriveSpeedMS;
+      brakeS = speed / (AUTOPILOT.brakeShare * accel);
+      const pass = (speed * brakeS) / 2;
+      arc =
+        round === 0
+          ? this.lambertTo(body, 0, timeToGo)
+          : this.lambertTo(body, aimM, timeToGo, -pilot.wayX * pass, -pilot.wayY * pass);
+      if (!arc) break;
+      const ux = arc.v2x - arc.arriveVx;
+      const uy = arc.v2y - arc.arriveVy;
+      const u = Math.hypot(ux, uy);
+      pilot.arriveSpeedMS = u;
+      if (u > 0) {
+        pilot.wayX = -ux / u;
+        pilot.wayY = -uy / u;
+      }
+    }
+    if (timeToGo <= brakeS) {
+      pilot.stage = 2;
+      return false;
+    }
+    if (!arc) {
+      // No arc this update (`lambertTo` found none): coast on and try again soon. The arrival
+      // burn still hands over to stage 2 on time, by the last arc's arrival speed.
+      pilot.thrusting = false;
+      pilot.nextReplanS =
+        this.timeS +
+        Math.max(AUTOPILOT.cruiseBurnReplanS, Math.min(AUTOPILOT.minReplanS, timeToGo - brakeS));
+      return true;
+    }
+    const change = this.departureDv(arc);
+    const dvx = change.x;
+    const dvy = change.y;
+    const dv = Math.hypot(dvx, dvy);
+    pilot.thrusting = dv > (pilot.thrusting ? AUTOPILOT.cruiseOffMS : AUTOPILOT.cruiseOnMS);
+    if (pilot.thrusting && this.departureBlocked(dvx / dv, dvy / dv)) {
+      // Still on the parking orbit's wrong side: coast round to where the burn leads away.
+      pilot.thrusting = false;
+      pilot.nextReplanS = this.timeS + AUTOPILOT.minReplanS;
+      return true;
+    }
+    if (pilot.thrusting) {
+      pilot.dirX = dvx / dv;
+      pilot.dirY = dvy / dv;
+      pilot.nextReplanS =
+        this.timeS +
+        Math.min(AUTOPILOT.minReplanS, Math.max(AUTOPILOT.cruiseBurnReplanS, dv / accel));
+    } else {
+      const interval = Math.min(
+        AUTOPILOT.cruiseMaxReplanS,
+        Math.max(AUTOPILOT.minReplanS, AUTOPILOT.replanFraction * timeToGo),
+      );
+      // Wake up for the arrival burn on time.
+      pilot.nextReplanS =
+        this.timeS + Math.max(AUTOPILOT.cruiseBurnReplanS, Math.min(interval, timeToGo - brakeS));
+    }
+    return true;
+  }
+
+  /**
+   * Flight time to the aim for the delta-v the leg has left of its plan (`dvRemaining`), s. On
+   * a transfer leg the Lambert transfer it affords (`chooseTransfer`). Otherwise (to the gate
+   * body, or the standoff point) a straight "accelerate -
    * coast - brake" flight (`straightFlightTime`). On a physics leg, if the guidance would need
    * more than that delta-v for this time (`effortDv`: gravity and the ship's own velocity
    * included), the time is stretched until it would not, at most `AUTOPILOT.maxStretch` times.
    */
   private plannedFlightTime(): number {
-    const dv = Math.max(
-      AUTOPILOT.minPlanShare * this.leg.dvBudget,
-      chargeDv(this.leg) - this.pilot.dvSpent,
-    );
+    if (this.places[this.pilot.legIndex].transfer) {
+      return this.chooseTransfer(this.dvRemaining()).timeS;
+    }
+    const dv = Math.max(AUTOPILOT.minPlanShare * this.leg.dvBudget, this.dvRemaining());
     const straight = this.straightFlightTime(dv);
     if (this.leg.mode === 'rail' || this.effortDv(straight) <= dv) return straight;
     let low = straight;
@@ -746,12 +1139,21 @@ export class Simulation {
   }
 
   /**
-   * Where the guidance aims at `timeS`: the gate body, or on a moon leg in stage 0 the standoff
-   * point by its planet (moving with the planet). Position and velocity, m and m/s.
+   * Where the guidance aims at `timeS`: the gate body; on a transfer leg the point short of it
+   * on the side the ship comes from (`AUTOPILOT.aimCaptureShare`); on a moon leg in stage 0
+   * the standoff point by its planet (moving with the planet). Position and velocity, m and m/s.
    */
   private aimAt(timeS: number): { x: number; y: number; vx: number; vy: number } {
     const pilot = this.pilot;
     const place = this.places[pilot.legIndex];
+    if (place.transfer) {
+      // Short of the body on the side the ship comes from (`cruise`).
+      const body = this.gateBody();
+      const p = this.system.positionOf(body, timeS);
+      const v = this.system.velocityOf(body, timeS);
+      const d = AUTOPILOT.aimCaptureShare * place.captureM;
+      return { x: p.x + pilot.wayX * d, y: p.y + pilot.wayY * d, vx: v.x, vy: v.y };
+    }
     if (place.planetIndex >= 0 && pilot.stage === 0) {
       const planet = this.system.bodies[place.planetIndex];
       const p = this.system.positionOf(planet, timeS);
@@ -797,9 +1199,10 @@ export class Simulation {
       this.aimFall();
       return;
     }
+    if (place.transfer && pilot.stage === 0 && this.cruise()) return;
     let timeToGo = pilot.arrivalS - this.timeS;
     if (timeToGo < AUTOPILOT.minTimeToGoS) {
-      const remaining = Math.max(0, chargeDv(this.leg) - pilot.dvSpent);
+      const remaining = this.dvRemaining();
       const aim = this.aimAt(this.timeS);
       const distance = Math.hypot(aim.x - this.ship.x, aim.y - this.ship.y);
       const speed = Math.hypot(aim.vx - this.ship.vx, aim.vy - this.ship.vy);
@@ -926,7 +1329,8 @@ export class Simulation {
   /**
    * A rail leg (D3, for a leg the autopilot cannot fly): the ship follows a smooth curve from
    * where the leg began to the capture radius of the gate body at the planned arrival, ignoring
-   * gravity, and spends the planned delta-v evenly; then docks as usual.
+   * gravity, and spends the planned delta-v (`dvPlan`) evenly, burning the fuel it takes at
+   * the ship's mass (the rocket equation); then docks as usual.
    */
   private followRail(h: number): void {
     const pilot = this.pilot;
@@ -959,7 +1363,11 @@ export class Simulation {
     // Thrust shows during the first and last quarter ("accelerate - coast - brake").
     pilot.thrusting = s < 0.25 || s > 0.75;
     this.ship.thrustN = pilot.thrusting ? this.route.ship.thrustN : 0;
-    this.burn(chargeDv(this.leg) * (s - before));
+    const dv = pilot.dvPlan * (s - before);
+    const kg = fuelForDvKg(this.route.ship.ispS, this.ship.massKg, dv);
+    pilot.dvSpent += dv;
+    if (h > 0) this.resources.fuel.ratePerS = -kg / h;
+    this.burn(kg);
     if (pilot.phase === 'flying' && s >= 1) this.checkCapture();
   }
 
@@ -970,6 +1378,7 @@ export class Simulation {
    */
   private flowResources(simDtS: number): void {
     stepLife(this.resources, this.loadout, this.leg, this.life, simDtS);
+    this.updateMass();
     if (!this.mortal) {
       for (const id of FLOW_IDS) {
         if (this.resources[id].value <= 0 && !this.depleted[id]) {
@@ -997,9 +1406,10 @@ export interface PaceState {
 
 /**
  * Real seconds of Run until `days` simulated days from a moment with pace `pace`, at most: the
- * time scale grows with the distance to the nearest `home`, `gate` or `parent` body, so this
+ * time scale grows with the distance to the `home`, `gate` and `parent` bodies, so this
  * takes the scale at the farthest the ship could be by then (flying straight away from that
- * body at its speed now, the engine pushing all the way) - never less than the scale now.
+ * body at its speed now, the engine pushing all the way; the approach scale there, the slowest
+ * for that distance) - never less than the scale now.
  * The alarm's real-seconds clause (`isAlarm`) reads it; pure, so the balance tools use it too.
  */
 export function realSecondsAhead(pace: PaceState, days: number): number {
@@ -1009,24 +1419,27 @@ export function realSecondsAhead(pace: PaceState, days: number): number {
 }
 
 /**
- * Time scale for a distance to the nearest `home`, `gate` or `parent` body, simulated s per
- * real s: grows with the logarithm of the distance (GDD D9, "logarithmically"), so the voyage is
- * slow near the places of the voyage and fast in open space. Within about 550 000 km of them it
- * is the minimum, 12 000 (the Moon leg); 1e10 m out 390 000 (the Mars leg); 1e12 m out 990 000.
+ * Time scale for the ship's distances, simulated s per real s: grows with the logarithm of the
+ * distance (GDD D9, "logarithmically"), so the voyage is slow near the places of the voyage and
+ * fast in open space. `gateDistanceM` - to the body of the gate the ship flies to (floor
+ * `MIN_TIME_SCALE`: the approach is slow); `otherDistanceM` - to the nearest other `home`,
+ * `gate` or `parent` body (floor `DEPARTURE_MIN_TIME_SCALE`: leaving one is quicker); the
+ * smaller of the two scales wins. With one distance (the other far away) it is the approach
+ * scale, the slowest for that distance. At the approach floor within 5e8 m of the gate body
+ * (the Moon leg); 1e10 m out 585 000 (the Mars approach); 1e11 m out 1 035 000 (the cruise).
  * OWNER: physics - replace the formula and the constants above.
  */
-export function timeScaleAt(distanceM: number): number {
-  const scale = TIME_SCALE_PER_DECADE * Math.log10(Math.max(1, distanceM) / TIME_SCALE_REFERENCE_M);
-  return Math.min(MAX_TIME_SCALE, Math.max(MIN_TIME_SCALE, scale));
+export function timeScaleAt(gateDistanceM: number, otherDistanceM = Infinity): number {
+  return Math.min(
+    logScale(gateDistanceM, MIN_TIME_SCALE),
+    logScale(otherDistanceM, DEPARTURE_MIN_TIME_SCALE),
+  );
 }
 
-/**
- * Delta-v the autopilot plans to spend on `leg`, m/s: `AUTOPILOT.planFraction` of its
- * `dvBudget` (the rest is the reserve for gravity it did not foresee). One fuel charge is this
- * much delta-v on the leg (D13), so a leg flown as planned burns one charge.
- */
-export function chargeDv(leg: LegDef): number {
-  return AUTOPILOT.planFraction * leg.dvBudget;
+/** `TIME_SCALE_PER_DECADE` per decade of `distanceM` beyond the reference, `floor`..max. */
+function logScale(distanceM: number, floor: number): number {
+  const scale = TIME_SCALE_PER_DECADE * Math.log10(Math.max(1, distanceM) / TIME_SCALE_REFERENCE_M);
+  return Math.min(MAX_TIME_SCALE, Math.max(floor, scale));
 }
 
 function emptyPilot(): AutopilotState {
@@ -1044,7 +1457,9 @@ function emptyPilot(): AutopilotState {
     dirX: 1,
     dirY: 0,
     dvSpent: 0,
+    dvPlan: 0,
     closestM: Number.MAX_VALUE,
+    arriveSpeedMS: 0,
     fromX: 0,
     fromY: 0,
     fromVx: 0,
@@ -1058,9 +1473,10 @@ function emptyPilot(): AutopilotState {
 
 /**
  * The ship at the start: on a circular orbit around `config.start.around`, counter-clockwise,
- * moving with that body. OWNER: physics - initial conditions.
+ * moving with that body, weighing `massKg` (the cargo's start mass). OWNER: physics - initial
+ * conditions.
  */
-function initialShip(system: SolarSystem, config: ShipConfig): ShipState {
+function initialShip(system: SolarSystem, config: ShipConfig, massKg: number): ShipState {
   const { around, distanceM, angleRad } = config.start;
   const body = system.get(around);
   const p = system.positionOf(body, 0);
@@ -1073,7 +1489,7 @@ function initialShip(system: SolarSystem, config: ShipConfig): ShipState {
     y: p.y + distanceM * Math.sin(angleRad),
     vx,
     vy,
-    massKg: config.massKg,
+    massKg,
     thrustN: 0,
     heading: Math.atan2(vy, vx),
   };

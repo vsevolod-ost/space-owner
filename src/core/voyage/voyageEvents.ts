@@ -15,7 +15,7 @@ export interface EventContext {
   count(id: string): number;
   /** Whether at least one working copy of cargo `id` is aboard. */
   has(id: string): boolean;
-  /** Amount of a stock now (days of a resource, or fuel charges). */
+  /** Amount of a stock now (days of a resource, or kg of fuel). */
   stock(id: StockId): number;
   /** The link to the Earth on this leg. */
   comms: CommsLevel;
@@ -34,7 +34,7 @@ export interface EventEffect {
    * changes by its daily rate times this. The ship and the voyage's clock stand.
    */
   waitDays?: number;
-  /** Added to stocks (negative: lost) - days of a resource, or fuel charges (a leak). */
+  /** Added to stocks (negative: lost) - days of a resource, or kg of fuel (a leak). */
   stocks?: Partial<Record<StockId, number>>;
   /** Cargo ids that stop working for good (the reactor). */
   offline?: readonly string[];
@@ -190,11 +190,11 @@ export function rollRisk(
 
 /**
  * The ship's living state as an event's effect changes it (`applyEventEffect`): the game's
- * `Simulation` and the balance tools' fast evaluator (src/devtools/voyageSweep.ts) each give
- * one, so both apply effects the same way.
+ * `Simulation` gives it (the balance sweep flies that same `Simulation`), so effects apply one
+ * way only.
  */
 export interface EffectTarget {
-  /** The stocks, changed in place (fuel charges too). */
+  /** The stocks, changed in place (the fuel too, in kg). */
   readonly resources: Resources;
   /** Offline items (added to) and the death (read). */
   readonly life: LifeState;
