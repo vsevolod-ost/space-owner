@@ -103,7 +103,9 @@ function bayAccess(voyage: VoyageService): Record<string, Binding> {
           kind: 'interactable',
           when: (state) => openBayStation(voyage, state) === name,
           // Never without an alarm: the point is there only while its event is open.
-          run: alarmStation(name, (ctx) => ctx.ui.toast('[TODO: the hold bay]')),
+          run: alarmStation(name, (ctx) =>
+            ctx.ui.toast('Nothing open here. Just crates and ambition.'),
+          ),
         },
       ];
     }),

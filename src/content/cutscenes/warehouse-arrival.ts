@@ -19,11 +19,11 @@ export const warehouseArrival: Cutscene = {
     api.face('player', 'npc-engineer');
     await api.say(
       'engineer',
-      "Welcome aboard, pilot. We launch soon, so let's get the cargo loaded.",
+      'Ah, the new pilot. Welcome aboard - and sorry about the lighting, the warehouse is allergic to cheerfulness.',
     );
     await api.say(
       'engineer',
-      "Seven bays, ten kinds of cargo. The hatch to the ship is over there - check it when you're ready.",
+      "Seven bays, ten kinds of cargo. Load what you can carry; the hatch to the ship is over there - check it when you think you're ready. Or when I say so.",
     );
 
     // Both look at the hatch, then he goes back.

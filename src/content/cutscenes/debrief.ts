@@ -27,32 +27,33 @@ interface DebriefLines {
  */
 const LINES: Readonly<Record<string, DebriefLines>> = {
   hypoxia: {
-    what: 'The air ran out on day {day}, on the way from {gate} to {next}.',
-    why: 'The oxygen did not last the leg; something on the way cost air.',
-    advice: 'An oxygen crate or the greenhouse would have kept them breathing.',
+    what: 'User Segment analysis: The air ran out on day {day}, on the way from {gate} to {next}.',
+    why: 'The space segment oxygen supply failed the trade study; life support did not last the leg.',
+    advice:
+      'MDL recommendation: An oxygen crate or greenhouse is required for this mission concept.',
   },
   dehydration: {
-    what: 'The water ran out on day {day}, on the way from {gate} to {next}.',
+    what: 'User Segment analysis: The water ran out on day {day}, on the way from {gate} to {next}.',
     why: 'The water stock was too short for so long a flight.',
     advice: 'Take supplies or the greenhouse next time.',
   },
   starvation: {
-    what: 'The food ran out on day {day}, on the way from {gate} to {next}.',
+    what: 'User Segment analysis: The food ran out on day {day}, on the way from {gate} to {next}.',
     why: 'The food stock was too short for so long a flight.',
     advice: 'Take supplies or the greenhouse next time.',
   },
   frozen: {
-    what: 'The ship froze on day {day}, on the way from {gate} to {next}.',
-    why: 'Without power the heaters stopped.',
+    what: 'User Segment analysis: The ship froze on day {day}, on the way from {gate} to {next}.',
+    why: 'Without power the space segment heaters stopped.',
     advice: 'Power: the reactor, batteries or solar panels near the Sun.',
   },
   drift: {
-    what: 'The fuel ran out after {gate}; the ship drifted past {next}.',
-    why: 'The gate card said the fuel would not reach the next gate.',
+    what: 'User Segment analysis: The fuel ran out after {gate}; the ship drifted past {next}.',
+    why: 'The trajectory model said the fuel would not reach the next gate.',
     advice: 'More fuel, or stop where the fuel still reaches.',
   },
   abort: {
-    what: 'You turned back on day {day}, on the way from {gate} to {next}.',
+    what: 'Ground Segment report: You turned back on day {day}, on the way from {gate} to {next}.',
     why: 'No harm done; the cargo is still in the bays.',
     advice: 'Change what you take and fly again.',
   },

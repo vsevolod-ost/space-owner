@@ -15,7 +15,7 @@ export const greenhouseLeak: VoyageEventDef = {
   speaker: 'computer',
   // OWNER: script
   title: 'Greenhouse leak',
-  text: '[TODO: the irrigation line of the greenhouse is leaking]',
+  text: 'The greenhouse irrigation line is leaking. Water on the floor, dignity on the ceiling. Your call.',
   // OWNER: design - the deck station the alarm is answered at (the bay of the greenhouse), and
   // the choice applied when its timer runs out: the main valve, the dearer one (no risk: plan
   // act2-stations D3, D11).
@@ -25,8 +25,8 @@ export const greenhouseLeak: VoyageEventDef = {
     {
       id: 'clamp',
       // OWNER: script
-      text: '[TODO: Clamp the leaking line]',
-      result: '[TODO: the clamp holds; a few litres on the floor]',
+      text: 'Clamp it at the crate.',
+      result: 'Clamp held. A few litres on the floor. The plants are dramatic but alive.',
       // OWNER: physics - days of water (small: under the 16 days of oxygen of "Seal the
       // module", plan act2-stations D11).
       effect: { stocks: { water: -6 } },
@@ -34,8 +34,8 @@ export const greenhouseLeak: VoyageEventDef = {
     {
       id: 'shut-valve',
       // OWNER: script
-      text: '[TODO: Shut the bay main valve]',
-      result: '[TODO: the leak stops; the water in the line is lost]',
+      text: 'Shut the bay main valve.',
+      result: 'Leak stopped. The water in the line is gone. The plants will sulk.',
       // OWNER: physics - days of water.
       effect: { stocks: { water: -14 } },
     },

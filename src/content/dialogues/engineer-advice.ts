@@ -16,14 +16,14 @@ export const engineerAdvice = defineDialogue({
   nodes: {
     greeting: {
       speaker: 'engineer',
-      text: "I'm the ship's engineer. We launch soon, so let's make the cargo count.",
+      text: "Oh, look. Another genius sent to test my life-support tolerance. I'm the engineer. If the air tastes like old socks or the reactor sings opera, blame me later. Right now, load the crates.",
       when: (s) => s.flags.get('engineer.met') !== true,
       effect: (s) => s.flags.set('engineer.met', true),
       next: 'question',
     },
     question: {
       speaker: 'engineer',
-      text: 'What do you need to know?',
+      text: 'Make it fast, pilot. My gaskets are crying and my coffee is getting cold in spirit.',
       choices: [
         { text: 'Who are you?', next: 'about-me' },
         {
@@ -38,32 +38,32 @@ export const engineerAdvice = defineDialogue({
     },
     'about-me': {
       speaker: 'engineer',
-      text: "I keep the reactor, the air and the water running. If something breaks out there, it's my fault.",
+      text: "I am the duct-tape deity of this tin can. I keep the reactor from becoming a second sun and the water recycled from things you really don't want to audit. I treat every mission concept as a CML-1 fantasy until I've run it through the MDL trade studies and verified the hard engineering. Any other philosophical inquiries?",
       next: 'about-me-reply',
     },
     'about-me-reply': {
       speaker: 'hero',
-      text: "Good to know someone's watching the engines.",
+      text: 'Reassuring as always. Keep the pipes clean.',
       next: 'question',
     },
     cargo: {
       speaker: 'engineer',
-      text: 'Fuel decides how far we get; everything else decides how long we last. Take fuel for the distance, then air, water and food for the days.',
+      text: "Listen close because I hate repeating myself. It's all one big trade study, pilot: fuel is your launch segment, life support is your space segment. Overload the space segment, and the launch segment can't get you out of the gravity well. The ship doesn't care about your ambitions if you don't have the mass-margin to survive.",
       next: 'cargo-gesture',
     },
     'cargo-gesture': {
       speaker: 'narrator',
-      text: 'He nods toward the crate stands along the wall.',
+      text: 'He kicks a stray hydraulic wrench across the concrete and scowls at the cargo stands.',
       next: 'bye',
     },
     'cargo-again': {
       speaker: 'engineer',
-      text: 'Fuel for distance, air, water and food for time. Build what the colony needs with the rest.',
+      text: 'Fuel for distance, stocks for survival. Did stuttering become my new feature overnight? Go load up.',
       next: 'bye',
     },
     bye: {
       speaker: 'engineer',
-      text: 'Good luck out there, pilot.',
+      text: "Don't die out there. Replacing pilots is paperwork, and I hate paperwork.",
     },
   },
 });

@@ -15,7 +15,7 @@ export const solarFlare: VoyageEventDef = {
   speaker: 'computer',
   // OWNER: script
   title: 'Solar flare',
-  text: '[TODO: a flare flashes past the porthole; a radiation storm is coming]',
+  text: 'A flare just lit up the Sun side of the sky. A radiation storm is rolling in. The shelter is that way; the work is this way. Your call, pilot.',
   // OWNER: design - the deck station the alarm is answered at, and the choice applied when its
   // timer runs out: working on through the storm, the dearer one (no risk: plan act2-stations
   // D3, D11).
@@ -25,8 +25,8 @@ export const solarFlare: VoyageEventDef = {
     {
       id: 'shelter',
       // OWNER: script
-      text: '[TODO: Sit it out in the storm shelter]',
-      result: '[TODO: the storm passes; a few meals eaten cold in the shelter]',
+      text: 'Sit it out in the storm shelter.',
+      result: 'The storm passes. Cold meals in the shelter. Nobody glowed. Probably.',
       // OWNER: physics - days of food (small: under the 16 days of oxygen of "Seal the
       // module", plan act2-stations D11).
       effect: { stocks: { food: -6 } },
@@ -34,8 +34,8 @@ export const solarFlare: VoyageEventDef = {
     {
       id: 'work-on',
       // OWNER: script
-      text: '[TODO: Keep working through it]',
-      result: '[TODO: the radiation spoiled part of the food stores]',
+      text: 'Keep working through it.',
+      result: 'The radiation spoiled part of the food stores. The crew did not glow. Much.',
       // OWNER: physics - days of food.
       effect: { stocks: { food: -14 } },
     },

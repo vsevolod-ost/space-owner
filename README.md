@@ -11,7 +11,14 @@ panel (act 2), the colony and its ending (act 3), and the death loop back to the
 team now fills in the art, the texts and the numbers: `grep -rn "OWNER:" src` lists every place,
 marked `physics`, `design`, `script` or `art`.
 
+## NASA & Space Agency Compliance
+
+NASA does not endorse any non-U.S. Government entity and is not responsible for information contained on non-U.S. Government websites. For non-U.S. Government websites, participants must comply with any data use parameters of that specific website.
+
+This project aligns its mission design and engineering principles with [NASA Data & Resources](docs/NASA-RESOURCES.md).
+
 ## Run
+
 
 Play online: after the release, on GitHub Pages. Until then run it locally:
 

@@ -55,7 +55,7 @@ function cargoToast(voyage: VoyageService, s: GameState): string {
  * `NO_SPACE`), "Put it back" only at the last emptied place (`count`); the crate that moves is
  * always the one at this place. `onChange` runs after a take or a put back.
  * Built by code because it follows the cargo registry (`openDialogueDef`).
- * OWNER: script - the lines in `[TODO: ...]`.
+ * OWNER: script - the lines above.
  */
 export function cargoStand(
   voyage: VoyageService,
@@ -170,7 +170,7 @@ function gapsOf(voyage: VoyageService, s: GameState): string[] {
  * not aboard and how many bays are free, then "Wait" (first: stay in the warehouse) or "Board"
  * (`onBoard`, after which the hatch starts act 2 with its checkpoint). Nothing in act 1 comes
  * back after boarding: only a death or the pause menu returns to the warehouse.
- * OWNER: script - the lines in `[TODO: ...]`.
+ * OWNER: script - the lines above.
  */
 export function hatchCheck(voyage: VoyageService, onBoard: () => void): Dialogue {
   return defineDialogue({
@@ -182,13 +182,19 @@ export function hatchCheck(voyage: VoyageService, onBoard: () => void): Dialogue
           const gaps = gapsOf(voyage, s);
           const free = baysFree(voyage, s);
           return gaps.length > 0
-            ? formatText('Before boarding. Not aboard: {gaps}. Free bays: {free}.', {
-                gaps: gaps.join(', '),
-                free,
-              })
-            : formatText('Before boarding. Nothing missing. Free bays: {free}.', {
-                free,
-              });
+            ? formatText(
+                "Hold on, pilot. Before boarding, not aboard: {gaps}. Free bays: {free}. Don't launch half-equipped.",
+                {
+                  gaps: gaps.join(', '),
+                  free,
+                },
+              )
+            : formatText(
+                "Before boarding. Nothing missing. Free bays: {free}. You're either ready or stubborn.",
+                {
+                  free,
+                },
+              );
         },
         choices: [{ text: 'Wait' }, { text: 'Board', effect: () => onBoard() }],
       },

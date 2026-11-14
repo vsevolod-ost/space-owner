@@ -18,14 +18,14 @@ export const astronomerAdvice = defineDialogue({
   nodes: {
     greeting: {
       speaker: 'astronomer',
-      text: "I'm the astronomer. I know the bodies on our route and what a colony needs there.",
+      text: "Ah, the meatbag holding the stick. I am the astronomer. I chart worlds that don't care if we live or die, which makes us kindred spirits of sorts.",
       when: (s) => s.flags.get('astronomer.met') !== true,
       effect: (s) => s.flags.set('astronomer.met', true),
       next: 'question',
     },
     question: {
       speaker: 'astronomer',
-      text: 'What would you like to know?',
+      text: 'Speak quickly, traveler. The celestial mechanics are shifting, and my coffee is cooling at an alarming thermodynamic rate.',
       choices: [
         {
           text: 'Where should we settle?',
@@ -43,27 +43,27 @@ export const astronomerAdvice = defineDialogue({
     },
     bodies: {
       speaker: 'astronomer',
-      text: 'The farther the body, the better the colony can be - if the cargo can build it.',
+      text: 'Farther means grander horizons and lonelier graves. Every kilometer from Earth costs extra panic. The GMAT trajectory analysis is unforgiving—pick a rock that matches your scientific objectives and payload requirements before the vacuum introduces itself.',
       next: 'bodies-hero',
     },
     'bodies-hero': {
       speaker: 'hero',
-      text: 'What does a colony need out there?',
+      text: 'And what exactly does a colony need?',
       next: 'bodies-needs',
     },
     'bodies-needs': {
       speaker: 'astronomer',
-      text: 'Power and warmth. The colony kits are made for their own bodies, so match the kit to the world.',
+      text: "Power and thermal shielding. My science missions require precision, but your colony needs stability. Mismatch the kit to the planetary environment—that’s a system failure I can calculate in GMAT in advance, if only you'd listen.",
       next: 'bye',
     },
     'bodies-again': {
       speaker: 'astronomer',
-      text: 'Fly farther if the cargo can support it; nearer worlds need less.',
+      text: 'Closer is safe and boring; farther is glorious and fatal. Choose your poison based on your fuel reserves.',
       next: 'bye',
     },
     bye: {
       speaker: 'astronomer',
-      text: 'Clear skies, pilot.',
+      text: 'May the solar winds blow gently past your hull. Mostly because cleaning radiation off costs my budget.',
     },
   },
 });
