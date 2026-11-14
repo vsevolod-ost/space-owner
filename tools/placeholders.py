@@ -1,0 +1,290 @@
+#!/usr/bin/env python3
+"""Generates the placeholder art in public/assets/ (flat colours, a label and a frame).
+
+Usage (from the repository root or anywhere):
+    python3 tools/placeholders.py              # (re)write every placeholder file
+    python3 tools/placeholders.py --geometry   # print location geometry as JSON, write nothing
+
+Real art replaces a placeholder by overwriting the file with the same name and size.
+To add a placeholder, add an entry to the matching list below and run the script again.
+
+LOCATIONS is the single source of the demo location geometry: the walls and obstacles drawn
+on each background are the collision rectangles of the matching Tiled map
+(public/assets/maps/<id>.tmj), which tools/make_maps.py writes from it. After changing
+LOCATIONS run both scripts. Needs Pillow (pip install pillow).
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+from PIL import Image, ImageDraw, ImageFont
+from PIL.PngImagePlugin import PngInfo
+
+ROOT = Path(__file__).resolve().parent.parent
+ASSETS = ROOT / 'public' / 'assets'
+FONT = ROOT / 'public' / 'fonts' / 'PressStart2P.ttf'
+
+# Mirrors GAME_WIDTH / GAME_HEIGHT / TILE_SIZE in src/config.ts.
+GAME_WIDTH, GAME_HEIGHT = 640, 360
+TILE = 16
+
+# --- Location geometry (map pixels) -------------------------------------------------------
+# size:      background size, px
+# wall:      thickness of the wall along every edge, px
+# doorways:  gaps in an edge wall, (side, start, end) along that side, px
+# obstacles: impassable rectangles inside the room, (x, y, width, height), px
+# Rule for every demo map: the straight line from the spawn along the middle (y = height/2)
+# to every door, NPC, trigger and station stays free of collisions - the smoke tests walk it.
+LOCATIONS: dict[str, dict] = {
+    'demo-corridor': {
+        'size': (960, 540),
+        'wall': 16,
+        'doorways': [('right', 238, 302)],  # door-room, centred on y = 270
+        'obstacles': [(320, 96, 192, 64), (576, 400, 192, 64)],  # upper third, lower third
+    },
+    'demo-room': {
+        'size': (640, 360),
+        'wall': 16,
+        'doorways': [('left', 148, 212)],  # door-corridor, centred on y = 180
+        'obstacles': [(448, 48, 128, 48), (96, 256, 128, 48), (400, 264, 144, 48)],
+    },
+    'ship-deck': {
+        'size': (1280, 720),
+        'wall': 16,
+        'doorways': [],
+        'obstacles': [(256, 96, 256, 128), (768, 128, 192, 96), (320, 512, 192, 96), (832, 528, 256, 80)],
+    },
+}
+
+
+def wall_rects(location: dict) -> list[tuple[int, int, int, int]]:
+    """Edge walls as (x, y, w, h), split around doorways."""
+    width, height = location['size']
+    t = location['wall']
+    doors = location['doorways']
+
+    def side(name: str, length: int, make) -> list[tuple[int, int, int, int]]:
+        # Free spans of one side between its doorways; the corners belong to top and bottom.
+        gaps = sorted((a, b) for s, a, b in doors if s == name)
+        rects, start = [], t if name in ('left', 'right') else 0
+        end_all = length - t if name in ('left', 'right') else length
+        for a, b in gaps:
+            if a > start:
+                rects.append(make(start, a - start))
+            start = b
+        if end_all > start:
+            rects.append(make(start, end_all - start))
+        return rects
+
+    return (
+        side('top', width, lambda p, n: (p, 0, n, t))
+        + side('bottom', width, lambda p, n: (p, height - t, n, t))
+        + side('left', height, lambda p, n: (0, p, t, n))
+        + side('right', height, lambda p, n: (width - t, p, t, n))
+    )
+
+
+def collision_rects(location: dict) -> list[tuple[int, int, int, int]]:
+    """Every impassable rectangle of a location: walls first, then obstacles."""
+    return wall_rects(location) + [tuple(o) for o in location['obstacles']]
+
+
+# --- Drawing helpers ------------------------------------------------------------------------
+
+
+def font(size: int = 8) -> ImageFont.FreeTypeFont:
+    """The game font; sizes must be multiples of 8 (its pixel grid). PIL default if missing."""
+    try:
+        return ImageFont.truetype(str(FONT), size)
+    except OSError:
+        return ImageFont.load_default()
+
+
+def new_draw(image: Image.Image) -> ImageDraw.ImageDraw:
+    draw = ImageDraw.Draw(image)
+    draw.fontmode = '1'  # no antialiasing: placeholder labels stay pixel-crisp
+    return draw
+
+
+def label(draw: ImageDraw.ImageDraw, xy: tuple[int, int], text: str, fill, size: int = 8, anchor='la'):
+    draw.text(xy, text, font=font(size), fill=fill, anchor=anchor)
+
+
+def frame(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], colour, width: int = 1):
+    x0, y0, x1, y1 = box
+    draw.rectangle((x0, y0, x1 - 1, y1 - 1), outline=colour, width=width)
+
+
+def save(image: Image.Image, relative: str) -> None:
+    path = ASSETS / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    info = PngInfo()
+    info.add_text('Comment', f'PLACEHOLDER generated by tools/placeholders.py - replace with real art ({relative})')
+    image.save(path, pnginfo=info, optimize=True)
+    print(f'  {relative}  {image.width}x{image.height}')
+
+
+# --- Placeholders ---------------------------------------------------------------------------
+
+
+def menu() -> None:
+    bg = Image.new('RGB', (GAME_WIDTH, GAME_HEIGHT), (16, 20, 40))
+    d = new_draw(bg)
+    # A fixed pseudo-random starfield, so regenerating gives the same file.
+    seed = 12345
+    for _ in range(140):
+        seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+        x, y = seed % GAME_WIDTH, (seed // GAME_WIDTH) % GAME_HEIGHT
+        d.point((x, y), fill=(200, 210, 255) if seed % 3 else (120, 130, 170))
+    frame(d, (0, 0, GAME_WIDTH, GAME_HEIGHT), (60, 70, 110))
+    label(d, (4, GAME_HEIGHT - 4), f'menu/background.png {GAME_WIDTH}x{GAME_HEIGHT}', (90, 100, 140), anchor='ld')
+    save(bg, 'menu/background.png')
+
+    logo = Image.new('RGBA', (320, 100), (0, 0, 0, 0))
+    d = new_draw(logo)
+    frame(d, (0, 0, 320, 100), (255, 200, 60, 255))
+    label(d, (160, 44), 'SPACE OWNER', (255, 200, 60, 255), size=24, anchor='mm')
+    label(d, (160, 86), 'menu/logo.png 320x100', (255, 200, 60, 255), anchor='mm')
+    save(logo, 'menu/logo.png')
+
+
+def buttons() -> None:
+    styles = {
+        'normal': ((40, 60, 110), (120, 150, 220)),
+        'hover': ((60, 90, 160), (190, 210, 255)),
+        'pressed': ((25, 35, 70), (90, 110, 170)),
+    }
+    for state, (fill, edge) in styles.items():
+        image = Image.new('RGBA', (160, 36), fill + (255,))
+        d = new_draw(image)
+        frame(d, (0, 0, 160, 36), edge, width=2)
+        save(image, f'ui/button-{state}.png')
+
+
+def panel() -> None:
+    # 24x24 for 9-slice: 8 px corners and edges, the 8x8 centre stretches.
+    image = Image.new('RGBA', (24, 24), (20, 24, 44, 255))
+    d = new_draw(image)
+    frame(d, (0, 0, 24, 24), (200, 210, 255, 255), width=2)
+    frame(d, (3, 3, 21, 21), (90, 100, 150, 255))
+    save(image, 'ui/panel.png')
+
+
+def cursor() -> None:
+    # Interaction hint: an "E" key cap.
+    image = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+    d = new_draw(image)
+    d.rectangle((0, 0, 15, 15), fill=(240, 240, 240, 255), outline=(40, 40, 40, 255))
+    label(d, (8, 8), 'E', (20, 20, 20, 255), anchor='mm')
+    save(image, 'ui/cursor-interact.png')
+
+
+def portraits() -> None:
+    for name, colour in (
+        ('hero', (60, 140, 230)),
+        ('engineer', (230, 140, 40)),
+        ('captain', (170, 60, 190)),
+    ):
+        image = Image.new('RGB', (48, 48), colour)
+        d = new_draw(image)
+        d.ellipse((12, 6, 35, 29), fill=tuple(min(c + 60, 255) for c in colour), outline=(0, 0, 0))
+        frame(d, (0, 0, 48, 48), (0, 0, 0))
+        label(d, (24, 41), name[:5], (0, 0, 0), anchor='mm')
+        save(image, f'portraits/{name}.png')
+
+
+def character(name: str, colour: tuple[int, int, int]) -> None:
+    """4x4 sheet of 32x48 frames: rows down, left, right, up; column 0 idle, 1-3 walk."""
+    fw, fh = 32, 48
+    image = Image.new('RGBA', (fw * 4, fh * 4), (0, 0, 0, 0))
+    d = new_draw(image)
+    light = tuple(min(c + 70, 255) for c in colour) + (255,)
+    # Arrow tip and two base points per direction, relative to the body centre.
+    arrows = {
+        'down': ((0, 7), (-5, -3), (5, -3)),
+        'left': ((-7, 0), (3, -5), (3, 5)),
+        'right': ((7, 0), (-3, -5), (-3, 5)),
+        'up': ((0, -7), (-5, 3), (5, 3)),
+    }
+    for row, direction in enumerate(('down', 'left', 'right', 'up')):
+        for col in range(4):
+            x0, y0 = col * fw, row * fh
+            bob = 0 if col == 0 else (-1 if col % 2 else 1)  # walk frames bob a pixel
+            body = (x0 + 6, y0 + 10 + bob, x0 + 26, y0 + 44 + bob)
+            d.rectangle(body, fill=colour + (255,), outline=(0, 0, 0, 255))
+            d.rectangle((x0 + 10, y0 + 2 + bob, x0 + 22, y0 + 12 + bob), fill=light, outline=(0, 0, 0, 255))
+            cx, cy = x0 + 16, y0 + 27 + bob
+            d.polygon([(cx + ax, cy + ay) for ax, ay in arrows[direction]], fill=(255, 255, 255, 255))
+            label(d, (x0 + 16, y0 + 42 + bob), str(col), (0, 0, 0, 255), anchor='ms')
+            frame(d, (x0, y0, x0 + fw, y0 + fh), (255, 0, 255, 90))
+    save(image, f'sprites/{name}.png')
+
+
+def location(name: str, geometry: dict) -> None:
+    width, height = geometry['size']
+    floor = {'demo-corridor': (70, 80, 92), 'demo-room': (86, 72, 64), 'ship-deck': (52, 64, 80)}[name]
+    image = Image.new('RGB', (width, height), floor)
+    d = new_draw(image)
+    grid = tuple(c + 10 for c in floor)
+    for x in range(0, width, TILE):
+        d.line((x, 0, x, height), fill=grid)
+    for y in range(0, height, TILE):
+        d.line((0, y, width, y), fill=grid)
+    # The middle line the smoke tests walk along.
+    d.line((0, height // 2, width, height // 2), fill=tuple(c + 30 for c in floor))
+
+    for x, y, w, h in wall_rects(geometry):
+        d.rectangle((x, y, x + w - 1, y + h - 1), fill=(28, 30, 36), outline=(110, 115, 130))
+    for i, (x, y, w, h) in enumerate(geometry['obstacles'], 1):
+        d.rectangle((x, y, x + w - 1, y + h - 1), fill=(150, 70, 60), outline=(240, 160, 140))
+        label(d, (x + w // 2, y + h // 2), f'obstacle {i}', (255, 230, 220), anchor='mm')
+    for side, a, b in geometry['doorways']:
+        t = geometry['wall']
+        box = {
+            'top': (a, 0, b - 1, t - 1),
+            'bottom': (a, height - t, b - 1, height - 1),
+            'left': (0, a, t - 1, b - 1),
+            'right': (width - t, a, width - 1, b - 1),
+        }[side]
+        d.rectangle(box, fill=(60, 170, 90))
+
+    label(d, (24, 22), f'{name}  {width}x{height}  PLACEHOLDER', (230, 230, 240))
+    save(image, f'images/locations/{name}.png')
+
+
+def print_geometry() -> None:
+    out = {
+        name: {
+            'size': geometry['size'],
+            'wall': geometry['wall'],
+            'doorways': geometry['doorways'],
+            'obstacles': geometry['obstacles'],
+            'collisions': collision_rects(geometry),
+        }
+        for name, geometry in LOCATIONS.items()
+    }
+    print(json.dumps(out, indent=1))
+
+
+def main() -> None:
+    if '--geometry' in sys.argv:
+        print_geometry()
+        return
+    print(f'Writing placeholders into {ASSETS}')
+    menu()
+    buttons()
+    panel()
+    cursor()
+    portraits()
+    character('hero', (60, 140, 230))
+    character('npc-engineer', (230, 140, 40))
+    character('npc-captain', (170, 60, 190))
+    for name, geometry in LOCATIONS.items():
+        location(name, geometry)
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Space Owner</title>
+    <!-- No favicon yet; an empty one keeps the browser from requesting /favicon.ico (404). -->
+    <link rel="icon" href="data:," />
+    <!-- "vite build" reports this font URL as unresolved at build time: expected, files in public/ resolve at runtime. -->
+    <style>
+      /* The game font. Relative URL: the build is served from any subdirectory. */
+      @font-face {
+        font-family: 'Press Start 2P';
+        src: url('fonts/PressStart2P.ttf') format('truetype');
+        font-weight: 400;
+        font-display: block;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      /* Phaser measures this element to pick the whole-number zoom. */
+      #game {
+        width: 100%;
+        height: 100%;
+      }
+      #game canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

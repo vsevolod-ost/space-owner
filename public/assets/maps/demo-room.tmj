@@ -1,0 +1,243 @@
+{
+ "type": "map",
+ "version": "1.10",
+ "tiledversion": "1.11.0",
+ "orientation": "orthogonal",
+ "renderorder": "right-down",
+ "width": 40,
+ "height": 23,
+ "tilewidth": 16,
+ "tileheight": 16,
+ "infinite": false,
+ "compressionlevel": -1,
+ "nextlayerid": 4,
+ "nextobjectid": 18,
+ "tilesets": [],
+ "layers": [
+  {
+   "type": "imagelayer",
+   "name": "background",
+   "image": "../images/locations/demo-room.png",
+   "x": 0,
+   "y": 0,
+   "opacity": 1,
+   "visible": true,
+   "id": 1
+  },
+  {
+   "type": "objectgroup",
+   "name": "collisions",
+   "draworder": "topdown",
+   "objects": [
+    {
+     "id": 1,
+     "name": "",
+     "type": "",
+     "x": 0,
+     "y": 0,
+     "width": 640,
+     "height": 16,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 2,
+     "name": "",
+     "type": "",
+     "x": 0,
+     "y": 344,
+     "width": 640,
+     "height": 16,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 3,
+     "name": "",
+     "type": "",
+     "x": 0,
+     "y": 16,
+     "width": 16,
+     "height": 132,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 4,
+     "name": "",
+     "type": "",
+     "x": 0,
+     "y": 212,
+     "width": 16,
+     "height": 132,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 5,
+     "name": "",
+     "type": "",
+     "x": 624,
+     "y": 16,
+     "width": 16,
+     "height": 328,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 6,
+     "name": "",
+     "type": "",
+     "x": 448,
+     "y": 48,
+     "width": 128,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 7,
+     "name": "",
+     "type": "",
+     "x": 96,
+     "y": 256,
+     "width": 128,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 8,
+     "name": "",
+     "type": "",
+     "x": 400,
+     "y": 264,
+     "width": 144,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    }
+   ],
+   "x": 0,
+   "y": 0,
+   "opacity": 1,
+   "visible": true,
+   "id": 2
+  },
+  {
+   "type": "objectgroup",
+   "name": "objects",
+   "draworder": "topdown",
+   "objects": [
+    {
+     "id": 9,
+     "name": "spawn-default",
+     "type": "spawn",
+     "x": 56,
+     "y": 180,
+     "width": 0,
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "point": true
+    },
+    {
+     "id": 10,
+     "name": "spawn-from-corridor",
+     "type": "spawn",
+     "x": 56,
+     "y": 180,
+     "width": 0,
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "point": true
+    },
+    {
+     "id": 11,
+     "name": "door-corridor",
+     "type": "door",
+     "x": 0,
+     "y": 148,
+     "width": 16,
+     "height": 64,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 12,
+     "name": "terminal",
+     "type": "interactable",
+     "x": 584,
+     "y": 168,
+     "width": 24,
+     "height": 24,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 13,
+     "name": "point-terminal",
+     "type": "point",
+     "x": 560,
+     "y": 180,
+     "width": 0,
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "point": true
+    },
+    {
+     "id": 14,
+     "name": "npc-captain",
+     "type": "npc",
+     "x": 320,
+     "y": 96,
+     "width": 0,
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "point": true
+    },
+    {
+     "id": 15,
+     "name": "trigger-center",
+     "type": "trigger",
+     "x": 300,
+     "y": 150,
+     "width": 40,
+     "height": 60,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 16,
+     "name": "door-ship",
+     "type": "door",
+     "x": 608,
+     "y": 150,
+     "width": 16,
+     "height": 60,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 17,
+     "name": "broken-vent",
+     "type": "interactable",
+     "x": 40,
+     "y": 40,
+     "width": 32,
+     "height": 24,
+     "rotation": 0,
+     "visible": true
+    }
+   ],
+   "x": 0,
+   "y": 0,
+   "opacity": 1,
+   "visible": true,
+   "id": 3
+  }
+ ]
+}
