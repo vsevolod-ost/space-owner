@@ -98,6 +98,11 @@ export class DebugScene extends Phaser.Scene {
     if (enabled) this.refresh();
   }
 
+  /** Whether the overlay is shown; overlays that keep the top (the alarm bar) stay under it. */
+  get shown(): boolean {
+    return this.enabled;
+  }
+
   /** State for the smoke tool and the console: `game.scene.getScene('Debug').debugInfo()`. */
   debugInfo(): DebugOverlayInfo {
     return { enabled: this.enabled, text: this.enabled ? (this.text?.text ?? '') : '' };

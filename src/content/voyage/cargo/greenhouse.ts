@@ -7,7 +7,7 @@ import type { CargoDef } from '@/core/voyage/types';
 export const greenhouse: CargoDef = {
   // OWNER: script
   label: 'Greenhouse',
-  line: '[TODO: air, water and food while the lamps are on]',
+  line: 'Air, water and food while the lamps are on.',
   // OWNER: physics - grow modules, lamps and the hydroponics' water and plants.
   dryMassKg: 4_000,
   // OWNER: design - bays taken and copies allowed

@@ -13,14 +13,18 @@ import { legs } from '@/content/voyage/legs';
 import { services } from '@/core/services';
 import { installDebugHooks } from '@/debug/hooks';
 import { readSeedParam } from '@/debug/startParams';
+import { AlarmBarScene } from '@/scenes/AlarmBarScene';
 import { BootScene } from '@/scenes/BootScene';
 import { DebugScene } from '@/scenes/DebugScene';
 import { EndingScene } from '@/scenes/EndingScene';
+import { EventStationScene } from '@/scenes/EventStationScene';
 import { MainMenuScene } from '@/scenes/MainMenuScene';
 import { NavigationScene } from '@/scenes/NavigationScene';
 import { PauseScene } from '@/scenes/PauseScene';
 import { PhaserSceneDriver } from '@/scenes/PhaserSceneDriver';
 import { SettingsScene } from '@/scenes/SettingsScene';
+import { attachStationFlow } from '@/scenes/stationFlow';
+import { attachStationSound } from '@/scenes/stationSound';
 import { StubScene } from '@/scenes/StubScene';
 import { UiScene } from '@/scenes/UiScene';
 import { WorldScene } from '@/scenes/WorldScene';
@@ -48,7 +52,7 @@ const game = new Phaser.Game({
   },
   physics: { default: 'arcade' },
   // The first scene in the list starts first; later scenes draw above earlier ones. Panel
-  // scenes (Stub, Pause, Settings, Navigation) bring themselves to the top when they open.
+  // scenes (Stub, Pause, Settings, Navigation, EventStation) bring themselves to the top when they open.
   scene: [
     BootScene,
     MainMenuScene,
@@ -59,6 +63,9 @@ const game = new Phaser.Game({
     PauseScene,
     SettingsScene,
     NavigationScene,
+    EventStationScene,
+    // The station alarm's timer bar: over the panels too (it re-raises itself during an alarm).
+    AlarmBarScene,
     // The debug overlay (F3, ?overlay=1) last: above everything, panels included.
     DebugScene,
   ],
@@ -93,19 +100,22 @@ services.flow.fixSeed(readSeedParam());
 game.events.on(Phaser.Core.Events.STEP, (_time: number, delta: number) => {
   services.audio.tick(delta);
   services.simulation.tick(delta);
+  // After the simulation: an event fired in this step starts its alarm in the same step.
+  services.stationAlarm.tick(delta);
 });
 
-// A hidden tab holds the ship's clock (GDD `act2-pause`: losing focus switches to Hold).
-// `blur` stands while hidden; `panel` is held too, so the navigation panel comes back in Hold
-// and the player presses Run again. Phaser also stops its loop while hidden; this keeps the
-// rule in the model. Here, not in src/core: core has no DOM subscriptions.
+// Act 2's events are answered at deck stations: the deck's toasts about the voyage and the
+// navigation panel on LOST after a death away from it (plan act2-stations D9, D13).
+attachStationFlow(game);
+attachStationSound(game);
+
+// A hidden tab holds the ship's clock (GDD `act2-pause`): `blur` stands while hidden, and on
+// return time runs again if the navigation panel is still open. Phaser also stops its loop
+// while hidden; this keeps the rule in the model. Here, not in src/core: core has no DOM
+// subscriptions.
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    services.simulation.hold('blur');
-    services.simulation.hold('panel');
-  } else {
-    services.simulation.release('blur');
-  }
+  if (document.hidden) services.simulation.hold('blur');
+  else services.simulation.release('blur');
 });
 
 // Registered after Phaser's own resize listener, which refreshes the parent size first.

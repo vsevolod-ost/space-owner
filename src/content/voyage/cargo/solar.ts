@@ -10,7 +10,7 @@ export const SOLAR_COLONY_MIN_SUN = 0.25;
 export const solar: CargoDef = {
   // OWNER: script
   label: 'Solar panels',
-  line: '[TODO: power from the Sun, fading past Mars]',
+  line: 'Power from the Sun, fading past Mars.',
   // OWNER: physics - deployable arrays, about 100 W/kg at the Earth's distance.
   dryMassKg: 2_000,
   // OWNER: design - bays taken and copies allowed

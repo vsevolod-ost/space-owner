@@ -8,7 +8,9 @@ export const SceneKey = {
   Pause: 'Pause',
   Settings: 'Settings',
   Navigation: 'Navigation',
+  EventStation: 'EventStation',
   Ui: 'Ui',
+  AlarmBar: 'AlarmBar',
   Debug: 'Debug',
 } as const;
 
@@ -16,10 +18,11 @@ export const SceneKey = {
 export type SceneKey = (typeof SceneKey)[keyof typeof SceneKey];
 
 /**
- * Layers that run for the whole game above every other scene (launched by BootScene): the UI
- * and the debug overlay. Panels do not pause them and scene changes do not stop them.
+ * Layers that run for the whole game above every other scene (launched by BootScene): the UI,
+ * the station alarm's timer bar and the debug overlay. Panels do not pause them and scene
+ * changes do not stop them.
  */
-export const OVERLAY_SCENES: readonly SceneKey[] = [SceneKey.Ui, SceneKey.Debug];
+export const OVERLAY_SCENES: readonly SceneKey[] = [SceneKey.Ui, SceneKey.AlarmBar, SceneKey.Debug];
 
 /** Whether `key` is one of the `OVERLAY_SCENES`. */
 export function isOverlayScene(key: string): boolean {

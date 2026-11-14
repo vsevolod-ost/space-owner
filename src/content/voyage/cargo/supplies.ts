@@ -4,7 +4,7 @@ import type { CargoDef } from '@/core/voyage/types';
 export const supplies: CargoDef = {
   // OWNER: script
   label: 'Supplies',
-  line: '[TODO: water and food]',
+  line: 'Water and food.',
   // OWNER: physics - water containers, food lockers and the crate; the contents weigh by
   // `stock-mass.ts`.
   dryMassKg: 500,

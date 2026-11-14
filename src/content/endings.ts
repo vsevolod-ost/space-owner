@@ -26,9 +26,9 @@ export interface Ending {
  * OWNER: script
  */
 export const TIER_LINES: Readonly<Record<ColonyTier, string>> = {
-  outpost: 'Outpost. [TODO: it barely holds, but it holds]',
-  settlement: 'Settlement. [TODO: most of what the place asks for is there]',
-  colony: 'Colony. [TODO: everything this world asks for, you brought]',
+  outpost: 'Outpost. It barely holds, but it holds.',
+  settlement: 'Settlement. Most of what the place asks for is there.',
+  colony: 'Colony. Everything this world asks for, you brought.',
 };
 
 /**
@@ -39,11 +39,11 @@ export const TIER_LINES: Readonly<Record<ColonyTier, string>> = {
 export const endings = {
   'colony-moon': {
     title: 'Moon',
-    text: '[TODO: a colony in sight of home; the Earth hangs in a black sky]',
+    text: 'A colony in sight of home; the Earth hangs in a black sky.',
   },
   'colony-mars': {
     title: 'Mars',
-    text: '[TODO: a colony under a butterscotch sky; the first to stay]',
+    text: 'A colony under a butterscotch sky; the first to stay.',
   },
 } as const satisfies Record<`colony-${ColonyBodyId}`, Ending>;
 

@@ -70,6 +70,11 @@ export const theme = {
     gateAhead: 0x5a6680,
     mark: 0xff5a4d,
   },
+  /**
+   * Act 2's station alarm (plan act2-stations S5): the blinking pointer over the station on the
+   * deck. The timer bar uses `bar` (its `alarm` colour in the last third).
+   */
+  stationAlarm: { marker: 0xff5a4d },
   /** An empty slot of the HOLD strip (warehouse, ship deck). */
   holdSlot: 0x1c2333,
   /** How long a toast stays on screen, ms. */

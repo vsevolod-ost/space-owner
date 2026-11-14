@@ -71,4 +71,17 @@ export interface GameEvents {
   shipAlarm: { cause: string; days: number };
   /** The crew died (`cause`: a `DeathCause`) on simulated day `day`; the simulation stands. */
   shipDied: { cause: string; day: number };
+  /**
+   * The station alarm of event `eventId` came on (`active: true`, the event fired and its timer
+   * runs) or went off (`active: false`: answered, timed out, the crew died, the voyage stopped).
+   * `station`: the deck object where it is answered (`airlock`, `bay-access-3`, ...).
+   * `services.stationAlarm.alarm` has the time left. Not the resource alarm `shipAlarm`.
+   */
+  stationAlarm: { eventId: string; station: string; active: boolean };
+  /**
+   * The station alarm of event `eventId` ran out: `choiceId` (its `timeoutChoice`) is answered
+   * next, its bad outcome forced; `voyageEventResolved` and `stationAlarm` (`active: false`)
+   * follow.
+   */
+  stationAlarmTimedOut: { eventId: string; choiceId: string };
 }

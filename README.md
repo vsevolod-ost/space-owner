@@ -56,7 +56,7 @@ menu, F3 for the debug overlay. Open a location directly with
 | Story flow and saving     | done   | Acts with title cards, checkpoints in localStorage, Continue, the death loop, landing, Fly again         |
 | Cargo (act 1)             | done   | 10 kinds of cargo, 7 bays, crate stands, advisers, the hatch check, the HOLD strip                       |
 | Voyage (act 2)            | done   | Autopilot on a live integrator through 2 gates, resources per item, alarms, drift, gate forecast, events |
-| Navigation panel          | done   | System map, gate ribbon, status column, gate and event cards, Run / Hold                                 |
+| Navigation panel          | done   | System map, gate ribbon, status column, gate cards, alarm flash; time runs while it is open              |
 | Colony and endings        | done   | One colony per gate body, tiers by cargo against the body's needs, two endings                           |
 | Balance tools             | done   | `npm run voyage-check`, `npm run balance`: headless voyages, the loadout sweep, invariants I1-I8         |
 | UI kit                    | done   | 9-slice panel, button, text, label, toast, choice list, fader, panel scenes, pause menu                  |

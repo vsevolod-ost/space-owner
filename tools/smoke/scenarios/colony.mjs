@@ -10,7 +10,7 @@ import { VOYAGE_SEED } from '../voyage-seed.mjs';
  * the tier, the systems each need; the overlook says its line and ends on `colony-moon` with
  * the settlement's tier line; "Fly again" takes the hero to the
  * warehouse's hatch in act 1 with the cargo still aboard, `run.attempt` +1, a checkpoint.
- * Then a real Stop: act 2 with the smoke seed, Run with the debug warp to the Moon, "Stop
+ * Then a real Stop: act 2 with the smoke seed, the panel open with the debug warp to the Moon, "Stop
  * here" on the gate card -> LANDED, the title "Moon · day N", act 3 in the colony on the Moon.
  * Screenshots: colony-mars, colony-moon, colony-ending, colony-fly-again, colony-landed.
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/colony.mjs --timeout 600000
@@ -235,7 +235,7 @@ export default async function colony(page, h) {
   await h.press('KeyE');
   await h.waitReady('Navigation');
   await frames(3);
-  await h.press('Enter');
+  // Time runs as soon as the panel is open.
   await h.waitFor(() => window.nasa.services.simulation.isRunning, 2000);
   await h.eval(() => window.nasa.services.simulation.setDebugWarp(20));
   await h.waitEvent('gateReached', 60000);

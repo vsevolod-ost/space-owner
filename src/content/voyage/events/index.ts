@@ -1,7 +1,10 @@
 import { asteroidBelt } from '@/content/voyage/events/asteroid-belt';
 import { dustyPanels } from '@/content/voyage/events/dusty-panels';
+import { greenhouseLeak } from '@/content/voyage/events/greenhouse-leak';
 import { hullBreach } from '@/content/voyage/events/hull-breach';
+import { lostSignal } from '@/content/voyage/events/lost-signal';
 import { reactorFailure } from '@/content/voyage/events/reactor-failure';
+import { solarFlare } from '@/content/voyage/events/solar-flare';
 import type { VoyageEventCatalog } from '@/core/voyage/voyageEvents';
 
 /**
@@ -16,6 +19,9 @@ export const voyageEvents = {
   'asteroid-belt': asteroidBelt,
   'reactor-failure': reactorFailure,
   'dusty-panels': dustyPanels,
+  'lost-signal': lostSignal,
+  'solar-flare': solarFlare,
+  'greenhouse-leak': greenhouseLeak,
 } as const satisfies VoyageEventCatalog;
 
 /** Id of an event on the way. */

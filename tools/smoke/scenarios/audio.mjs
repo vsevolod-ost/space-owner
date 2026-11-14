@@ -3,7 +3,8 @@
  * "+" on Music (mouse) and Right on SFX (keyboard) change and store the volumes. At home
  * exactly one track (`music-demo`) plays after a click (the smoke browser starts unlocked, so the
  * queued-until-unlock path is not exercised here); walking through the door (act 1's title
- * card) into the warehouse keeps the same sound instance playing (not restarted). Pause ->
+ * card) into the warehouse crossfades to act 1's theme (`music-act1`), and asking for the track
+ * that already plays keeps the same sound instance (not restarted). Pause ->
  * Settings stacks the panels and they close top-down. A sound effect plays without errors, and
  * going to the main menu fades the music out.
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/audio.mjs
@@ -99,37 +100,39 @@ export default async function audio(page, h) {
   const volume = await h.eval(() => window.nasa.services.audio.debugInfo());
   h.log(`audio: ${JSON.stringify(volume)}`);
 
-  // --- Through the door: the same track keeps playing across the act title ---------------
+  // --- Through the door: the warehouse crossfades to act 1's theme ---------------------
   // The warehouse's arrival cutscene counts as seen, so nothing interrupts.
   await h.eval(() => window.nasa.services.state.flags.set('trigger:warehouse:arrival', true));
   await h.teleport(590, 180);
   await h.holdUntil('ArrowRight', inWarehouse, 10000);
   await h.waitReady('World');
   await h.waitFor(settled);
+  // The crossfade takes 0.5 s; then exactly one music track, the warehouse's.
+  await page.waitForTimeout(600);
   const warehouse = await h.eval(() => {
     const sounds = window.nasa.game.sound.getAllPlaying();
     return {
-      count: sounds.length,
       keys: sounds.map((sound) => sound.key),
-      music: sounds.filter((sound) => sound.key.startsWith('music-')).length,
-      same: sounds.includes(window.__smokeMusic),
-      seek: window.__smokeMusic.seek,
+      music: sounds.filter((sound) => sound.key.startsWith('music-')).map((sound) => sound.key),
+      homeStillPlaying: sounds.includes(window.__smokeMusic),
     };
   });
   h.log(`warehouse: ${JSON.stringify(warehouse)}`);
-  // sfx-door may still be sounding; exactly one music track, the same instance, never restarted.
-  if (warehouse.music !== 1 || !warehouse.same) {
-    throw new Error(`the music did not continue across the door: ${JSON.stringify(warehouse)}`);
+  if (warehouse.music.length !== 1 || warehouse.music[0] !== 'music-act1') {
+    throw new Error(`expected exactly music-act1 after the door: ${JSON.stringify(warehouse)}`);
   }
-  if (!warehouse.keys.every((key) => key === 'music-demo' || key === 'sfx-door')) {
-    throw new Error(`unexpected sounds after the door: ${JSON.stringify(warehouse.keys)}`);
-  }
-  if (!(warehouse.seek > 0)) throw new Error(`music seek ${warehouse.seek}, expected > 0`);
-  await page.waitForTimeout(600);
-  const warehouseLater = await h.eval(playing);
-  h.log(`warehouse after 600 ms: playing ${JSON.stringify(warehouseLater)}`);
-  if (warehouseLater.length !== 1 || warehouseLater[0].key !== 'music-demo') {
-    throw new Error(`expected exactly music-demo playing, got ${JSON.stringify(warehouseLater)}`);
+  if (warehouse.homeStillPlaying) throw new Error('the home track did not fade out');
+
+  // The same key again does not restart the track: same instance, seek keeps running.
+  const again = await h.eval(() => {
+    const before = window.nasa.game.sound.getAllPlaying().find((s) => s.key === 'music-act1');
+    window.nasa.services.audio.playMusic('music-act1');
+    const after = window.nasa.game.sound.getAllPlaying().filter((s) => s.key === 'music-act1');
+    return { count: after.length, same: after[0] === before, seek: after[0]?.seek ?? 0 };
+  });
+  h.log(`playMusic(music-act1) again: ${JSON.stringify(again)}`);
+  if (again.count !== 1 || !again.same || !(again.seek > 0)) {
+    throw new Error(`the same track restarted: ${JSON.stringify(again)}`);
   }
 
   // --- Pause -> Settings: panels stack and close top-down --------------------------------
@@ -166,13 +169,51 @@ export default async function audio(page, h) {
   h.log(`after playSfx('ui-click'): playing ${JSON.stringify(sfx)}`);
   if (!sfx.includes('ui-click')) throw new Error('playSfx did not play ui-click');
 
+  // --- Resume: a track switched away from and back continues where it stopped -----------
+  // (the fallback alarm over music without a drum layer, src/scenes/stationSound.ts).
+  const resumed = await h.eval(async () => {
+    const { audio } = window.nasa.services;
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    audio.playMusic('music-demo', { fadeMs: 0 });
+    await wait(1500);
+    audio.playMusic('music-alarm', { fadeMs: 0 });
+    const left = audio.debugInfo().tracks.length;
+    audio.playMusic('music-demo', { fadeMs: 0, resume: true });
+    const back = audio.debugInfo().tracks.find((track) => track.key === 'music-demo');
+    return { left, seek: back?.seek ?? -1 };
+  });
+  h.log(`resume: ${JSON.stringify(resumed)}`);
+  // The demo loop is 4 s; it was stopped about 1.5 s in.
+  if (resumed.left !== 1 || !(resumed.seek > 1)) {
+    throw new Error(`music-demo did not resume where it stopped: ${JSON.stringify(resumed)}`);
+  }
+
+  // --- Layers: none on a plain track; one asked for later joins the playing track in time --
+  const layers = await h.eval(async () => {
+    const { audio } = window.nasa.services;
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const plain = audio.setLayer(true, 0);
+    audio.playMusic('music-flight', { fadeMs: 0 });
+    await wait(700);
+    audio.playMusic('music-flight', { layer: 'music-flight-drums' });
+    const raised = audio.setLayer(true, 0);
+    const track = audio.debugInfo().tracks[0];
+    return { plain, raised, track };
+  });
+  h.log(`layers: ${JSON.stringify(layers)}`);
+  if (layers.plain) throw new Error('setLayer reported a layer on music without one');
+  const late = layers.track.layer;
+  if (!layers.raised || late?.gain !== 1 || Math.abs(late.seek - layers.track.seek) > 0.05) {
+    throw new Error(`a layer added later is not in time: ${JSON.stringify(layers)}`);
+  }
+
   // --- Main menu: the music fades out ----------------------------------------------------
   await h.eval(() => window.nasa.services.flow.toMainMenu());
   await h.waitReady('MainMenu');
   await page.waitForTimeout(500);
   const menuAgain = await h.eval(playing);
   h.log(`back in the menu: playing ${JSON.stringify(menuAgain)}`);
-  if (menuAgain.some((sound) => sound.key === 'music-demo')) {
+  if (menuAgain.some((sound) => sound.key.startsWith('music-'))) {
     throw new Error('the music did not stop on the way to the main menu');
   }
 }

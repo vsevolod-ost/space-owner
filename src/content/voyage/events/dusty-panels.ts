@@ -13,21 +13,25 @@ export const dustyPanels: VoyageEventDef = {
   speaker: 'computer',
   // OWNER: script
   title: 'Dusty panels',
-  text: '[TODO: dust on the panels, their output drops]',
+  text: 'Dust on the panels; their output drops.',
+  // OWNER: design - the deck station the alarm is answered at, and the choice applied when its
+  // timer runs out: leaving them (power -40; no risk) (plan act2-stations D3, D8).
+  station: 'airlock',
+  timeoutChoice: 'leave',
   choices: [
     {
       id: 'clean',
       // OWNER: script
-      text: '[TODO: Go out and clean them]',
-      result: '[TODO: clean again; the walk cost air]',
+      text: 'Go out and clean them.',
+      result: 'Clean again; the walk cost air.',
       // OWNER: design - days of oxygen (four times the 53-day voyage's 4, plan variable-mass S9).
       effect: { stocks: { oxygen: -16 } },
     },
     {
       id: 'leave',
       // OWNER: script
-      text: '[TODO: Leave them]',
-      result: '[TODO: the batteries make up for it]',
+      text: 'Leave them.',
+      result: 'The batteries make up for it.',
       // OWNER: design - days of power (four times the 53-day voyage's 10, plan variable-mass S9).
       effect: { stocks: { power: -40 } },
     },

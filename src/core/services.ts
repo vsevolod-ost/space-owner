@@ -1,3 +1,4 @@
+import { StationAlarmService } from '@/core/alarm/StationAlarmService';
 import { AudioService } from '@/core/audio/AudioService';
 import { CutsceneService } from '@/core/cutscene/CutsceneService';
 import { EventBus } from '@/core/events/EventBus';
@@ -22,6 +23,7 @@ export function createServices() {
   const voyage = new VoyageService(state);
   const simulation = new SimulationService(events, state, voyage);
   const cutscenes = new CutsceneService(events);
+  const stationAlarm = new StationAlarmService(events, simulation, voyage);
   return {
     /** Game event bus: scenes and services talk through it. */
     events,
@@ -54,6 +56,11 @@ export function createServices() {
      * bindings get it as `voyage`.
      */
     voyage,
+    /**
+     * The station alarm of act 2: the countdown to answer the open event at its deck station
+     * (src/core/alarm); stepped from the game loop in main.ts after `simulation`.
+     */
+    stationAlarm,
   };
 }
 

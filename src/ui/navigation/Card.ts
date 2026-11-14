@@ -7,7 +7,7 @@ import { theme } from '@/ui/theme';
 
 /**
  * How long a card ignores keys and clicks once it opens, s (GDD `gate-stop-go-ui`: the card
- * comes with an autopause, and Space or Enter pressed for Run must not choose on it).
+ * comes with an autopause, and Space or Enter pressed just before it opened must not choose on it).
  * OWNER: design
  */
 export const CARD_INPUT_LOCK_S = 0.4;

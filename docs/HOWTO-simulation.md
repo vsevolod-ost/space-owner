@@ -43,8 +43,8 @@ and the engine under them.
 How it fits together: act 2 (`src/content/story/act2.ts`) goes to the ship deck and calls
 `flow.startVoyage()`, which builds a `Voyage` (the `Simulation` plus gates, forecast and events,
 see "The voyage" below). From then on `main.ts` calls `services.simulation.tick(ms)` on every
-frame of the game loop; while nothing holds simulated time (only the navigation panel in Run
-mode, see below) the service advances the voyage, emits `simulationTick` about four times a
+frame of the game loop; while nothing holds simulated time (only while the navigation panel
+is open, see below) the service advances the voyage, emits `simulationTick` about four times a
 second (the panel redraws on it) and `gateReached` when the autopilot reaches a gate.
 Leaving the act (main menu, an ending, death, another act) stops the simulation.
 
@@ -101,24 +101,24 @@ every gate). Whatever you change inside, keep this:
 `SimulationService` (`services.simulation`, reach it from the browser console as
 `nasa.services.simulation` with `?debug=1`):
 
-| Member                                 | What it does                                                                                   |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `start(seed)`                          | New voyage with the cargo the `cargo.<id>` flags put aboard, events rolled with `seed`         |
-| `voyage`                               | The running `Voyage` (phase, gate, `openEvent`, `forecast`, `outcome`, `seed`, `log`), or null |
-| `goOn()`, `stopHere()`                 | The gate decision: leave for the next gate (Run then waits, `panel` held) / end landed here    |
-| `answerEvent(choiceId)`                | Answer the open event's card; Run then waits for the player (`panel` held)                     |
-| `forecastLife()`, `life`               | Every death, days away, alarm on or off (plan D14); offline items, death, drift clock          |
-| `hold(reason)`, `release(reason)`      | Add / remove a reason time stands (`panel`, `pause`, `blur`, `gate`, `event`)                  |
-| `isHeld(reason)`, `heldReasons`        | Which reasons hold time now                                                                    |
-| `resetHolds()`                         | Back to a new session's holds (`panel` only); `FlowService` calls it                           |
-| `setDebugWarp(n)`                      | Debug only: simulated time `n` times faster on top of `timeScaleAt`; lasts for the page's life |
-| `stop()`                               | Drop the simulation (`snapshot()` is null after)                                               |
-| `tick(realDtMs)`                       | One frame; main.ts calls it. Steps only while running and in the start's act                   |
-| `snapshot()`                           | A copy of the current state, or null                                                           |
-| `autopilot`                            | A copy of the autopilot's state (`phase`, `legIndex`, `thrusting`, `dvSpent`...), or null      |
-| `clone()`                              | An independent `Simulation` in the same state, for a headless forecast                         |
-| `isRunning`, `isStarted`, `isUnderWay` | State; `isUnderWay`: started and not ended (what a checkpoint marks)                           |
-| `system`, `content`                    | The `SolarSystem`; the gates, legs and ship                                                    |
+| Member                                 | What it does                                                                                    |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `start(seed)`                          | New voyage with the cargo the `cargo.<id>` flags put aboard, events rolled with `seed`          |
+| `voyage`                               | The running `Voyage` (phase, gate, `openEvent`, `forecast`, `outcome`, `seed`, `log`), or null  |
+| `goOn()`, `stopHere()`                 | The gate decision: leave for the next gate (flies on at once) / end landed here                 |
+| `answerEvent(choiceId, { forceHit })`  | Answer the open event (releases `event`); `forceHit`: a risk's bad outcome for sure (a timeout) |
+| `forecastLife()`, `life`               | Every death, days away, alarm on or off (plan D14); offline items, death, drift clock           |
+| `hold(reason)`, `release(reason)`      | Add / remove a reason time stands (`panel`, `pause`, `blur`, `gate`, `event`)                   |
+| `isHeld(reason)`, `heldReasons`        | Which reasons hold time now                                                                     |
+| `resetHolds()`                         | Back to a new session's holds (`panel` only); `FlowService` calls it                            |
+| `setDebugWarp(n)`                      | Debug only: simulated time `n` times faster on top of `timeScaleAt`; lasts for the page's life  |
+| `stop()`                               | Drop the simulation (`snapshot()` is null after)                                                |
+| `tick(realDtMs)`                       | One frame; main.ts calls it. Steps only while running and in the start's act                    |
+| `snapshot()`                           | A copy of the current state, or null                                                            |
+| `autopilot`                            | A copy of the autopilot's state (`phase`, `legIndex`, `thrusting`, `dvSpent`...), or null       |
+| `clone()`                              | An independent `Simulation` in the same state, for a headless forecast                          |
+| `isRunning`, `isStarted`, `isUnderWay` | State; `isUnderWay`: started and not ended (what a checkpoint marks)                            |
+| `system`, `content`                    | The `SolarSystem`; the gates, legs and ship                                                     |
 
 ## The ship: mass, engine, fuel
 
@@ -381,26 +381,33 @@ on each `simulationTick` and every frame for the column, and draws:
   against what the fuel gives now; plan variable-mass D21), a red warning when the fuel does
   not reach the next gate (plan D6) or a stock runs out, "Go on to <next>" once the
   forecast is in, and "Stop here: build <tier>" from `colonyFit` in `src/core/voyage/colony.ts`,
-  met/total of the body's needs, see `src/content/voyage/colony.ts`; only Stop at the last gate) and the event card (`EventCard`: portrait,
-  title, text, choices; a choice the cargo does not allow is dim with what it needs).
+  met/total of the body's needs, see `src/content/voyage/colony.ts`; only Stop at the last gate). An event does not open a card here (plan act2-stations): the
+  column flashes the alarm (`AlarmNotice`: "ALARM", the title, "Go to: <station>") for
+  `ALARM_FLASH_MS` and the panel closes by itself; opened again during the alarm it shows the
+  same notice (time stands: `event` held) and Esc closes. The event card (`EventCard`: portrait, title,
+  text, choices; a choice the cargo does not allow is dim with what it needs) opens at the deck
+  station in `EventStationScene`; the timer, the timeout and the stations:
+  [HOWTO-voyage.md](HOWTO-voyage.md#events-on-the-way).
 - **Alarms** (plan D14, `shipAlarm`): a toast over the map, the `sfx-alarm` sound and the row red.
 
-Keys: `confirm` (Enter, Space) or "Run / Hold" switches Run / Hold on a leg; `cancel` (Esc) or
-`interact` (E) closes. On a card the keys belong to its list: Esc does not dismiss a decision,
-and the press that chose is ignored for that frame, so the player presses Run again himself.
-A card ignores input for `CARD_INPUT_LOCK_S` (0.4 s, `Card.ts`) after it opens, so the Enter or
-Space pressed for Run does not choose on it; while the gate's forecast computes both rows are
-disabled and the cursor waits on Go on.
-`debugInfo()` gives the phase, `legIndex`, the status, the rows as shown, the alarms, the open
+Keys: `cancel` (Esc) or `interact` (E) or "Close" closes; there is no Run / Hold control. On a
+card the keys belong to its list: Esc does not dismiss a decision, and the press that chose is
+ignored for that frame. A card ignores input for `CARD_INPUT_LOCK_S` (0.4 s, `Card.ts`) after it
+opens, so an Enter or Space pressed just before does not choose on it; while the gate's forecast
+computes both rows are disabled and the cursor waits on Go on.
+`debugInfo()` gives the phase, `legIndex`, `run` (time advances now), the status, the rows as shown, the alarms, the open
 card (choices, disabled, selected, `locked`, centres, lines, `fuelShort`), the log and the toast. Open it on the ship
 deck at the navigation station (E), or with `?act=act2` to skip the earlier acts.
 
-Simulated time runs only while the navigation panel is open in Run mode (GDD `act2-pause`).
-`SimulationService` keeps a set of hold reasons and advances only when it is empty: `panel` is
-held from the start of a session and whenever the panel is closed or in Hold; the panel's
-"Run / Hold" button and `confirm` (Enter, Space) release and take it again. The pause menu holds
-`pause` (`src/scenes/PauseScene.ts`); a hidden browser tab holds `blur`, and `panel` as well, so
-the panel comes back in Hold (`document.visibilitychange` in `src/main.ts`). Every new session
+Simulated time runs whenever the navigation panel is open on a leg and nothing else holds it;
+it stands while the panel is closed (GDD `act2-pause`, without its Run / Hold switch: the
+player asked for it to go, it broke the pace). `SimulationService` keeps a set of hold reasons
+and advances only when it is empty: `panel` is held from the start of a session and whenever
+the panel is closed; the panel releases it when it opens. A gate holds `gate` (until Go on) and
+an event `event` (until it is answered). The pause menu holds `pause`
+(`src/scenes/PauseScene.ts`); a hidden browser tab holds `blur` (`document.visibilitychange` in
+`src/main.ts`), so time runs on when the tab comes back with the panel still open. The status
+word is RUN while time advances on a leg, HOLD while any of these holds it. Every new session
 (`FlowService.beginSession`) cancels cutscenes and resets the holds. For long smoke runs,
 `nasa.services.simulation.setDebugWarp(n)` multiplies simulated time (debug mode only).
 
@@ -411,12 +418,11 @@ no Phaser and no event bus: the game runs it through `SimulationService`, the to
 The designers' side (gates, events, colonies, balance) is [HOWTO-voyage.md](HOWTO-voyage.md);
 the contract of the engine:
 
-- **Phases**: `flying` (Run advances it), `atGate` (parked, waiting for Stop or Go on; at the
+- **Phases**: `flying` (time on the open panel advances it), `atGate` (parked, waiting for Stop or Go on; at the
   last gate only Stop), `event` (a card is open), `drifting` (out of fuel, plan D13), `ended`.
 - **At a gate**: `gateReached {gateIndex, body, last}`, time held (`gate`), flags
   `voyage.gateIndex`, `voyage.gate`, `voyage.day`. `goOn()` is always allowed (plan D6; the ship
-  may drift) and holds `panel`, as an event's card does: after any card the player presses Run
-  (GDD `evt-presentation` A). `stopHere()` ends the voyage `landed` with flags
+  may drift) and releases `gate`: the ship flies on at once (the panel is open). `stopHere()` ends the voyage `landed` with flags
   `voyage.stopGate`, `voyage.stopBody`, `voyage.stopName`, `voyage.day`, `voyage.o2Days`; after a
   1 s beat (LANDED) the flow starts act 3 in the colony (`FlowContent.landingAct`).
 - **Leg mirrors**: `voyage.nextGate` (body of the gate flown to or parked at, set at the start
@@ -447,10 +453,11 @@ the contract of the engine:
   the unpowered flows) while the ship and the clock stand. One function applies an effect,
   `applyEventEffect` in `voyageEvents.ts`; the game's `Simulation` calls it (the balance sweep
   flies that same `Simulation`), so a new effect part goes there (it does not compile until it is applied). Each event is rolled once when the ship has flown `at` of the leg's planned
-  duration (the simulation stops exactly there, whatever the frame rate). Happened: the card
-  opens (`voyageEvent`, hold `event`, `voyage.openEvent`); `answerEvent(choiceId)` applies it
-  (`voyageEventResolved`, flags `event.<id>` = choice, `event.<id>.hit`) and holds `panel`: the
-  player presses Run again (GDD `evt-arbitration`). One card at a time; order: death, event,
+  duration (the simulation stops exactly there, whatever the frame rate). Happened: the event
+  opens (`voyageEvent`, hold `event`, `voyage.openEvent`) and the station alarm comes on
+  (`services.stationAlarm`, answered on the deck or by its timeout); `answerEvent(choiceId)` applies it
+  (`voyageEventResolved`, flags `event.<id>` = choice, `event.<id>.hit`) and releases `event`;
+  the panel is closed then (`panel` held), so time runs again when the player opens it. One card at a time; order: death, event,
   gate. An event whose point comes after the arrival is dropped; once the ship drifts, every
   event not yet rolled or still waiting for its card is dropped too (`dropped` in the log).
 - **Seed** (plan D10): every roll is `rollFor(seed, key)` (`random.ts`), independent of order and

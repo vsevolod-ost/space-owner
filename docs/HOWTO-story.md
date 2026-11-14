@@ -88,8 +88,11 @@ the console shows a warning.
 
 ## The death loop (GDD D7, plan D18)
 
-Death happens only on the navigation panel, in Run (resources, drift, an event). There is no
-death screen: `FlowService` hears `voyageEnded` with `died`, lets the panel show LOST for 1 s
+A death always shows on the navigation panel. Most happen there, while time runs (resources, drift);
+an event's answer or its alarm running out at a deck station can kill too (plan act2-stations:
+events are answered at the deck's stations, not on the panel), and then the station's card
+closes and the panel opens by itself on LOST (`src/scenes/stationFlow.ts`). There is no death
+screen: `FlowService` hears `voyageEnded` with `died`, lets the panel show LOST for 1 s
 (`LOSS_BEAT_MS`, the summary is taken at once) and runs `flow.die(cause)`:
 
 1. a `FlightSummary` (`src/core/voyage/flightSummary.ts`) is taken while the voyage exists:

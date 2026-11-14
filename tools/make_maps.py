@@ -34,9 +34,9 @@ def hold_bays() -> int:
     """The hold's bay count, read from `bays` in src/content/voyage/cargo/index.ts (one source:
     the ship deck's `bay-N` and the colony's `build-N` objects follow it)."""
     source = (ROOT / 'src' / 'content' / 'voyage' / 'cargo' / 'index.ts').read_text()
-    found = re.search(r'\bbays:\s*(\d+)\s*}', source)
+    found = re.search(r'\bbays:\s*(\d+)\s*[,}]', source)
     if not found:
-        sys.exit('make_maps.py: no `bays: <n> }` in src/content/voyage/cargo/index.ts')
+        sys.exit('make_maps.py: no `bays: <n>` in src/content/voyage/cargo/index.ts')
     return int(found.group(1))
 
 
@@ -89,6 +89,9 @@ MAPS: dict[str, list[tuple[str, str, int, int, int, int]]] = {
         ('airlock', 'interactable', 608, 156, 16, 48),
         # bay-1..BAYS: the hold, one 32x32 crate place per bay of the hold.
         *[(f'bay-{i + 1}', 'prop', 160 + i * 48, 288, 32, 32) for i in range(BAYS)],
+        # bay-access-1..BAYS: reactor-failure access points above the hold, one over each bay
+        # (the hero cannot walk into the hold, so they sit on its upper edge); bound by name.
+        *[(f'bay-access-{i + 1}', 'interactable', 160 + i * 48, 256, 32, 8) for i in range(BAYS)],
     ],
     # build-1..BAYS: places of the colony modules (64x48), one per colony item taken (at most
     # one per bay of the hold).

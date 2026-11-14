@@ -26,6 +26,7 @@ The game is 640×360 pixels, scaled up by a whole factor. Scenes draw in this or
 | `World`      | The location, hero, NPCs. Its camera moves; nothing in it is UI.             |
 | `Ui`         | `UiScene`: the "E" hint, toasts, the dialogue window, the fader on top.      |
 | panel scenes | `PanelScene` subclasses (stub, pause, settings, navigation) over everything. |
+| `AlarmBar`   | `AlarmBarScene`: act 2's alarm timer (top right), above the panels.          |
 | `Debug`      | `DebugScene`: the debug overlay (F3, `?overlay=1`), above the panels.        |
 
 `UiScene` (`src/scenes/UiScene.ts`) is launched by `BootScene` and runs for the whole game,
@@ -167,7 +168,7 @@ A panel that opens over the game is its own scene extending `PanelScene`
 (`src/ui/PanelScene.ts`):
 
 - `open(data?)` starts it on top of everything, pauses every running scene under it except
-  the overlay scenes `UiScene` and `DebugScene` (`OVERLAY_SCENES` in `src/scenes/keys.ts`; the world stops: physics, timers, its input; the simulation keeps ticking because it
+  the overlay scenes `UiScene`, `AlarmBarScene` and `DebugScene` (`OVERLAY_SCENES` in `src/scenes/keys.ts`; the world stops: physics, timers, its input; the simulation keeps ticking because it
   runs on `game.events`), and turns off UiScene's input. Returns a promise that resolves when the
   panel closes. Opening an open panel just waits for it.
 - `close()` stops it; the paused scenes resume and UiScene's input returns (next frame).

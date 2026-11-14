@@ -35,7 +35,7 @@ backgrounds, which also show every object's outline and name as a layout draft f
 To move something in a generated map, edit those two lists and run both scripts, in this order:
 
 ```bash
-python3 tools/placeholders.py   # rewrites every placeholder image: check git status after
+python3 tools/placeholders.py   # rewrites placeholder images, keeps real art: check git status
 python3 tools/make_maps.py
 ```
 

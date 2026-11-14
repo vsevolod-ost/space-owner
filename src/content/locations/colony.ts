@@ -14,9 +14,9 @@ import type { WorldContext } from '@/world/WorldContext';
  * OWNER: script
  */
 const SHELTER_LINES: Readonly<Record<ColonyTier, string>> = {
-  outpost: '[TODO: the shelter on {body} barely holds; an outpost]',
-  settlement: '[TODO: the shelter on {body} holds; a settlement]',
-  colony: '[TODO: the shelter on {body} is a home; a colony]',
+  outpost: 'The shelter on {body} barely holds; an outpost.',
+  settlement: 'The shelter on {body} holds; a settlement.',
+  colony: 'The shelter on {body} is a home; a colony.',
 };
 
 /**
@@ -25,33 +25,33 @@ const SHELTER_LINES: Readonly<Record<ColonyTier, string>> = {
  */
 const SYSTEM_LINES: Readonly<Record<ColonyAxis, { met: string; short: string }>> = {
   power: {
-    met: '[TODO: power holds ({have}/{need})]',
-    short: '[TODO: power falls short ({have}/{need})]',
+    met: 'Power holds ({have}/{need}).',
+    short: 'Power falls short ({have}/{need}).',
   },
   heat: {
-    met: '[TODO: the modules stay warm ({have}/{need})]',
-    short: '[TODO: the cold gets in ({have}/{need})]',
+    met: 'The modules stay warm ({have}/{need}).',
+    short: 'The cold gets in ({have}/{need}).',
   },
   shielding: {
-    met: '[TODO: the shielding holds the radiation off ({have}/{need})]',
-    short: '[TODO: the radiation gets through ({have}/{need})]',
+    met: 'The shielding holds the radiation off ({have}/{need}).',
+    short: 'The radiation gets through ({have}/{need}).',
   },
   life: {
-    met: '[TODO: air and food will last ({have}/{need})]',
-    short: '[TODO: air and food run thin ({have}/{need})]',
+    met: 'Air and food will last ({have}/{need}).',
+    short: 'Air and food run thin ({have}/{need}).',
   },
 };
 
 /** The systems' line for a body with no needs. OWNER: script */
-const SYSTEMS_NO_NEEDS = '[TODO: nothing here asks for more]';
+const SYSTEMS_NO_NEEDS = 'Nothing here asks for more.';
 
 /**
  * The overlook's line per body, before the ending (GDD `act3-content` A: the view, then the
  * signal home). OWNER: script
  */
 const OVERLOOK_LINES: Readonly<Record<ColonyBodyId, string>> = {
-  moon: '[TODO: the Earth over the horizon; the signal takes a second]',
-  mars: '[TODO: a small Sun over red dunes; the signal is minutes old]',
+  moon: 'The Earth over the horizon; the signal takes a second.',
+  mars: 'A small Sun over red dunes; the signal is minutes old.',
 };
 
 /** The colony site the colony stands on now (`voyage.stopBody`, the Moon without a landing). */
@@ -87,7 +87,7 @@ async function overlook(voyage: VoyageService, ctx: WorldContext): Promise<void>
   const body = bodyOf(voyage, ctx);
   const line = Object.hasOwn(OVERLOOK_LINES, body)
     ? OVERLOOK_LINES[body as ColonyBodyId]
-    : '[TODO: the view]'; // OWNER: script - a body without its own line
+    : 'The view.'; // OWNER: script - a body without its own line
   await ctx.ui.say('narrator', line, ctx);
   // The colony registry and the endings registry list the same bodies (`colony-<body>`);
   // `flow.finish` warns about an id it does not know.

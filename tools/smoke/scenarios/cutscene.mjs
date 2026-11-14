@@ -1,8 +1,9 @@
 /**
  * Smoke scenario: cutscene. In the warehouse the hero walks right into the `arrival` trigger:
  * the `warehouse-arrival` cutscene locks the input, the engineer walks up to the hero and says
- * two lines in the dialogue window (Enter closes each), the camera looks at the hatch and comes
- * back while the engineer returns to his post. Afterwards `warehouse.arrivalSeen` is set, the
+ * two lines in the dialogue window (Enter closes each; the window never leaves a frame empty
+ * between them), both look at the hatch and the engineer returns to his post; the camera stays
+ * still all along, also with the hero off the middle line. Afterwards `warehouse.arrivalSeen` is set, the
  * hero walks again, and crossing the trigger once more does not replay the cutscene.
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/cutscene.mjs
  *
@@ -43,9 +44,26 @@ export default async function cutscene(page, h) {
   await h.goto('/?location=warehouse&spawn=spawn-default');
   await h.waitReady('World');
   await h.waitFor(() => !window.nasa.services.flow.isTransitioning);
+  // Off the middle line (y=184): the warehouse is 8 px taller than the screen, so a camera move
+  // during the cutscene would show as the map nudging up and down.
+  await h.teleport(48, 170);
+  // Every rendered frame from now on: the camera scroll and whether a dialogue window is shown.
+  await h.eval(() => {
+    const world = window.nasa.game.scene.getScene('World');
+    const ui = window.nasa.game.scene.getScene('Ui');
+    window.__smokeFrames = [];
+    window.nasa.game.events.on('postrender', () => {
+      if (!window.nasa.services.cutscenes.isPlaying) return;
+      const camera = world.cameras.main;
+      window.__smokeFrames.push({
+        scroll: [camera.scrollX, camera.scrollY],
+        shown: ui.debugInfo().dialogueShown,
+      });
+    });
+  });
   await h.mark();
 
-  // Walk right along y=184 into the arrival trigger (x 96..128).
+  // Walk right along y=170 into the arrival trigger (x 96..128, y 160..208).
   await h.holdUntil('ArrowRight', () => window.nasa.services.cutscenes.isPlaying, 15000);
   await h.waitEvent('cutsceneStarted', 5000);
   if (!(await h.eval(locked))) throw new Error('world controls not locked during the cutscene');
@@ -74,9 +92,19 @@ export default async function cutscene(page, h) {
   await closeLine(1);
   await closeLine(2);
 
-  // Camera to the hatch and back, then the end.
+  // Both look at the hatch, the engineer walks back, then the end.
   await h.waitEvent('cutsceneEnded', 30000);
   await h.waitFor(() => !window.nasa.services.cutscenes.isPlaying);
+  const frames = await h.eval(() => window.__smokeFrames);
+  const scrolls = [...new Set(frames.map((frame) => frame.scroll.join(',')))];
+  h.log(`cutscene: ${frames.length} frames, camera scroll ${JSON.stringify(scrolls)}`);
+  if (scrolls.length !== 1) throw new Error(`the camera moved during the cutscene: ${scrolls}`);
+  // From the first frame with the window to the last: no frame without it between the lines.
+  const shown = frames.map((frame) => frame.shown);
+  const gaps = shown
+    .slice(shown.indexOf(true), shown.lastIndexOf(true))
+    .filter((value) => !value).length;
+  if (gaps > 0) throw new Error(`the dialogue window vanished for ${gaps} frame(s) between lines`);
   const flags = await h.eval(() => ({
     seen: window.nasa.services.state.flags.get('warehouse.arrivalSeen'),
     trigger: window.nasa.services.state.flags.get('trigger:warehouse:arrival'),

@@ -10,6 +10,8 @@ import type { PauseScene } from '@/scenes/PauseScene';
 import type { UiScene } from '@/scenes/UiScene';
 import { HoldStrip } from '@/ui/HoldStrip';
 import type { HoldStripInfo } from '@/ui/HoldStrip';
+import { StationMarker } from '@/ui/StationMarker';
+import type { StationMarkerInfo } from '@/ui/StationMarker';
 import { Actor } from '@/world/Actor';
 import type { Point } from '@/world/Actor';
 import { Interactables } from '@/world/Interactables';
@@ -51,6 +53,8 @@ export interface WorldDebugInfo {
   rebuildPending: boolean;
   /** The HOLD strip (locations with `showHold`), or null. */
   hold: HoldStripInfo | null;
+  /** The station alarm's pointer over its station in this location, or null. */
+  marker: StationMarkerInfo | null;
 }
 
 /**
@@ -72,6 +76,7 @@ export class WorldScene extends Phaser.Scene {
   private interactables!: Interactables;
   private props!: Props;
   private holdStrip?: HoldStrip;
+  private marker?: StationMarker;
   /** A flag changed since the last rebuild. */
   private dirty = false;
   private rebuilds = 0;
@@ -114,6 +119,8 @@ export class WorldScene extends Phaser.Scene {
     if (def.showHold) {
       this.holdStrip = new HoldStrip(this, services.voyage).refresh(services.state.flags);
     }
+    // The station alarm's pointer (act 2); shows only while an alarm's station is on this map.
+    this.marker = new StationMarker(this, objects);
 
     // Boot launches the UI; this covers a World started some other way. `run` on a running
     // scene would restart it; the UI keeps running across locations.
@@ -135,11 +142,13 @@ export class WorldScene extends Phaser.Scene {
       offFlags();
       this.interactables.destroy();
       this.props.clear();
+      this.marker?.destroy();
+      this.marker = undefined;
     });
 
     // The same track continues across locations that share it (the service does not restart
     // it); a location without music keeps whatever plays.
-    if (def.music) services.audio.playMusic(def.music);
+    if (def.music) services.audio.playMusic(def.music, { layer: def.musicLayer });
 
     // services.flow.goTo has set services.state.current before this scene started.
     services.events.emit('locationEntered', { locationId: this.locationId, spawn: this.spawn });
@@ -157,6 +166,7 @@ export class WorldScene extends Phaser.Scene {
     // No "E" hint while the hero cannot act (cutscene, dialogue, transition).
     const anchor = this.keyboard.isLocked() ? null : this.interactables.focusAnchor();
     this.ui.placeHint(this.toScreen(anchor));
+    this.marker?.update(services.stationAlarm.alarm?.station ?? null, this.time.now);
   }
 
   /**
@@ -225,6 +235,7 @@ export class WorldScene extends Phaser.Scene {
       cutscenes: services.cutscenes,
       flow: services.flow,
       voyage: services.voyage,
+      stationAlarm: services.stationAlarm,
     };
   }
 
@@ -240,6 +251,7 @@ export class WorldScene extends Phaser.Scene {
       rebuilds: this.rebuilds,
       rebuildPending: this.dirty,
       hold: this.holdStrip?.debugInfo() ?? null,
+      marker: this.marker?.debugInfo() ?? null,
     };
   }
 

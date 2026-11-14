@@ -152,7 +152,8 @@ export type Status = 'RUN' | 'HOLD' | 'DRIFTING' | 'LOST' | 'LANDED' | 'OFFLINE'
 
 /**
  * The status word: OFFLINE before the voyage, LANDED or LOST after it, DRIFTING out of fuel,
- * RUN while time runs on a leg, HOLD otherwise (Hold mode, a gate, an event's card).
+ * RUN while time runs on a leg (the navigation panel open, nothing else holding it), HOLD
+ * otherwise (a gate, an event, the pause menu, a hidden tab).
  */
 export function statusOf(
   phase: VoyagePhase | null,

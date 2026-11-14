@@ -200,6 +200,11 @@ export interface LocationDef {
    */
   music?: AudioKey;
   /**
+   * Second loop of `music` (same length and tempo), started with it and silent until the game
+   * raises it: on the ship deck, the alarm drums (docs/HOWTO-audio.md, "Two states of act 2").
+   */
+  musicLayer?: AudioKey;
+  /**
    * Shows the HOLD strip at the top of the screen: `HOLD n/7` and the icons of the cargo aboard
    * (plan D21; the warehouse and the ship deck). Default false.
    */

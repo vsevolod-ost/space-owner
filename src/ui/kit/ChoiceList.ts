@@ -59,7 +59,11 @@ export class ChoiceList extends Phaser.GameObjects.Container {
   private selected = 0;
   /** Game frame in which the choices were set: input in that frame is ignored. */
   private openedFrame = -1;
-  /** Scene time (ms) until which keys and clicks are ignored (`lockFor`). */
+  /**
+   * Game loop time (ms) until which keys and clicks are ignored (`lockFor`). Not the scene's
+   * clock: in a panel scene started again that clock still holds the time it stopped at until
+   * its first update, so a lock set in `create` would end at once.
+   */
   private lockedUntil = -Infinity;
   private readonly cancelable: boolean;
   private readonly fixedWidth?: number;
@@ -145,15 +149,15 @@ export class ChoiceList extends Phaser.GameObjects.Container {
     return this;
   }
 
-  /** Ignores keys and clicks for `ms` of scene time from now (e.g. after an autopause). */
+  /** Ignores keys and clicks for `ms` of game-loop time from now (e.g. after an autopause). */
   lockFor(ms: number): this {
-    this.lockedUntil = this.scene.time.now + ms;
+    this.lockedUntil = this.scene.game.loop.time + ms;
     return this;
   }
 
   /** Whether input is ignored now (`lockFor`). */
   get locked(): boolean {
-    return this.scene.time.now < this.lockedUntil;
+    return this.scene.game.loop.time < this.lockedUntil;
   }
 
   /** Emits `CHOSEN` with `index`, as if the player chose that row (not a disabled one). */

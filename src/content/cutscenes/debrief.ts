@@ -27,42 +27,42 @@ interface DebriefLines {
  */
 const LINES: Readonly<Record<string, DebriefLines>> = {
   hypoxia: {
-    what: '[TODO: the air ran out on day {day}, on the way from {gate} to {next}]',
-    why: '[TODO: the oxygen did not last the legs; something on the way cost air]',
-    advice: '[TODO: an oxygen crate or the greenhouse would have kept them breathing]',
+    what: 'The air ran out on day {day}, on the way from {gate} to {next}.',
+    why: 'The oxygen did not last the leg; something on the way cost air.',
+    advice: 'An oxygen crate or the greenhouse would have kept them breathing.',
   },
   dehydration: {
-    what: '[TODO: the water ran out on day {day}, on the way from {gate} to {next}]',
-    why: '[TODO: the water stock was too short for so long a flight]',
-    advice: '[TODO: take supplies or the greenhouse next time]',
+    what: 'The water ran out on day {day}, on the way from {gate} to {next}.',
+    why: 'The water stock was too short for so long a flight.',
+    advice: 'Take supplies or the greenhouse next time.',
   },
   starvation: {
-    what: '[TODO: the food ran out on day {day}, on the way from {gate} to {next}]',
-    why: '[TODO: the food stock was too short for so long a flight]',
-    advice: '[TODO: take supplies or the greenhouse next time]',
+    what: 'The food ran out on day {day}, on the way from {gate} to {next}.',
+    why: 'The food stock was too short for so long a flight.',
+    advice: 'Take supplies or the greenhouse next time.',
   },
   frozen: {
-    what: '[TODO: the ship froze on day {day}, on the way from {gate} to {next}]',
-    why: '[TODO: without power the heaters stopped]',
-    advice: '[TODO: power: the reactor, batteries or solar panels near the Sun]',
+    what: 'The ship froze on day {day}, on the way from {gate} to {next}.',
+    why: 'Without power the heaters stopped.',
+    advice: 'Power: the reactor, batteries or solar panels near the Sun.',
   },
   drift: {
-    what: '[TODO: the fuel ran out after {gate}; the ship drifted past {next}]',
-    why: '[TODO: the gate card said the fuel would not reach the next gate]',
-    advice: '[TODO: more fuel, or stop where the fuel still reaches]',
+    what: 'The fuel ran out after {gate}; the ship drifted past {next}.',
+    why: 'The gate card said the fuel would not reach the next gate.',
+    advice: 'More fuel, or stop where the fuel still reaches.',
   },
   abort: {
-    what: '[TODO: you turned back on day {day}, on the way from {gate} to {next}]',
-    why: '[TODO: no harm done; the cargo is still in the bays]',
-    advice: '[TODO: change what you take and fly again]',
+    what: 'You turned back on day {day}, on the way from {gate} to {next}.',
+    why: 'No harm done; the cargo is still in the bays.',
+    advice: 'Change what you take and fly again.',
   },
 };
 
 /** Lines of a cause the table does not know. OWNER: script */
 const GENERIC: DebriefLines = {
-  what: '[TODO: we lost the ship on day {day}, on the way from {gate} to {next}: {cause}]',
-  why: '[TODO: the flight log says: {cause}]',
-  advice: '[TODO: think over the cargo and try again]',
+  what: 'We lost the ship on day {day}, on the way from {gate} to {next}: {cause}.',
+  why: 'The flight log says: {cause}.',
+  advice: 'Think over the cargo and try again.',
 };
 
 /** How a cause reads in a line: `event:reactor-failure` -> `reactor failure`. */

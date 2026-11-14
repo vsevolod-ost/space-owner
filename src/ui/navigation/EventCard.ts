@@ -17,7 +17,8 @@ const CHOICES_Y = 164;
 /**
  * The card of an event on the way (plan D15, GDD `evt-presentation` A): the speaker's portrait
  * and name, the event's title and text, and its choices; a choice the cargo does not allow is
- * shown dim with what it needs. After the answer the player presses Run himself.
+ * shown dim with what it needs. After the answer time runs again only on the open navigation
+ * panel.
  */
 export class EventCard extends Card {
   protected readonly kind = 'event' as const;

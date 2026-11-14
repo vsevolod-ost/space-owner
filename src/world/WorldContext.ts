@@ -1,3 +1,4 @@
+import type { StationAlarmService } from '@/core/alarm/StationAlarmService';
 import type { CutsceneService } from '@/core/cutscene/CutsceneService';
 import type { FlowService } from '@/core/flow/FlowService';
 import type { Controls } from '@/core/input/controls';
@@ -28,4 +29,9 @@ export interface WorldContext {
    * `ctx.voyage.count('oxygen')`, `ctx.voyage.item('fuel').label`.
    */
   voyage: VoyageService;
+  /**
+   * The station alarm of act 2 (same as `services.stationAlarm`): `ctx.stationAlarm.alarm` is
+   * the event to answer now and its deck station, or null.
+   */
+  stationAlarm: StationAlarmService;
 }

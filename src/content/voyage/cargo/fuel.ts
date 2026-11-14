@@ -4,7 +4,7 @@ import type { CargoDef } from '@/core/voyage/types';
 export const fuel: CargoDef = {
   // OWNER: script
   label: 'Fuel',
-  line: '[TODO: one more leg of fuel]',
+  line: 'One more leg of fuel.',
   // OWNER: physics - the empty tank and feed lines of one crate.
   dryMassKg: 3_000,
   // OWNER: design - bays taken and copies allowed

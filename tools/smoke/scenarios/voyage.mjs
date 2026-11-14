@@ -1,15 +1,17 @@
+import { answerAlarm, openNavigation } from '../alarm.mjs';
 import { VOYAGE_SEED } from '../voyage-seed.mjs';
 
 /**
  * Smoke scenario: the whole game end to end (plan S13). New Game from the menu (with the smoke
  * seed) -> the prologue at home -> walk out of the door: act 1 in the warehouse, the arrival
  * cutscene -> take `fuel`, `oxygen`, `supplies` and `solar` at their stands -> the hatch, "Board" -> act 2
- * on the deck -> the navigation panel -> Run (with the debug warp; the first choice on every
- * event card) -> the Moon's gate card: "Go on" -> Mars's gate card: "Stop here" -> LANDED,
+ * on the deck -> the navigation panel, time running while it is open (with the debug warp; every event's alarm closes the
+ * panel and is answered with its first choice at its deck station, then back to the panel,
+ * tools/smoke/alarm.mjs) -> the Moon's gate card: "Go on" -> Mars's gate card: "Stop here" -> LANDED,
  * the title "Mars · day N" -> act 3 in the colony on Mars, its checkpoint without the `voyage`
  * mark -> the overlook -> the end screen of Mars. Seed 1 with these four crates reaches Mars
  * on day 202.4 (`npm run voyage-check`, tools/smoke/voyage-seed.mjs).
- * Screenshots: voyage-1-home .. voyage-10-ending (voyage-7-event if an event card shows).
+ * Screenshots: voyage-1-home .. voyage-10-ending (voyage-7-event: the first event's card at its station).
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/voyage.mjs --timeout 600000
  *
  * @param {import('playwright-core').Page} page
@@ -193,8 +195,8 @@ export default async function voyage(page, h) {
   }
   await h.shot('voyage-5-deck');
 
-  // --- The navigation panel: Run with the warp; Go on at the Moon, Stop at Mars, the first
-  // choice on every event card.
+  // --- The navigation panel: time runs while it is open (with the warp); Go on at the Moon,
+  // Stop at Mars, the first choice on every event card.
   await h.holdUntil(
     'ArrowRight',
     () => window.nasa.game.scene.getScene('World').debugInfo().focused === 'station-navigation',
@@ -212,31 +214,41 @@ export default async function voyage(page, h) {
   let shotEvent = false;
   while (!(await h.eval(ended))) {
     if (Date.now() - startedAt > 480000) throw new Error('the voyage did not end in 8 minutes');
+    // An event: the panel flashes its alarm and closes; the first choice at its deck station
+    // (tools/smoke/alarm.mjs), then back to the panel.
+    if (await h.eval(() => window.nasa.services.stationAlarm.alarm !== null)) {
+      const day = await h.eval(() => Math.floor(window.nasa.services.simulation.voyage.day) + 1);
+      const shot = shotEvent ? null : 'voyage-7-event';
+      shotEvent = true;
+      const answer = await answerAlarm(h, { shot });
+      answered.push(
+        `event ${answer.eventId}: ${answer.choiceId} at ${answer.station} (day ${day})`,
+      );
+      h.log(`event ${answer.eventId}: ${answer.choiceId} at ${answer.station} (day ${day})`);
+      continue;
+    }
     const info = await h.eval(navigation);
-    if (!info) throw new Error('the navigation panel closed during the voyage');
+    if (!info) {
+      await openNavigation(h);
+      continue;
+    }
     if (info.status === 'LOST' || info.status === 'DRIFTING') {
       throw new Error(`the voyage failed: ${info.status} on day ${info.day}`);
     }
     const { card } = info;
-    // A card takes input once unlocked and its rows are enabled (a gate's Stop waits for the
+    // A gate card takes input once unlocked and its rows are enabled (Stop waits for the
     // forecast).
-    const ready =
-      card && !card.locked && !card.disabled[0] && (card.kind !== 'gate' || !card.disabled[1]);
+    const ready = card && !card.locked && !card.disabled[0] && !card.disabled[1];
     if (ready) {
       let pick = 0;
-      if (card.kind === 'gate') {
-        if (info.gateIndex === 0) {
-          await h.shot('voyage-7-moon-gate');
-        } else if (info.gateIndex === 1) {
-          pick = card.choices.findIndex((choice) => choice.startsWith('Stop here'));
-          if (pick < 0) throw new Error(`no Stop on Mars's card: ${JSON.stringify(card)}`);
-          await h.shot('voyage-8-mars-gate');
-        } else {
-          throw new Error(`passed Mars: a gate card at gate ${info.gateIndex}`);
-        }
-      } else if (!shotEvent) {
-        shotEvent = true;
-        await h.shot('voyage-7-event');
+      if (info.gateIndex === 0) {
+        await h.shot('voyage-7-moon-gate');
+      } else if (info.gateIndex === 1) {
+        pick = card.choices.findIndex((choice) => choice.startsWith('Stop here'));
+        if (pick < 0) throw new Error(`no Stop on Mars's card: ${JSON.stringify(card)}`);
+        await h.shot('voyage-8-mars-gate');
+      } else {
+        throw new Error(`passed Mars: a gate card at gate ${info.gateIndex}`);
       }
       answered.push(`${card.kind} ${info.gateIndex}: ${card.choices[pick]} (day ${info.day})`);
       h.log(`card ${card.kind} at gate ${info.gateIndex}: ${card.choices[pick]} (day ${info.day})`);
@@ -246,7 +258,7 @@ export default async function voyage(page, h) {
         pick,
       );
       await h.press('Enter');
-      if (card.kind === 'gate' && info.gateIndex === 1) {
+      if (info.gateIndex === 1) {
         await h.waitFor(() => window.__nasaEvents.some((e) => e.name === 'voyageEnded'), 5000);
         break;
       }
@@ -254,8 +266,6 @@ export default async function voyage(page, h) {
         () => window.nasa.game.scene.getScene('Navigation').debugInfo()?.card === null,
         5000,
       );
-    } else if (!card && !info.run && info.status === 'HOLD') {
-      await h.press('Enter');
     } else if (!card && info.run && !shotRun && info.legIndex === 0) {
       shotRun = true;
       await h.shot('voyage-6-run');

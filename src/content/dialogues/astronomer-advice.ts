@@ -18,52 +18,52 @@ export const astronomerAdvice = defineDialogue({
   nodes: {
     greeting: {
       speaker: 'astronomer',
-      text: '[TODO: the astronomer meets the hero for the first time and says who they are]',
+      text: "I'm the astronomer. I know the bodies on our route and what a colony needs there.",
       when: (s) => s.flags.get('astronomer.met') !== true,
       effect: (s) => s.flags.set('astronomer.met', true),
       next: 'question',
     },
     question: {
       speaker: 'astronomer',
-      text: '[TODO: what do you want to know?]',
+      text: 'What would you like to know?',
       choices: [
         {
-          text: '[TODO: ask where to settle]',
+          text: 'Where should we settle?',
           when: (s) => !gaveBodiesAdvice(s),
           effect: (s) => s.flags.set('advice.astronomer.bodies', true),
           next: 'bodies',
         },
         {
-          text: '[TODO: ask about the bodies again]',
+          text: 'Remind me about the bodies.',
           when: gaveBodiesAdvice,
           next: 'bodies-again',
         },
-        { text: '[TODO: say goodbye]', next: 'bye' },
+        { text: "That's all, thank you.", next: 'bye' },
       ],
     },
     bodies: {
       speaker: 'astronomer',
-      text: '[TODO: the farther the body, the better the colony, if the cargo can build it]',
+      text: 'The farther the body, the better the colony can be - if the cargo can build it.',
       next: 'bodies-hero',
     },
     'bodies-hero': {
       speaker: 'hero',
-      text: '[TODO: the hero asks what a colony needs]',
+      text: 'What does a colony need out there?',
       next: 'bodies-needs',
     },
     'bodies-needs': {
       speaker: 'astronomer',
-      text: '[TODO: power and warmth out there; the colony kits fit their own bodies]',
+      text: 'Power and warmth. The colony kits are made for their own bodies, so match the kit to the world.',
       next: 'bye',
     },
     'bodies-again': {
       speaker: 'astronomer',
-      text: '[TODO: the bodies advice in short]',
+      text: 'Fly farther if the cargo can support it; nearer worlds need less.',
       next: 'bye',
     },
     bye: {
       speaker: 'astronomer',
-      text: '[TODO: clear skies]',
+      text: 'Clear skies, pilot.',
     },
   },
 });

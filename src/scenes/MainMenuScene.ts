@@ -11,10 +11,17 @@ import { theme } from '@/ui/theme';
 
 const BACKGROUND: ImageKey = 'menu-background';
 const LOGO: ImageKey = 'menu-logo';
+const SHIP: ImageKey = 'menu-ship';
 /** Logo centre (art is 320x100). */
 const LOGO_Y = 70;
+/** Centre x of the button column, left of the ship. OWNER: design */
+const BUTTONS_X = 136;
 /** Centre of the first button (art is 160x36). */
 const FIRST_BUTTON_Y = 160;
+/** Right edge of the ship (art is 344x150), right of the buttons. OWNER: design */
+const SHIP_RIGHT = GAME_WIDTH - 16;
+/** Bottom edge of the ship. OWNER: design */
+const SHIP_BOTTOM = GAME_HEIGHT - 24;
 const BUTTON_SPACING = 44;
 /** Button art size; the panel behind the buttons is fitted to it. */
 const BUTTON_WIDTH = 160;
@@ -37,7 +44,7 @@ export interface MainMenuDebugInfo {
   buttons: MenuButtonInfo[];
 }
 
-/** Main menu: logo and the list of menu items. */
+/** Main menu: logo, the ship and the list of menu items. */
 export class MainMenuScene extends Phaser.Scene {
   private buttons: Button[] = [];
   private continueButton?: Button;
@@ -51,6 +58,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     this.add.image(centerX, GAME_HEIGHT / 2, BACKGROUND);
     this.add.image(centerX, LOGO_Y, LOGO);
+    this.add.image(SHIP_RIGHT, SHIP_BOTTOM, SHIP).setOrigin(1, 1);
 
     // To add a menu item, append it to this list.
     // Once the real scene exists, replace openStub with a transition to it.
@@ -66,11 +74,11 @@ export class MainMenuScene extends Phaser.Scene {
     const panelHeight =
       (items.length - 1) * BUTTON_SPACING + BUTTON_HEIGHT + theme.panelPadding * 2;
     const panelWidth = BUTTON_WIDTH + theme.panelPadding * 2;
-    new Panel(this, centerX - panelWidth / 2, panelTop, panelWidth, panelHeight);
+    new Panel(this, BUTTONS_X - panelWidth / 2, panelTop, panelWidth, panelHeight);
 
     this.buttons = items.map(
       ({ label, onClick }, index) =>
-        new Button(this, centerX, FIRST_BUTTON_Y + index * BUTTON_SPACING, label, onClick),
+        new Button(this, BUTTONS_X, FIRST_BUTTON_Y + index * BUTTON_SPACING, label, onClick),
     );
     this.continueButton = this.buttons[0].setEnabled(services.save.hasSave());
   }

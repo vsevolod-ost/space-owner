@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { stationName } from '@/content/locations/ship-deck';
 import { services } from '@/core/services';
 import { deltaVMS } from '@/core/simulation/rocket';
 import type { Telemetry } from '@/core/simulation/telemetry';
@@ -11,8 +12,8 @@ import { PanelScene } from '@/ui/PanelScene';
 import { Button } from '@/ui/kit/Button';
 import { createText } from '@/ui/kit/text';
 import { Toast } from '@/ui/kit/Toast';
+import { AlarmNotice } from '@/ui/navigation/AlarmNotice';
 import type { CardInfo } from '@/ui/navigation/Card';
-import { EventCard } from '@/ui/navigation/EventCard';
 import { GateCard, type GateChoice } from '@/ui/navigation/GateCard';
 import { GateRibbon, type RibbonView } from '@/ui/navigation/GateRibbon';
 import {
@@ -43,7 +44,7 @@ export interface NavigationDebugInfo {
   gateIndex: number;
   /** Autopilot phase and whether it fires the engine; null if not started. */
   autopilot: { phase: AutopilotState['phase']; thrusting: boolean } | null;
-  /** Whether the panel is in Run mode (`panel` not held). */
+  /** Whether simulated time advances now (`simulation.isRunning`: no hold reason). */
   run: boolean;
   /** The status word as shown (RUN, HOLD, DRIFTING, LANDED, LOST, OFFLINE). */
   status: Status;
@@ -69,8 +70,13 @@ export interface NavigationDebugInfo {
   rows: Record<RowId, { value: string; level: Level }> | null;
   /** Death causes whose alarm is on (red rows, D14). */
   alarms: string[];
-  /** The open card (gate or event), with `fuelShort` on a gate card; null: the column. */
+  /** The open gate card, with `fuelShort`; null: the column or the alarm. */
   card: (CardInfo & { fuelShort?: boolean }) | null;
+  /**
+   * The alarm shown in place of the column while an event waits for an answer at a deck
+   * station (its lines), and whether the panel closes by itself (the flash); null: none.
+   */
+  alarm: { lines: string[]; closing: boolean } | null;
   /** The log as kept (oldest first). */
   log: string[];
   /** The toast on screen, or null. */
@@ -78,11 +84,13 @@ export interface NavigationDebugInfo {
   /** Points in the trail. */
   trail: number;
   /** Button centres in game pixels, for `h.click(x, y)` (hidden while a card is open). */
-  buttons: { run: Point; close: Point };
+  buttons: { close: Point };
 }
 
 const PANEL_WIDTH = 624;
 const PANEL_HEIGHT = 344;
+/** Gap between the station alarm's timer box and the Close button under it, px. */
+const ALARM_BAR_GAP = 8;
 /** Height of the gate ribbon at the top and the gap under it, px. */
 const RIBBON_HEIGHT = 24;
 const RIBBON_GAP = 8;
@@ -90,10 +98,9 @@ const RIBBON_GAP = 8;
 const MAP_SIZE = 288;
 /** Gap between the map and the right column, px. */
 const COLUMN_GAP = 12;
-const RUN_BUTTON = { width: 136, height: 24 };
 const CLOSE_BUTTON = { width: 104, height: 24 };
 /** The key legend over the buttons and its distance above the column's bottom, px. OWNER: script */
-const LEGEND = 'Space: Run/Hold   E/Esc: close';
+const LEGEND = 'E/Esc: close';
 const LEGEND_Y = 36;
 /** Most trail points kept: older ones are thinned out (every other one dropped). */
 const TRAIL_MAX = 600;
@@ -104,6 +111,11 @@ const TOAST_ABOVE = 28;
 const TOAST_MARGIN = 16;
 /** Sound of an alarm (D14). */
 const ALARM_SOUND = 'sfx-alarm';
+/**
+ * How long the panel shows an event's alarm before it closes by itself, so the player runs to
+ * the event's deck station, ms (plan act2-stations D6). Part of the station timer. OWNER: design
+ */
+export const ALARM_FLASH_MS = 700;
 
 /**
  * Navigation panel of act 2 (plan S8; GDD `ux-panel-layout` B, `gate-panel-view` A,
@@ -120,12 +132,16 @@ const ALARM_SOUND = 'sfx-alarm';
  *   as states with a trend; normal / low / critical), two telemetry lines (mass, its rate and
  *   the engine's acceleration; local gravity and escape speed), the log, the key legend and
  *   buttons;
- * - at a gate or an event the column gives way to a card (`GateCard`, `EventCard`).
+ * - at a gate the column gives way to the gate card (`GateCard`); at an event, to its alarm
+ *   (`AlarmNotice`: the event and its deck station, plan act2-stations D6): the panel closes by
+ *   itself after `ALARM_FLASH_MS` and the event is answered at that station
+ *   (`EventStationScene`); opened again during the alarm it shows the notice until closed.
  *
- * Keys: `confirm` (Enter, Space) or the button switches Run / Hold (simulated time runs only in
- * Run); `cancel` (Esc) or `interact` (E) closes, and time stands. On a card the keys belong to
- * its choice list: Esc does not dismiss a decision, and the press that closed a card is ignored
- * for that frame. Alarms (D14): a toast, a sound and the row in red. The trail and the log stay
+ * Simulated time runs whenever the panel is open on a leg and nothing else holds it (a gate's
+ * card, an event, the pause menu, a hidden tab); it stands while the panel is closed. Keys:
+ * `cancel` (Esc) or `interact` (E) or the button closes. On a card the keys belong to its
+ * choice list: Esc does not dismiss a decision, and the press that closed a card is ignored for
+ * that frame. Alarms (D14): a toast, a sound and the row in red. The trail and the log stay
  * for the voyage across openings. Everything comes from `services.simulation`
  * (docs/HOWTO-simulation.md).
  */
@@ -134,11 +150,14 @@ export class NavigationScene extends PanelScene {
   private ribbon?: GateRibbon;
   private column?: StatusColumn;
   private legend?: Phaser.GameObjects.Text;
-  private runButton?: Button;
   private closeButton?: Button;
   private toast?: Toast;
-  private card: GateCard | EventCard | null = null;
-  /** Which card is open ("gate:0", "event:hull-breach"), null: none. */
+  private card: GateCard | null = null;
+  /** The alarm shown in place of the column while an event is open, or null. */
+  private notice: AlarmNotice | null = null;
+  /** Closes the panel at the end of the alarm's flash; null when not flashing. */
+  private flash: Phaser.Time.TimerEvent | null = null;
+  /** What the column gives way to ("gate:0", "event:hull-breach"), null: nothing. */
   private cardKey: string | null = null;
   /** The forecast the gate card shows (to update it once the forecast is in). */
   private cardForecast: LegForecast | null = null;
@@ -157,8 +176,8 @@ export class NavigationScene extends PanelScene {
   }
 
   protected build(): void {
-    // Opens in Hold whatever happened before; the player presses Run.
-    services.simulation.hold('panel');
+    // Time runs while the panel is open (unless a gate, an event, pause or blur holds it).
+    services.simulation.release('panel');
     // Esc and E are handled in `update`: not on a card.
     this.closeOnCancel = false;
     this.ignoreInputFrame = this.game.loop.frame;
@@ -189,15 +208,7 @@ export class NavigationScene extends PanelScene {
     this.column = new StatusColumn(this, this.columnArea);
     const col = this.columnArea;
     this.legend = createText(this, col.x, col.bottom - LEGEND_Y, LEGEND, 'small');
-    const buttonY = col.bottom - RUN_BUTTON.height / 2;
-    this.runButton = new Button(
-      this,
-      col.x + RUN_BUTTON.width / 2,
-      buttonY,
-      'Run / Hold', // OWNER: script
-      () => this.toggleRun(),
-      RUN_BUTTON,
-    );
+    const buttonY = col.bottom - CLOSE_BUTTON.height / 2;
     this.closeButton = new Button(
       this,
       col.right - CLOSE_BUTTON.width / 2,
@@ -251,19 +262,22 @@ export class NavigationScene extends PanelScene {
       for (const off of unsubscribe) off();
       this.card?.destroy();
       this.card = null;
+      this.notice?.destroy();
+      this.notice = null;
+      this.flash = null;
       this.cardKey = null;
       this.cardForecast = null;
       this.map = this.ribbon = this.column = undefined;
       this.legend = this.toast = undefined;
-      this.runButton = this.closeButton = undefined;
+      this.closeButton = undefined;
     });
-    this.syncCard();
+    this.syncCard(true);
     this.redraw();
   }
 
   /**
-   * Keeps the card in step with the voyage, then reads the keys: `confirm` switches Run / Hold,
-   * `cancel` or `interact` closes; none of them while a card is open (its list has them).
+   * Keeps the card in step with the voyage, then reads the keys: `cancel` or `interact` closes;
+   * not while a card is open (its list has them).
    */
   update(): void {
     this.syncVoyage();
@@ -271,13 +285,24 @@ export class NavigationScene extends PanelScene {
     this.drawColumn();
     const frame = this.game.loop.frame;
     if (this.card || frame <= this.ignoreInputFrame) return;
-    if (this.controls.justPressed('confirm')) this.toggleRun();
-    else if (this.controls.justPressed('cancel') || this.controls.justPressed('interact')) {
+    if (this.controls.justPressed('cancel') || this.controls.justPressed('interact')) {
       this.close();
     }
   }
 
   /** State for the smoke tool and the console: `window.nasa.game.scene.getScene('Navigation')`. */
+  /**
+   * Where the station alarm's timer box goes while this panel shows the alarm: the bottom-right
+   * corner of the free space under the alarm text, above the Close button, so the box covers
+   * neither the gate ribbon nor the text. Null when no alarm is shown here (the box then keeps
+   * its top-right corner).
+   */
+  alarmBarSpot(): { right: number; bottom: number } | null {
+    if (!this.notice || !this.closeButton) return null;
+    const col = this.columnArea;
+    return { right: col.right, bottom: col.bottom - CLOSE_BUTTON.height - ALARM_BAR_GAP };
+  }
+
   debugInfo(): NavigationDebugInfo {
     const simulation = services.simulation;
     const voyage = simulation.voyage;
@@ -294,6 +319,7 @@ export class NavigationScene extends PanelScene {
           ]),
         ) as Record<RowId, { value: string; level: Level }>)
       : null;
+    const alarm = this.notice ? { lines: this.notice.lines, closing: this.flash !== null } : null;
     const card = this.card
       ? {
           ...this.card.debugInfo(),
@@ -306,7 +332,7 @@ export class NavigationScene extends PanelScene {
       legIndex: voyage?.legIndex ?? -1,
       gateIndex: voyage?.gateIndex ?? -1,
       autopilot: pilot ? { phase: pilot.phase, thrusting: pilot.thrusting } : null,
-      run: !simulation.isHeld('panel'),
+      run: simulation.isRunning,
       status: column?.status ?? 'OFFLINE',
       day: voyage ? shownDay(voyage.day) : 0,
       next: column?.next ?? '',
@@ -319,21 +345,12 @@ export class NavigationScene extends PanelScene {
       rows,
       alarms: [...this.shown.alarms],
       card,
+      alarm,
       log: [...this.log],
       toast: this.toast?.message ?? null,
       trail: this.trail.length,
-      buttons: { run: center(this.runButton), close: center(this.closeButton) },
+      buttons: { close: center(this.closeButton) },
     };
-  }
-
-  /** Run releases the `panel` hold (time advances), Hold takes it again; only on a leg. */
-  private toggleRun(): void {
-    const simulation = services.simulation;
-    const phase = simulation.voyage?.phase;
-    if (phase !== 'flying' && phase !== 'drifting') return;
-    if (simulation.isHeld('panel')) simulation.release('panel');
-    else simulation.hold('panel');
-    this.drawColumn();
   }
 
   /** A new voyage (started again) begins a new trail and log. */
@@ -360,10 +377,11 @@ export class NavigationScene extends PanelScene {
   }
 
   /**
-   * Opens the card the voyage asks for (a gate's, an event's) or closes it, and hands the gate
-   * card the forecast once it is computed.
+   * Opens the card the voyage asks for (a gate's), or the alarm of an open event, or closes
+   * them, and hands the gate card the forecast once it is computed. An event that opens while
+   * the panel is open (not `atOpen`) flashes its alarm and closes the panel (D6).
    */
-  private syncCard(): void {
+  private syncCard(atOpen = false): void {
     const voyage = services.simulation.voyage;
     let key: string | null = null;
     if (voyage?.phase === 'atGate') key = `gate:${voyage.gateIndex}`;
@@ -372,17 +390,26 @@ export class NavigationScene extends PanelScene {
       if (this.card) {
         this.card.destroy();
         this.card = null;
-        // The press that chose on the card must not switch Run in the same frame.
+        // The press that chose on the card must not act on the panel in the same frame.
         this.ignoreInputFrame = this.game.loop.frame;
       }
+      this.notice?.destroy();
+      this.notice = null;
+      this.flash?.remove();
+      this.flash = null;
       this.cardKey = key;
       this.cardForecast = null;
-      if (voyage && key) this.card = this.openCard(voyage);
-      const showColumn = this.card === null;
+      if (voyage?.phase === 'event') {
+        this.notice = this.openNotice(voyage);
+        if (!atOpen) this.flash = this.time.delayedCall(ALARM_FLASH_MS, () => this.close());
+      } else if (voyage && key) {
+        this.card = this.openGateCard(voyage);
+      }
+      const showColumn = this.card === null && this.notice === null;
       this.column?.setVisible(showColumn);
       this.legend?.setVisible(showColumn);
-      this.runButton?.setVisible(showColumn);
-      this.closeButton?.setVisible(showColumn);
+      // The alarm can be closed with the button too; a card cannot.
+      this.closeButton?.setVisible(this.card === null);
       this.redraw();
     }
     if (this.card instanceof GateCard && voyage && voyage.forecast !== this.cardForecast) {
@@ -392,14 +419,17 @@ export class NavigationScene extends PanelScene {
     }
   }
 
-  private openCard(voyage: Voyage): GateCard | EventCard | null {
+  /** The alarm of the open event: its title and the deck station it is answered at. */
+  private openNotice(voyage: Voyage): AlarmNotice {
+    const alarm = services.stationAlarm.alarm;
+    return new AlarmNotice(this, this.columnArea, {
+      title: voyage.openEvent?.title ?? '',
+      station: alarm ? stationName(alarm.station) : '?',
+    });
+  }
+
+  private openGateCard(voyage: Voyage): GateCard | null {
     const simulation = services.simulation;
-    const event = voyage.openEvent;
-    if (voyage.phase === 'event' && event) {
-      return new EventCard(this, this.columnArea, this.controls, event, (choiceId) => {
-        simulation.answerEvent(choiceId);
-      });
-    }
     const gates = simulation.content?.gates ?? [];
     const gate = gates[voyage.gateIndex];
     if (!gate) return null;
@@ -450,13 +480,9 @@ export class NavigationScene extends PanelScene {
     this.ribbon?.draw({ gates, ship: this.ribbonShip(voyage), shipColor });
   }
 
-  /** The status column (also every frame: the mode may change from outside). */
+  /** The status column (also every frame: holds may change from outside). */
   private drawColumn(): void {
-    const view = this.columnView();
-    this.column?.draw(view);
-    this.runButton?.setEnabled(
-      view.status === 'RUN' || view.status === 'HOLD' || view.status === 'DRIFTING',
-    );
+    this.column?.draw(this.columnView());
   }
 
   /** What the column shows now. OWNER: script - the "next", day and leg lines. */
@@ -478,7 +504,7 @@ export class NavigationScene extends PanelScene {
       this.shown = { column: view, alarms: [] };
       return view;
     }
-    const run = !simulation.isHeld('panel');
+    const run = simulation.isRunning;
     const phase = voyage.phase;
     const outcome = voyage.outcome;
     const status = statusOf(phase, run, outcome);

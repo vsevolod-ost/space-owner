@@ -4,7 +4,7 @@ import type { CargoDef } from '@/core/voyage/types';
 export const thermalKit: CargoDef = {
   // OWNER: script
   label: 'Thermal kit',
-  line: '[TODO: keep a colony warm far from the Sun]',
+  line: 'Keep a colony warm far from the Sun.',
   // OWNER: physics - insulation blankets and heaters.
   dryMassKg: 1_500,
   // OWNER: design - bays taken and copies allowed

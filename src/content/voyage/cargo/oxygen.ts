@@ -4,7 +4,7 @@ import type { CargoDef } from '@/core/voyage/types';
 export const oxygen: CargoDef = {
   // OWNER: script
   label: 'Oxygen',
-  line: '[TODO: oxygen tanks, no power needed]',
+  line: 'Oxygen tanks, no power needed.',
   // OWNER: physics - pressure tanks, regulators and the crate; the oxygen itself is light
   // (`stock-mass.ts`).
   dryMassKg: 500,

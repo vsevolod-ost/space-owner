@@ -56,8 +56,11 @@ export default async function flow(page, h) {
       .sort(),
   );
   h.log(`started scenes after the prologue goTo: ${JSON.stringify(runningScenes)}`);
-  if (JSON.stringify(runningScenes) !== JSON.stringify(['Debug', 'Ui', 'World'])) {
-    throw new Error(`want only World, Ui and Debug running, got ${JSON.stringify(runningScenes)}`);
+  // The overlays (`OVERLAY_SCENES`: Ui, AlarmBar, Debug) and the world.
+  if (JSON.stringify(runningScenes) !== JSON.stringify(['AlarmBar', 'Debug', 'Ui', 'World'])) {
+    throw new Error(
+      `want only World and the overlays running, got ${JSON.stringify(runningScenes)}`,
+    );
   }
   await h.waitEvent('checkpointSaved', SLOW);
   const firstSave = await h.eval(savedGame);

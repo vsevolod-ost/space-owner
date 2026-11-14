@@ -4,7 +4,7 @@ import type { CargoDef } from '@/core/voyage/types';
 export const battery: CargoDef = {
   // OWNER: script
   label: 'Battery',
-  line: '[TODO: stored power for the long dark]',
+  line: 'Stored power for the long dark.',
   // OWNER: physics - a large battery bank with its frame: heavy for the energy it holds.
   dryMassKg: 4_000,
   // OWNER: design - bays taken and copies allowed

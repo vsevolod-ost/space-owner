@@ -79,9 +79,9 @@ export function cargoStand(
     if (def.maxCopies > 1) {
       lines.push(formatText('Aboard: {n} of {max}.', { n: count(s), max: def.maxCopies }));
     }
-    if (isLast(s)) lines.push('[TODO: its crate is in the hold, the place is empty]');
-    else if (taken(s)) lines.push('[TODO: empty; put back the last crate taken first]');
-    else if (!isNext(s)) lines.push('[TODO: the crates are taken front first]');
+    if (isLast(s)) lines.push('Its crate is in the hold; the place is empty.');
+    else if (taken(s)) lines.push('Empty; put back the last crate taken first.');
+    else if (!isNext(s)) lines.push('The crates are taken front first.');
     else if (baysFree(voyage, s) < def.bays) lines.push(NO_SPACE);
     return lines.join('\n');
   };
@@ -182,11 +182,11 @@ export function hatchCheck(voyage: VoyageService, onBoard: () => void): Dialogue
           const gaps = gapsOf(voyage, s);
           const free = baysFree(voyage, s);
           return gaps.length > 0
-            ? formatText('[TODO: before boarding. Not aboard: {gaps}. Free bays: {free}.]', {
+            ? formatText('Before boarding. Not aboard: {gaps}. Free bays: {free}.', {
                 gaps: gaps.join(', '),
                 free,
               })
-            : formatText('[TODO: before boarding. Nothing missing. Free bays: {free}.]', {
+            : formatText('Before boarding. Nothing missing. Free bays: {free}.', {
                 free,
               });
         },
@@ -220,7 +220,7 @@ export const warehouse: LocationDef = {
   title: 'Warehouse', // OWNER: script
   background: 'location-warehouse',
   map: 'warehouse',
-  music: 'music-demo',
+  music: 'music-act1', // OWNER: art
   showHold: true,
   bindings: ({ voyage }) => ({
     ...crates(voyage),

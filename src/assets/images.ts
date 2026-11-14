@@ -10,6 +10,8 @@
 export const images = {
   'menu-background': { path: 'assets/menu/background.png' },
   'menu-logo': { path: 'assets/menu/logo.png' },
+  /** Real art: the ship (344x150, transparent), right of the menu buttons. */
+  'menu-ship': { path: 'assets/menu/ship.png' },
   'button-normal': { path: 'assets/ui/button-normal.png' },
   'button-hover': { path: 'assets/ui/button-hover.png' },
   'button-pressed': { path: 'assets/ui/button-pressed.png' },

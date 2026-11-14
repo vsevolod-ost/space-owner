@@ -7,7 +7,7 @@ import type { CargoDef } from '@/core/voyage/types';
 export const reactor: CargoDef = {
   // OWNER: script
   label: 'Reactor',
-  line: '[TODO: steady power anywhere, if it holds]',
+  line: 'Steady power anywhere, if it holds.',
   // OWNER: physics - a small fission reactor with its shield and radiators (tens of kW).
   dryMassKg: 6_000,
   // OWNER: design - bays taken and copies allowed

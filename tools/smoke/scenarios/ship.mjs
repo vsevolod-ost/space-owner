@@ -1,3 +1,4 @@
+import { openNavigation, standAt } from '../alarm.mjs';
 import { VOYAGE_SEED } from '../voyage-seed.mjs';
 
 /**
@@ -5,30 +6,36 @@ import { VOYAGE_SEED } from '../voyage-seed.mjs';
  * seed>` (then act 2 again with a fuel crate, the reactor and the greenhouse aboard) opens the
  * ship deck
  * with the voyage started (its seed in `run.seed`) and saves a
- * checkpoint that marks it (no snapshot). Simulated time runs only on the navigation panel in
- * Run mode (GDD `act2-pause`): it stands on the deck and on the panel in Hold (status HOLD, the
- * column: "Next: MOON", six rows). Enter (`confirm`) switches to Run: in 3 s the ship moves, the
+ * checkpoint that marks it (no snapshot). Simulated time runs whenever the navigation panel is
+ * open on a leg and nothing else holds it: it stands on the deck and runs as soon as the panel
+ * opens (status RUN, the column: "Next: MOON", six rows): in 3 s the ship moves, the
  * autopilot burns fuel (kg), food drops; the rows show days, fuel in tonnes with its delta-v
  * ("21.0t Δv93.1", plan variable-mass D6) and states (GDD D12); two telemetry lines under the
  * rows (mass, its rate, a; g, v_esc; plan variable-mass S7), and by the raw `debugInfo()`
  * numbers the mass falls and the acceleration rises while the engine fires;
- * the debug warp speeds time up; "Run / Hold" holds again. With the warp the autopilot reaches
+ * the debug warp speeds time up; the `pause` hold stands it for the checks (status HOLD), and
+ * the panel has no Run / Hold control (Enter does nothing). With the warp the autopilot reaches
  * the Moon (`gateReached`, `gate` held, `voyage.*` flags): the gate card replaces the column;
  * while the forecast computes (stalled here) nothing can be chosen and the cursor stays on Go
  * on; Go on is enabled once the forecast of the Mars leg is in (FUEL t, stocks now -> on arrival,
- * the leg's days, "Δv need X, have Y km/s"); Esc does not dismiss it; Enter chooses Go on and holds `panel` (the same
- * press does not switch to Run). Run again: with the smoke seed the hull breach opens its card
- * at 0.4 of the Mars leg (portrait, text, the foam disabled for want of the regolith kit); an
- * Enter at once is ignored (cards lock input for 0.4 s); then Enter answers "seal" (16 days of oxygen, the result in the log and a toast), `panel` held.
+ * the leg's days, "Δv need X, have Y km/s"); Esc does not dismiss it; Enter chooses Go on and
+ * the ship flies on at once (status RUN, no `panel` hold). With the smoke seed the hull breach
+ * fires at 0.4 of the Mars leg (plan act2-stations S4): the panel flashes the alarm in place of
+ * the column (ALARM, HULL BREACH, "Go to: AIRLOCK"; no card, Enter changes no hold) and closes by
+ * itself; time stands on the deck; opened again during the alarm it shows the notice until
+ * Esc; the radio (a wrong station) says in a toast where to go; at the airlock E opens the
+ * card over the paused world (portrait, text, the foam disabled for want of the regolith kit);
+ * an Enter at once is ignored (cards lock input for 0.4 s); then Enter answers "seal" (16 days
+ * of oxygen), the card closes, the result is a toast on the deck, time stands (the panel is
+ * closed: `panel` held). The world
+ * rebuilt once per panel closed, not per flag; the hero walks; back to the panel (`alarm.mjs`).
  * A new voyage on the open panel starts the trail and the log again; the fuel drained during
  * the Moon's docking makes the gate card warn in red (NOT ENOUGH FUEL, FUEL SHORT, "Δv need X,
- * have Y" with need over have)
- * while Go on
- * stays allowed (D6); Go on and Run: DRIFTING, the drift alarm (toast, FUEL red), no event
- * card while adrift, and the crew is lost (LOST, shown for a moment before the death loop takes
- * the hero to the warehouse's debrief). After the event card, Esc closes the panel: time stands
- * again, the world rebuilds once for the flags changed under the panel, and the hero walks. Screenshots: ship-navigation-hold,
- * ship-navigation (Run), -gate, -event, -fuel-short, -drifting, -lost.
+ * have Y" with need over have) while Go on stays allowed (D6); Go on: DRIFTING, the
+ * drift alarm (toast, FUEL red), no event while adrift, and the crew is lost (LOST, shown for
+ * a moment before the death loop takes the hero to the warehouse's debrief). Screenshots:
+ * ship-navigation (time running), -gate, -alarm, ship-wrong-station,
+ * ship-station-airlock, ship-navigation-fuel-short, -drifting, -lost.
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/ship.mjs
  *
  * @param {import('playwright-core').Page} _page
@@ -37,6 +44,23 @@ import { VOYAGE_SEED } from '../voyage-seed.mjs';
 export default async function ship(_page, h) {
   const world = () => window.nasa.game.scene.getScene('World').debugInfo();
   const nav = () => window.nasa.game.scene.getScene('Navigation').debugInfo();
+  const station = () => window.nasa.game.scene.getScene('EventStation').debugInfo();
+  const alarmBar = () => window.nasa.game.scene.getScene('AlarmBar').debugInfo();
+  /** The alarm's timer bar is shown for the hull breach, above every scene but Debug (S5). */
+  const expectBar = async (where) => {
+    const bar = await h.eval(alarmBar);
+    h.log(`alarm bar ${where}: ${JSON.stringify(bar)}`);
+    if (
+      !bar.visible ||
+      !bar.onTop ||
+      bar.alpha !== 1 ||
+      bar.lines.join('|') !== 'HULL BREACH|AIRLOCK' ||
+      !(bar.seconds > 0) ||
+      !(bar.fill > 0 && bar.fill <= 1)
+    ) {
+      throw new Error(`the alarm bar ${where}: ${JSON.stringify(bar)}`);
+    }
+  };
   const snapshot = () => window.nasa.services.simulation.snapshot();
   const faderClear = () => window.nasa.game.scene.getScene('Ui').debugInfo().fader === 0;
   // A click in a panel's first frames is lost; presses two frames apart.
@@ -150,35 +174,46 @@ export default async function ship(_page, h) {
   }
   const opened = await h.eval(nav);
   h.log(`panel opened: ${JSON.stringify(opened)}`);
-  // The E that opened the panel must not close it (`interact` closes the panel).
-  if (opened.run || opened.status !== 'HOLD' || opened.card !== null) {
-    throw new Error(`the panel did not open in Hold on the column: ${JSON.stringify(opened)}`);
+  // The E that opened the panel must not close it (`interact` closes the panel). Time runs as
+  // soon as the panel is open: no `panel` hold, status RUN.
+  if (
+    !opened.run ||
+    opened.status !== 'RUN' ||
+    opened.card !== null ||
+    (await holds()).includes('panel')
+  ) {
+    throw new Error(`the panel did not open running on the column: ${JSON.stringify(opened)}`);
   }
   if (!/^Next: MOON/.test(opened.next) || opened.day !== 1 || opened.rows === null) {
     throw new Error(`unexpected column at the start: ${JSON.stringify(opened)}`);
   }
   const rebuildsBefore = (await h.eval(world)).rebuilds;
-  // --- The panel opens in Hold: time still stands.
-  await expectStill('on the panel in Hold');
-  await h.shot('ship-navigation-hold');
 
-  // --- Enter (`confirm`) switches to Run: 3 s later the ship moved under the autopilot
-  // (fuel burnt, kg), food dropped (the greenhouse aboard makes all the oxygen).
-  await h.press('Enter');
-  await h.waitFor(() => window.nasa.services.simulation.isRunning, 2000);
-  if (!(await h.eval(nav)).run) throw new Error('Enter did not switch the panel to Run');
+  // --- 3 s on the open panel: the ship moved under the autopilot (fuel burnt, kg), food
+  // dropped (the greenhouse aboard makes all the oxygen).
   const before = await h.eval(snapshot);
   await wait(2000);
   const mid = await h.eval(nav);
   await wait(1000);
   const after = await h.eval(snapshot);
   const panel = await h.eval(nav);
-  // --- "Run / Hold" holds again right after the timed reads (before the checks, evals and the
-  // screenshot below, whose real time must not let the ship reach the Moon): time stands.
-  await h.click(panel.buttons.run.x, panel.buttons.run.y);
-  await h.waitFor(() => !window.nasa.game.scene.getScene('Navigation').debugInfo().run, 2000);
-  await expectStill('on the panel after "Run / Hold"');
-  if ((await h.eval(nav)).status !== 'HOLD') throw new Error('the status is not HOLD after Hold');
+  await h.shot('ship-navigation');
+  // --- The `pause` hold (as the pause menu takes it) stands time right after the timed reads
+  // and the screenshot (the checks and evals below must not let the ship reach the Moon): the
+  // status turns HOLD; Enter does nothing on the panel (no Run / Hold any more).
+  await h.eval(() => window.nasa.services.simulation.hold('pause'));
+  await frames(2);
+  await expectStill('on the panel under the pause hold');
+  if ((await h.eval(nav)).status !== 'HOLD') throw new Error('the status is not HOLD on pause');
+  await h.press('Enter');
+  await frames(3);
+  const afterEnter = await h.eval(() => ({
+    holds: window.nasa.services.simulation.heldReasons,
+    open: window.nasa.game.scene.isActive('Navigation'),
+  }));
+  if (afterEnter.holds.join() !== 'pause' || !afterEnter.open) {
+    throw new Error(`Enter changed something on the panel: ${JSON.stringify(afterEnter)}`);
+  }
   h.log(
     `3 s: day ${(before.timeS / 86400).toFixed(2)} -> ${(after.timeS / 86400).toFixed(2)}, ` +
       `ship.x ${before.ship.x.toExponential(4)} -> ${after.ship.x.toExponential(4)}, ` +
@@ -261,9 +296,8 @@ export default async function ship(_page, h) {
     () => window.__nasaEvents.filter((event) => event.name === 'simulationTick').length,
   );
   if (recorded !== 0) throw new Error(`simulationTick recorded ${recorded} times in __nasaEvents`);
-  await h.shot('ship-navigation');
 
-  await h.press('Enter');
+  await h.eval(() => window.nasa.services.simulation.release('pause'));
   await h.waitFor(() => window.nasa.services.simulation.isRunning, 2000);
 
   // --- With the warp the autopilot reaches the Moon: `gateReached`, parked at gate 0, `gate`
@@ -356,9 +390,9 @@ export default async function ship(_page, h) {
     throw new Error('Esc closed the gate card');
   }
 
-  // --- Enter chooses Go on: the ship leaves for Mars, `gate` released and `panel` held (after
-  // a card the player presses Run himself, GDD `evt-presentation` A); the same Enter does not
-  // switch to Run.
+  // --- Enter chooses Go on: the ship leaves for Mars, `gate` released, and it flies on at once
+  // (the panel is open: no `panel` hold, status RUN). The `pause` hold then stands it while the
+  // hull breach's alarm is set up below.
   await unlocked();
   await h.press('Enter');
   await h.waitFor(() => window.nasa.services.simulation.voyage?.phase === 'flying', 2000);
@@ -378,21 +412,37 @@ export default async function ship(_page, h) {
   if (
     departed.phase !== 'flying' ||
     departed.leg !== 1 ||
-    departed.holds.includes('gate') ||
-    !departed.holds.includes('panel') ||
+    departed.holds.length !== 0 ||
     departed.nextGate !== 'mars' ||
     departed.legProgress !== 0
   ) {
-    throw new Error(`Go on did not leave the Moon on hold: ${JSON.stringify(departed)}`);
+    throw new Error(`Go on did not leave the Moon running: ${JSON.stringify(departed)}`);
   }
-  if (afterGo.run || afterGo.card !== null || afterGo.status !== 'HOLD') {
+  if (!afterGo.run || afterGo.card !== null || afterGo.status !== 'RUN') {
     throw new Error(`the panel after Go on: ${JSON.stringify(afterGo)}`);
   }
-  await expectStill('after Go on');
+  await h.eval(() => window.nasa.services.simulation.hold('pause'));
 
-  // --- Run again: with the smoke seed the hull breach opens its card at 0.4 of the leg.
+  // --- On to Mars: with the smoke seed the hull breach fires at 0.4 of the leg. Its alarm gets
+  // a long debug timer here (the scenario looks at the panel, a wrong station and the card at
+  // leisure; the timeout itself: plan act2-stations S8). The panel's own clock is frozen the
+  // moment the alarm comes on, so its flash (`ALARM_FLASH_MS`) can be looked at.
+  await h.eval(() => {
+    window.nasa.services.stationAlarm.setDebugTimer(60000);
+    const off = window.nasa.services.events.on('stationAlarm', ({ active }) => {
+      if (!active) return;
+      window.nasa.game.scene.getScene('Navigation').time.paused = true;
+      off();
+    });
+  });
+  // The deck's own calm track plays with its drum layer silent (idea act2-music-layers).
+  await h.waitFor(() => window.nasa.services.audio.currentMusic === 'music-flight', 2000);
+  const calm = await h.eval(() => window.nasa.services.audio.debugInfo());
+  if (calm.layerOn || calm.tracks[0]?.layer?.key !== 'music-flight-drums') {
+    throw new Error(`no silent drum layer on the deck: ${JSON.stringify(calm)}`);
+  }
   await h.mark();
-  await h.press('Enter');
+  await h.eval(() => window.nasa.services.simulation.release('pause'));
   await h.waitFor(() => window.nasa.services.simulation.isRunning, 2000);
   // --- The debug warp (?debug=1) multiplies simulated time on top of the time scale (measured at
   // the start of the long Mars leg, far from its gate and its events).
@@ -406,22 +456,11 @@ export default async function ship(_page, h) {
   await h.eval(() => window.nasa.services.simulation.setDebugWarp(20));
   await h.waitEvent('voyageEvent', 60000);
   await h.eval(() => window.nasa.services.simulation.setDebugWarp(1));
-  // --- The card ignores input for 0.4 s after it opens (GDD `gate-stop-go-ui`: Enter or Space
-  // pressed for Run must not choose): Enter at once does nothing.
-  await h.waitFor(
-    () => window.nasa.game.scene.getScene('Navigation').debugInfo().card?.kind === 'event',
-    2000,
-  );
-  const lockedAtOpen = (await h.eval(nav)).card.locked;
-  await h.press('Enter');
-  await frames(3);
-  const afterEarly = await h.eval(() => window.nasa.services.simulation.voyage?.phase);
-  h.log(`event card locked at open: ${lockedAtOpen}, phase after an early Enter: ${afterEarly}`);
-  if (lockedAtOpen !== true || afterEarly !== 'event') {
-    throw new Error(`the event card took input at once: ${lockedAtOpen}, ${afterEarly}`);
-  }
+  await frames(2);
+  // --- The panel flashes the alarm in place of the column: no card, the event's title
+  // and its station; it is about to close by itself (plan act2-stations D6).
   const card = await h.eval(() => {
-    const { simulation, state } = window.nasa.services;
+    const { simulation, state, stationAlarm } = window.nasa.services;
     const open = simulation.voyage?.openEvent;
     return {
       phase: simulation.voyage?.phase,
@@ -431,6 +470,7 @@ export default async function ship(_page, h) {
       flag: state.flags.get('event.hull-breach'),
       legProgress: state.flags.get('voyage.legProgress'),
       oxygen: simulation.snapshot().resources.oxygen.value,
+      alarm: stationAlarm.alarm,
     };
   });
   h.log(`event: ${JSON.stringify(card)}`);
@@ -439,12 +479,136 @@ export default async function ship(_page, h) {
     card.id !== 'hull-breach' ||
     !card.holds.includes('event') ||
     card.flag !== 'open' ||
-    !(card.legProgress >= 30 && card.legProgress <= 45)
+    !(card.legProgress >= 30 && card.legProgress <= 45) ||
+    card.alarm?.eventId !== 'hull-breach' ||
+    card.alarm.station !== 'airlock'
   ) {
     throw new Error(`unexpected state at the hull breach: ${JSON.stringify(card)}`);
   }
-  await frames(2);
-  const eventCard = (await h.eval(nav)).card;
+  const flash = await h.eval(nav);
+  h.log(
+    `alarm flash: ${JSON.stringify({ alarm: flash.alarm, card: flash.card, close: flash.buttons.close })}`,
+  );
+  if (
+    flash.card !== null ||
+    flash.alarm?.closing !== true ||
+    flash.alarm.lines[0] !== 'ALARM' ||
+    flash.alarm.lines[1] !== 'HULL BREACH' ||
+    flash.alarm.lines[2] !== 'Go to: AIRLOCK'
+  ) {
+    throw new Error(`the panel does not flash the alarm: ${JSON.stringify(flash)}`);
+  }
+  // Enter does nothing during the alarm (the holds stay as they are).
+  const holdsAtFlash = JSON.stringify(await holds());
+  await h.press('Enter');
+  await frames(3);
+  const holdsAfterEnter = JSON.stringify(await holds());
+  if (
+    holdsAfterEnter !== holdsAtFlash ||
+    (await h.eval(() => window.nasa.services.simulation.isRunning))
+  ) {
+    throw new Error(
+      `Enter changed the holds during the alarm: ${holdsAtFlash} -> ${holdsAfterEnter}`,
+    );
+  }
+  await expectBar('over the navigation flash');
+  await h.shot('ship-navigation-alarm');
+  // --- The flash ends (the panel's clock runs again): the panel closes by itself, the world
+  // runs, simulated time stands (`event` and `panel` held).
+  await h.eval(() => {
+    window.nasa.game.scene.getScene('Navigation').time.paused = false;
+  });
+  await h.waitFor(
+    () =>
+      !window.nasa.game.scene.isActive('Navigation') && window.nasa.game.scene.isActive('World'),
+    3000,
+  );
+  await expectStill('on the deck during the alarm');
+  // --- Opened again during the alarm, the panel shows the same notice and stays until closed
+  // (Esc): no card, time stands (`event` held).
+  await standAt(h, 'station-navigation');
+  await h.press('KeyE');
+  await h.waitFor(() => window.nasa.game.scene.isActive('Navigation'), 3000);
+  await wait(1000);
+  const reopened = await h.eval(nav);
+  h.log(
+    `reopened during the alarm: ${JSON.stringify({ alarm: reopened.alarm, card: reopened.card })}`,
+  );
+  if (
+    !(await h.eval(() => window.nasa.game.scene.isActive('Navigation'))) ||
+    reopened.card !== null ||
+    reopened.alarm?.closing !== false ||
+    reopened.alarm.lines[2] !== 'Go to: AIRLOCK'
+  ) {
+    throw new Error(`the panel reopened during the alarm: ${JSON.stringify(reopened)}`);
+  }
+  await h.press('Escape');
+  await h.waitFor(() => !window.nasa.game.scene.isActive('Navigation'), 3000);
+  // --- A wrong station (the radio) says where to go.
+  await standAt(h, 'radio');
+  await h.press('KeyE');
+  await h.waitFor(
+    () => /airlock/i.test(window.nasa.game.scene.getScene('Ui').debugInfo().toast ?? ''),
+    3000,
+  );
+  const wrong = (await h.eval(() => window.nasa.game.scene.getScene('Ui').debugInfo())).toast;
+  h.log(`wrong station: ${wrong}`);
+  if (await h.eval(() => window.nasa.game.scene.isActive('EventStation'))) {
+    throw new Error('the radio opened the hull breach card');
+  }
+  await expectBar('on the deck');
+  // The alarm raises the drum layer over the same flight track; the two loops stay in time.
+  await h.waitFor(() => {
+    const info = window.nasa.services.audio.debugInfo();
+    return info.layerOn && info.tracks[0]?.layer?.gain === 1;
+  }, 2000);
+  const alarmMusic = await h.eval(() => window.nasa.services.audio.debugInfo());
+  h.log(`alarm music: ${JSON.stringify(alarmMusic)}`);
+  const alarmTrack = alarmMusic.tracks[0];
+  if (alarmMusic.music !== 'music-flight' || alarmMusic.tracks.length !== 1) {
+    throw new Error(`the alarm switched the track: ${JSON.stringify(alarmMusic)}`);
+  }
+  // Positions within the loop; a seam between the two reads would wrap one of them.
+  if (alarmTrack.duration !== alarmTrack.layer.duration) {
+    throw new Error(`melody and drums differ in length: ${JSON.stringify(alarmTrack)}`);
+  }
+  const drift = Math.abs(alarmTrack.seek - alarmTrack.layer.seek);
+  if (Math.min(drift, alarmTrack.duration - drift) > 0.05) {
+    throw new Error(`the drums drifted from the melody by ${drift} s`);
+  }
+  // The blinking pointer over the airlock (S5).
+  const marker = (await h.eval(() => window.nasa.game.scene.getScene('World').debugInfo())).marker;
+  h.log(`station marker: ${JSON.stringify(marker)}`);
+  if (marker?.station !== 'airlock' || marker.above !== true) {
+    throw new Error(`no station marker over the airlock: ${JSON.stringify(marker)}`);
+  }
+  await h.waitFor(
+    () => window.nasa.game.scene.getScene('World').debugInfo().marker?.visible === true,
+    3000,
+  );
+  await h.shot('ship-wrong-station');
+  // --- At the airlock E opens the card (the world paused under it). It ignores input for 0.4 s
+  // after it opens (GDD `gate-stop-go-ui`): Enter at once does nothing.
+  await standAt(h, 'airlock');
+  await h.press('KeyE');
+  await h.waitFor(
+    () =>
+      window.nasa.game.scene.isActive('EventStation') &&
+      window.nasa.game.scene.getScene('EventStation').debugInfo().card !== null,
+    3000,
+  );
+  const lockedAtOpen = (await h.eval(station)).card.locked;
+  await h.press('Enter');
+  await frames(3);
+  const afterEarly = await h.eval(() => window.nasa.services.simulation.voyage?.phase);
+  h.log(`event card locked at open: ${lockedAtOpen}, phase after an early Enter: ${afterEarly}`);
+  if (lockedAtOpen !== true || afterEarly !== 'event') {
+    throw new Error(`the event card took input at once: ${lockedAtOpen}, ${afterEarly}`);
+  }
+  if (!(await h.eval(() => window.nasa.game.scene.isPaused('World')))) {
+    throw new Error('the world is not paused under the station card');
+  }
+  const eventCard = (await h.eval(station)).card;
   h.log(`event card: ${JSON.stringify(eventCard)}`);
   // The foam needs the regolith kit: shown, disabled, with what it needs.
   if (
@@ -457,16 +621,30 @@ export default async function ship(_page, h) {
     throw new Error(`unexpected event card ${JSON.stringify(eventCard)}`);
   }
   await expectStill('on the event card');
-  await h.shot('ship-navigation-event');
+  await expectBar('over the station card');
+  await h.shot('ship-station-airlock');
 
-  // --- Enter answers "seal" (the first row): 16 days of oxygen lost, `event` released, `panel`
-  // held: time stands until Run is pressed again; the result goes to the log and a toast.
-  await unlocked();
+  // --- Enter answers "seal" (the first row): 16 days of oxygen lost, `event` released; time
+  // stands on the deck (the panel is closed: `panel` held) until the panel is opened again; the
+  // card closes, the result is a toast on the deck.
+  await h.waitFor(
+    () => window.nasa.game.scene.getScene('EventStation').debugInfo().card?.locked === false,
+    3000,
+  );
   await h.press('Enter');
   await h.waitFor(() => window.nasa.services.simulation.voyage?.phase === 'flying', 2000);
+  await h.waitFor(() => !window.nasa.game.scene.isActive('EventStation'), 2000);
+  // The alarm is off: the drums fade out, the melody plays on (the same instance, never stopped).
+  await h.waitFor(() => {
+    const info = window.nasa.services.audio.debugInfo();
+    return !info.layerOn && info.tracks.length === 1 && info.tracks[0].layer?.gain === 0;
+  }, 3000);
+  h.log(
+    `music after the alarm: ${JSON.stringify(await h.eval(() => window.nasa.services.audio.debugInfo()))}`,
+  );
   await frames(2);
   const answered = await h.eval(() => {
-    const { simulation, state } = window.nasa.services;
+    const { simulation, state, stationAlarm } = window.nasa.services;
     return {
       phase: simulation.voyage?.phase,
       holds: simulation.heldReasons,
@@ -474,10 +652,11 @@ export default async function ship(_page, h) {
       hit: state.flags.get('event.hull-breach.hit'),
       oxygen: simulation.snapshot().resources.oxygen.value,
       resolved: window.__nasaEvents.filter((event) => event.name === 'voyageEventResolved').length,
+      alarm: stationAlarm.alarm,
+      toast: window.nasa.game.scene.getScene('Ui').debugInfo().toast,
     };
   });
-  const afterCard = await h.eval(nav);
-  h.log(`answered: ${JSON.stringify(answered)}, log ${JSON.stringify(afterCard.log)}`);
+  h.log(`answered: ${JSON.stringify(answered)}`);
   if (
     answered.phase !== 'flying' ||
     answered.holds.includes('event') ||
@@ -485,49 +664,44 @@ export default async function ship(_page, h) {
     answered.flag !== 'seal' ||
     answered.hit !== false ||
     answered.resolved !== 1 ||
+    answered.alarm !== null ||
+    !answered.toast ||
     Math.abs(card.oxygen - answered.oxygen - 16) > 1e-6
   ) {
     throw new Error(`answering the hull breach went wrong: ${JSON.stringify(answered)}`);
   }
-  if (afterCard.run || afterCard.card !== null || afterCard.toast === null) {
-    throw new Error(`the panel after the event card: ${JSON.stringify(afterCard)}`);
+  await expectStill('after the answer');
+  const barAfter = await h.eval(alarmBar);
+  const markerAfter = (await h.eval(world)).marker;
+  if (barAfter.visible || markerAfter !== null) {
+    throw new Error(
+      `the alarm bar or marker stayed after the answer: ${JSON.stringify({ barAfter, markerAfter })}`,
+    );
   }
-  await expectStill('after the event card');
+  await h.eval(() => window.nasa.services.stationAlarm.setDebugTimer(null));
 
-  // --- Esc closes the panel; time stands; the flags changed under the panel (it pauses the
-  // world) rebuild the world once, not once per change; the hero walks; back to the panel.
-  await h.press('Escape');
-  await h.waitFor(
-    () =>
-      !window.nasa.game.scene.isActive('Navigation') && window.nasa.game.scene.isActive('World'),
-  );
-  await frames(2);
-  await expectStill('after Esc');
+  // --- The flags changed under the panels (they pause the world) rebuild the world once per
+  // panel closed, not once per change (the navigation panel at the flash, the station's card).
   const rebuilds = (await h.eval(world)).rebuilds - rebuildsBefore;
-  h.log(`world rebuilds while the panel was open and after: ${rebuilds}`);
-  if (rebuilds > 1) throw new Error(`the world rebuilt ${rebuilds} times for the voyage flags`);
+  h.log(`world rebuilds since the panel first opened: ${rebuilds}`);
+  if (rebuilds > 3) throw new Error(`the world rebuilt ${rebuilds} times for the voyage flags`);
   const start = (await h.eval(world)).player;
   await h.hold('ArrowLeft', 300);
   const end = (await h.eval(world)).player;
   h.log(`walk left: x ${start.x.toFixed(1)} -> ${end.x.toFixed(1)}`);
-  if (!(end.x < start.x - 5)) throw new Error('the hero did not walk after the panel closed');
-  await h.holdUntil(
-    'ArrowRight',
-    () => window.nasa.game.scene.getScene('World').debugInfo().focused === 'station-navigation',
-    20000,
-  );
-  await h.press('KeyE');
+  if (!(end.x < start.x - 5)) throw new Error('the hero did not walk after the card closed');
+  await openNavigation(h);
   await h.waitReady('Navigation');
   await frames(3);
 
   // --- A new voyage on the open panel (base cargo, smoke seed): the trail and the log start
-  // again. Fly to the Moon and drain the fuel during the docking (no fuel is burnt there) to
+  // again (looked at under the `pause` hold, then released). Fly to the Moon and drain the fuel during the docking (no fuel is burnt there) to
   // 400 kg (about 0.1 km/s of delta-v at Isp 3000 s on the ~100 t base ship), so the Mars leg
   // is short of fuel: the gate card warns in red (D6) and Go on stays allowed.
   await h.eval((s) => {
     const simulation = window.nasa.services.simulation;
     simulation.start(s);
-    simulation.hold('panel');
+    simulation.hold('pause');
   }, VOYAGE_SEED);
   await frames(2);
   const fresh = await h.eval(nav);
@@ -535,7 +709,7 @@ export default async function ship(_page, h) {
     throw new Error(`the panel did not start the new voyage afresh: ${JSON.stringify(fresh)}`);
   }
   await h.mark();
-  await h.press('Enter');
+  await h.eval(() => window.nasa.services.simulation.release('pause'));
   await h.waitFor(() => window.nasa.services.simulation.isRunning, 2000);
   await h.eval(() => window.nasa.services.simulation.setDebugWarp(20));
   await h.waitFor(() => window.nasa.services.simulation.autopilot?.phase === 'docking', 60000);
@@ -566,13 +740,11 @@ export default async function ship(_page, h) {
   }
   await h.shot('ship-navigation-fuel-short');
 
-  // --- Go on anyway (D6), Run: the fuel runs out on the way: DRIFTING, the drift alarm (a
-  // toast, the FUEL row red), and within a few real seconds of Run the crew is lost.
+  // --- Go on anyway (D6): the ship flies on at once, the fuel runs out on the way: DRIFTING,
+  // the drift alarm (a toast, the FUEL row red), and within a few real seconds the crew is lost.
   await unlocked();
   await h.press('Enter');
   await h.waitFor(() => window.nasa.services.simulation.voyage?.phase === 'flying', 2000);
-  await frames(2);
-  await h.press('Enter');
   await h.waitFor(() => window.nasa.services.simulation.isRunning, 2000);
   await h.waitFor(() => window.nasa.services.simulation.voyage?.phase === 'drifting', 60000);
   await frames(3);

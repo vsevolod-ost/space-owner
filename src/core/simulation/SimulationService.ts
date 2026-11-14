@@ -28,14 +28,14 @@ const FORECAST_BUDGET_MS = 4;
 
 /**
  * Why simulated time stands still. Time runs only while no reason is held:
- * - `panel` - the navigation panel is closed or in Hold; released only by its Run mode, and
- *   held again when the panel switches to Hold or closes;
+ * - `panel` - the navigation panel is closed; released when it opens and held again when it
+ *   closes (`NavigationScene`), so time runs whenever the panel is open and nothing else holds;
  * - `pause` - the pause menu is open;
  * - `blur` - the browser tab is hidden (main.ts, `document.visibilitychange`);
  * - `gate` - parked at a gate, waiting for Stop or Go on (released by `goOn`);
  * - `event` - an event's card waits for an answer (released by `answerEvent`).
- * One rule for both cards (GDD `evt-presentation` A): `goOn` and `answerEvent` hold `panel`
- * again, so after a card the player presses Run himself.
+ * Neither `goOn` nor `answerEvent` touches `panel`: after Go on the ship flies on at once (the
+ * panel is open), and an event answered at a deck station leaves the closed panel holding.
  */
 export type HoldReason = 'panel' | 'pause' | 'blur' | 'gate' | 'event';
 
@@ -46,7 +46,7 @@ const SESSION_HOLDS: readonly HoldReason[] = ['panel'];
  * Runs the voyage of act 2 (`Voyage`: the ship's `Simulation`, the gates, the forecast, the
  * events). main.ts calls `tick` on every game step (`game.events` STEP), so it can advance
  * while panels pause the world. It steps only while started, with no hold reason
- * (`HoldReason`: simulated time runs only while the navigation panel is open in Run mode), and
+ * (`HoldReason`: simulated time runs only while the navigation panel is open), and
  * while the act it was started in is current (`state.current.actId`); `FlowService` starts it
  * (`flow.startVoyage`), stops it whenever the player leaves the story or the act (menu,
  * ending, another act) and resets the holds.
@@ -140,14 +140,13 @@ export class SimulationService {
   }
 
   /**
-   * "Go on" at a gate: the ship leaves for the next one, the `gate` hold is released and
-   * `panel` held (as after an event's card: the player presses Run himself, GDD
-   * `evt-presentation` A). False when not parked at a gate or at the last one.
+   * "Go on" at a gate: the ship leaves for the next one and the `gate` hold is released, so it
+   * flies on at once while the navigation panel is open. False when not parked at a gate or at
+   * the last one.
    */
   goOn(): boolean {
     if (!this.running?.goOn()) return false;
     this.release('gate');
-    this.hold('panel');
     this.mirrorLeg();
     return true;
   }
@@ -169,16 +168,16 @@ export class SimulationService {
 
   /**
    * Answers the open event's card with choice `choiceId` (`Voyage.choose`): releases `event`
-   * and holds `panel` (Run does not resume by itself), emits `voyageEventResolved`, sets
-   * `event.<id>` to the choice and `event.<id>.hit`. Then whatever follows: the next card, the
-   * gate reached behind it, or the end. Null if no card is open or the choice is not allowed.
+   * (time runs again only if the navigation panel is open: `panel` is held while it is
+   * closed), emits `voyageEventResolved`, sets `event.<id>` to the choice and `event.<id>.hit`.
+   * Then whatever follows: the next card, the gate reached behind it, or the end. Null if no card is open or the choice is not allowed.
+   * `forceHit`: the choice's risk strikes for sure (`Voyage.choose`; the alarm's timeout).
    */
-  answerEvent(choiceId: string): EventResolution | null {
-    const answered = this.running?.choose(choiceId) ?? null;
+  answerEvent(choiceId: string, options: { forceHit?: boolean } = {}): EventResolution | null {
+    const answered = this.running?.choose(choiceId, options) ?? null;
     if (!answered) return null;
     const { resolution, signals } = answered;
     this.release('event');
-    this.hold('panel');
     const flags = this.state.flags;
     flags.set(`event.${resolution.eventId}`, resolution.choiceId);
     flags.set(`event.${resolution.eventId}.hit`, resolution.hit);

@@ -10,11 +10,13 @@ the integrator) is in [HOWTO-simulation.md](HOWTO-simulation.md).
 
 In the warehouse (act 1) the player takes up to 7 crates into the hold (`cargo.<id>` flags) and
 boards. On the ship deck the navigation panel flies the ship through two gates in order - the
-Moon, then Mars - while the player keeps it in Run. Every day of flight the cargo and the
+Moon, then Mars - while the player keeps the panel open (time stands while it is closed). Every day of flight the cargo and the
 built-in base add or use oxygen, water, food, power and heat, and the engine burns fuel (the
 Moon leg a few tonnes, the Mars transfer most of the rest); the heavier the ship, the less far
-its fuel takes it. On the way to Mars event cards may stop the flight and
-ask for a choice. At the Moon a card shows the forecast of the next leg and offers **Go on** or
+its fuel takes it. On the way to Mars events may stop the flight: the panel flashes an alarm
+and closes, and the player runs to the event's deck station (airlock, porthole, radio, the
+reactor's bay) to choose an answer there before a ~10 s timer runs out; too late, and the
+event's worst answer applies with its bad outcome. At the Moon a card shows the forecast of the next leg and offers **Go on** or
 **Stop here: build &lt;tier&gt;**; at Mars, the last gate, only Stop. Stop lands: the colony (act 3) on that body, its tier set by the cargo against the
 body's needs, then the ending. A death (a stock at 0, drift out of fuel, an event) runs the
 death loop: the scientists' debrief and back to the warehouse with the same cargo
@@ -63,28 +65,31 @@ Every text the player reads is marked `OWNER: script` (`grep -rn "OWNER: script"
 words are also compared in code (the status words, the pause and ending options, the cabin
 states): rename them everywhere in that file.
 
-| Text                                                                                                                                               | File                                                                               |
-| -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| A crate's name and its line on the stand                                                                                                           | `src/content/voyage/cargo/<id>.ts` (`label`, `line`)                               |
-| An event card: title, text, choices, results                                                                                                       | `src/content/voyage/events/<id>.ts`                                                |
-| Warehouse: "Take it" / "Put it back" / "Leave it", the full-hold line, the "Cargo n/7 · m t" toast, the stand and hatch lines, the gap names       | `src/content/locations/warehouse.ts`                                               |
-| Ship deck: the porthole, radio and airlock toasts                                                                                                  | `src/content/locations/ship-deck.ts`                                               |
-| Colony: shelter, systems, overlook                                                                                                                 | `src/content/locations/colony.ts`                                                  |
-| Endings, tier lines                                                                                                                                | `src/content/endings.ts`                                                           |
-| The end screen's buttons ("Fly again", "Main menu")                                                                                                | `src/scenes/EndingScene.ts` (`CHOICES`)                                            |
-| The scientists' debrief, the warehouse arrival                                                                                                     | `src/content/cutscenes/debrief.ts`, `warehouse-arrival.ts`                         |
-| The advisers' dialogues                                                                                                                            | `src/content/dialogues/<id>.ts`                                                    |
-| Act titles; the landing's title card                                                                                                               | `src/content/story/<act>.ts` (`title`; `act3.ts`)                                  |
-| Location titles                                                                                                                                    | `src/content/locations/<id>.ts` (`title`)                                          |
-| Character names                                                                                                                                    | `src/content/characters.ts` (`name`)                                               |
-| Body names (panel, cards, landing title)                                                                                                           | `src/content/simulation/solar-system.ts` (`name`)                                  |
-| Panel rows, units, cabin states, the forecast block and its warnings ("NOT ENOUGH FUEL...", "... runs out on day N", "Tight..."), the ALARM toasts | `src/ui/navigation/navigationView.ts`                                              |
-| Gate card: "Gate n/2", "Day N. Next leg", "Go on to", "Stop here: build"                                                                           | `src/ui/navigation/GateCard.ts`                                                    |
-| Event card: the "(needs: ...)" suffix; the cards' key legend; the map's note                                                                       | `src/ui/navigation/EventCard.ts`, `Card.ts`, `SystemMap.ts`                        |
-| Panel column: next / day / leg lines, the log, the key legend, "Run / Hold"                                                                        | `src/scenes/NavigationScene.ts`                                                    |
-| The HOLD strip's caption                                                                                                                           | `src/ui/HoldStrip.ts`                                                              |
-| Pause menu; main menu; settings; the "(in development)" stub                                                                                       | `src/scenes/PauseScene.ts`, `MainMenuScene.ts`, `SettingsScene.ts`, `StubScene.ts` |
-| "... has nothing to say yet." (an NPC without a dialogue)                                                                                          | `src/world/Interactables.ts`                                                       |
+| Text                                                                                                                                               | File                                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| A crate's name and its line on the stand                                                                                                           | `src/content/voyage/cargo/<id>.ts` (`label`, `line`)                                           |
+| An event card: title, text, choices, results                                                                                                       | `src/content/voyage/events/<id>.ts`                                                            |
+| Warehouse: "Take it" / "Put it back" / "Leave it", the full-hold line, the "Cargo n/7 · m t" toast, the stand and hatch lines, the gap names       | `src/content/locations/warehouse.ts`                                                           |
+| Ship deck: the porthole, radio and airlock toasts; the station names (`deckStationNames`), the "not here - go to" toast                            | `src/content/locations/ship-deck.ts`                                                           |
+| Colony: shelter, systems, overlook                                                                                                                 | `src/content/locations/colony.ts`                                                              |
+| Endings, tier lines                                                                                                                                | `src/content/endings.ts`                                                                       |
+| The end screen's buttons ("Fly again", "Main menu")                                                                                                | `src/scenes/EndingScene.ts` (`CHOICES`)                                                        |
+| The scientists' debrief, the warehouse arrival                                                                                                     | `src/content/cutscenes/debrief.ts`, `warehouse-arrival.ts`                                     |
+| The advisers' dialogues                                                                                                                            | `src/content/dialogues/<id>.ts`                                                                |
+| Act titles; the landing's title card                                                                                                               | `src/content/story/<act>.ts` (`title`; `act3.ts`)                                              |
+| Location titles                                                                                                                                    | `src/content/locations/<id>.ts` (`title`)                                                      |
+| Character names                                                                                                                                    | `src/content/characters.ts` (`name`)                                                           |
+| Body names (panel, cards, landing title)                                                                                                           | `src/content/simulation/solar-system.ts` (`name`)                                              |
+| Panel rows, units, cabin states, the forecast block and its warnings ("NOT ENOUGH FUEL...", "... runs out on day N", "Tight..."), the ALARM toasts | `src/ui/navigation/navigationView.ts`                                                          |
+| Gate card: "Gate n/2", "Day N. Next leg", "Go on to", "Stop here: build"                                                                           | `src/ui/navigation/GateCard.ts`                                                                |
+| Event card: the "(needs: ...)" suffix; the cards' key legend; the map's note; the station card's key hint                                          | `src/ui/navigation/EventCard.ts`, `Card.ts`, `SystemMap.ts`; `src/scenes/EventStationScene.ts` |
+| The alarm flash on the panel ("ALARM", "Go to: ...", its hint)                                                                                     | `src/ui/navigation/AlarmNotice.ts`                                                             |
+| Deck toasts of the voyage: "Too late!", "Gate reached: back to the navigation station.", "ALARM: ... - go to the ...!"                             | `src/scenes/stationFlow.ts` (`LINES`)                                                          |
+| The timer bar's seconds ("9s")                                                                                                                     | `src/scenes/AlarmBarScene.ts`                                                                  |
+| Panel column: next / day / leg lines, the log, the key legend, "Close"                                                                             | `src/scenes/NavigationScene.ts`                                                                |
+| The HOLD strip's caption                                                                                                                           | `src/ui/HoldStrip.ts`                                                                          |
+| Pause menu; main menu; settings; the "(in development)" stub                                                                                       | `src/scenes/PauseScene.ts`, `MainMenuScene.ts`, `SettingsScene.ts`, `StubScene.ts`             |
+| "... has nothing to say yet." (an NPC without a dialogue)                                                                                          | `src/world/Interactables.ts`                                                                   |
 
 ## Gates and legs
 
@@ -188,14 +193,25 @@ simulated days or 3 real seconds of Run before it, whichever comes first.
 
 ## Events on the way
 
-`src/content/voyage/events/index.ts` lists them. All four are on the Moon - Mars leg, at
-different points: the dusty panels at 0.2 (with solar panels and no reactor), the hull breach at
-0.4, the asteroid belt at 0.65 (a field of rocks on the way; the real belt lies past Mars) and
-the reactor fault at 0.85 (with a reactor). The Earth - Moon leg has none. A leg may hold several
-events; give each its own point. Each is rolled once per voyage with the run's seed, when the ship has
-flown `at` of the leg's planned duration; if the roll is under `chance`, the card opens and time
-stands. Only one card is open at a time; an event whose point comes after the arrival, or while
-the ship drifts, is dropped.
+`src/content/voyage/events/index.ts` lists them. All seven are on the Moon - Mars leg, at
+different points, more of them late on the leg so that the alarms come faster towards Mars:
+
+| Event             | `at` | Chance                               | Station                   | Timeout answer             |
+| ----------------- | ---- | ------------------------------------ | ------------------------- | -------------------------- |
+| `dusty-panels`    | 0.2  | 0.5 with solar panels and no reactor | `airlock`                 | `leave` (no risk)          |
+| `hull-breach`     | 0.4  | 0.45                                 | `airlock`                 | `patch`: oxygen -48        |
+| `lost-signal`     | 0.55 | 0.65                                 | `radio`                   | `boost` (no risk)          |
+| `asteroid-belt`   | 0.65 | 0.7                                  | `porthole`                | `fly`: the hit             |
+| `solar-flare`     | 0.75 | 0.6                                  | `porthole`                | `work-on` (no risk)        |
+| `greenhouse-leak` | 0.8  | 0.6 with a greenhouse                | `{ bayOf: 'greenhouse' }` | `shut-valve` (no risk)     |
+| `reactor-failure` | 0.85 | 0.5 with a reactor                   | `{ bayOf: 'reactor' }`    | `shut-down` (a melt kills) |
+
+The asteroid belt is a field of rocks on the way (the real belt lies past Mars). The Earth - Moon
+leg has none. A leg may hold several events; give each its own point. Each is rolled once per
+voyage with the run's seed, when the ship has flown `at` of the leg's planned duration; if the
+roll is under `chance`, time stands and the **station alarm** comes on (below). Only one event is
+open at a time; an event whose point comes after the arrival, or while the ship drifts, is
+dropped.
 
 ```ts
 // src/content/voyage/events/hull-breach.ts (short)
@@ -206,6 +222,8 @@ export const hullBreach: VoyageEventDef = {
   speaker: 'computer', // portrait on the card
   title: 'Hull breach',
   text: '[TODO: a micrometeoroid holed a module; air is leaking]',
+  station: 'airlock', // deck object where it is answered; or { bayOf: 'reactor' }
+  timeoutChoice: 'patch', // applied, its bad outcome sure, when the timer runs out
   choices: [
     { id: 'seal', text: '[TODO: Seal the module off]', effect: { stocks: { oxygen: -16 } } },
     {
@@ -234,8 +252,38 @@ export const hullBreach: VoyageEventDef = {
 - The **first choice** is what the tools and the smoke test answer by default: make it the
   safe, ordinary answer.
 - The answer is kept in the flag `event.<id>` (and `event.<id>.hit`) until the next voyage.
+- **`station`** is the deck object where the event is answered: `airlock`, `porthole` or `radio`
+  (interactables of `ship-deck`), or `{ bayOf: '<cargo id>' }` - the hold's access point over
+  the bay of that crate (`bay-access-N`; give such an event a `chance` of 0 without that cargo).
+  Several events may share a station.
+- **`timeoutChoice`** is the choice applied when the alarm's timer runs out: the worst ordinary
+  answer. A choice with `risk` is applied with its bad outcome (`onHit`) for sure, without a
+  roll; one without `risk` as it is. It must exist, must not have `when` and its `onHit` must not
+  `die` (a death is never the price of being late): `checkEventCatalog`
+  (`src/core/voyage/voyageEvents.ts`) throws at game start otherwise.
 
-**To add an event:** create `<id>.ts`, list it in `index.ts`, run `npm run balance`. The
+**The station alarm** (`services.stationAlarm`, `src/core/alarm/StationAlarmService.ts`): an
+event fires only while the navigation panel runs. The panel then flashes "ALARM", the title and
+"Go to: <station>" for `ALARM_FLASH_MS` (0.7 s, `src/scenes/NavigationScene.ts`) and closes;
+the timer (`STATION_TIMER_S` = 10 s real time, OWNER: design) counts from the moment the event
+fires, also while the station's card is open, and stands only in the pause menu and while the tab is hidden. On the deck
+a box in the top-right corner shows the event, the station, the seconds and a bar (red in the
+last third, `AlarmBarScene`; on the navigation panel it sits above the Close button, clear of
+the gate ribbon); a pointer blinks over the station (`StationMarker`); the drums of the deck's music come in
+(docs/HOWTO-audio.md). E at the right station opens the
+card (`EventStationScene`; Esc closes it, the timer runs on); at another station a toast says
+where to go. The result is a toast on the deck; then the player walks back to the navigation
+station and opens the panel, and the ship flies on. A death at a station opens the panel on LOST as before. Simulated time
+stands during the whole alarm, so the balance tools treat an event as instant, as before.
+Measured walks from the navigation station (80 px/s): airlock 5.0 s, porthole 2.8 s, radio
+3.0 s, bay 1 0.7 s, bay 7 3.3 s - all leave more than 3 s of the 10 s after the flash and
+the card's 0.4 s input lock.
+
+**To add an event:** create `<id>.ts` with its `station` and `timeoutChoice`, list it in
+`index.ts`, run `npm run balance` (each new choice multiplies the balance's answer policies, so
+the run gets longer: ~6.5 min with seven events), and check that the smoke seed still holds
+(`tools/smoke/voyage-seed.mjs`, and the seed of the `stations` scenario, which needs its
+four events). The
 balance check flies a voyage for every choice (and every hit) of every event; if no loadout and
 seed it tries can reach your event, it fails with `coverage: <event>/<choice>/... never compared`
 (below).
@@ -267,9 +315,10 @@ tier lines); the common tier lines are `TIER_LINES` there.
 ## How to balance
 
 1. Change a number (a crate's flow, an event's chance, a colony need...).
-2. Run **`npm run balance`** (about 1.5 minutes on a 16-thread machine: the sweep costs about
-   19 CPU-minutes spread over worker threads, one per CPU, so it stays under 5 minutes only
-   from about 4-5 cores; one core takes about 20). It flies **every loadout the hold can take**
+2. Run **`npm run balance`** (about 6.5 minutes on a 16-thread machine with the seven events
+   (1.5 with four): every choice of every event multiplies the answer policies it flies, so the
+   sweep costs about 97 CPU-minutes spread over worker threads, one per CPU; one core takes
+   well over an hour). It flies **every loadout the hold can take**
    (1606 sets of at most 7 bays) through the whole voyage, without events and with 20 seeds,
    and prints one line per invariant: `I3 ok: ...` or `I3 failed: ...` with what was measured
    and an example loadout. It must end with every line `ok` (exit code 0).
@@ -317,6 +366,15 @@ as good as 98.3 % of the others; 177 gates are fuel-short (I7); with events the 
 reaches Mars in 100 % of seeds (I8). How they end without events: landed at Mars 506, hypoxia
 410, frozen 361, dehydration 194, drift 135.
 
+**Known limitation of I7 (accepted).** The fuel-short forecast counts the ship's mass without
+events. An event that throws mass overboard (lost stocks, a dumped tank) lightens the ship, so a
+set the gate card calls fuel-short can still reach the next gate: e.g.
+`supplies,reactor,greenhouse` is FUEL SHORT at the Moon yet "Go on" lands at Mars in most seeds.
+I7 stays green only because the cross-check samples game voyages where this does not happen; a
+new late event that loses mass can make it sample such a voyage and fail I7. That is this
+limitation, not an engine bug: tie the event to other cargo, or make the forecast account for
+mass lost to events (a programmer's job).
+
 ### What the sweep assumes, and its other failures
 
 - **Every loadout flies its own voyage.** The ship's mass - the base, the crates, the stocks,
@@ -355,3 +413,7 @@ reaches Mars in 100 % of seeds (I8). How they end without events: landed at Mars
   (`node tools/smoke.mjs --scenario tools/smoke/scenarios/voyage.mjs --timeout 600000` after
   `npm run build`). After changing events, cargo or legs, check that seed 1 still lands at Mars
   with that loadout (`tools/smoke/voyage-seed.mjs` says how), or pick another seed.
+- The smoke test `stations` plays the station alarms on seed 71 with `fuel`, `oxygen`,
+  `supplies` and `reactor`: the flash, the bar and the marker, a wrong station, the timeout
+  (`nasa.services.stationAlarm.setDebugTimer(ms)` shortens the timer in debug mode), answers at
+  the radio and the porthole, the reactor's bay and a death there (LOST on the panel).

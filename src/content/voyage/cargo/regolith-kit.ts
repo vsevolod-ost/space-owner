@@ -4,7 +4,7 @@ import type { CargoDef } from '@/core/voyage/types';
 export const regolithKit: CargoDef = {
   // OWNER: script
   label: 'Regolith kit',
-  line: '[TODO: dig in and build walls from rock]',
+  line: 'Dig in and build walls from rock.',
   // OWNER: physics - a small excavator and sintering tools.
   dryMassKg: 3_000,
   // OWNER: design - bays taken and copies allowed

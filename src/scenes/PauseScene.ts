@@ -53,8 +53,8 @@ export class PauseScene extends PanelScene {
     list.setPosition(Math.round(area.centerX - CHOICES_WIDTH / 2), area.y);
     list.on(ChoiceList.CHOSEN, (index: number) => this.choose(index));
     this.choices = list;
-    // "Paused" means the ship's clock stops too (it runs only on the navigation panel in Run,
-    // which cannot be open under this menu; the hold makes it explicit).
+    // "Paused" means the ship's clock stops too (it runs only while the navigation panel is
+    // open, which it cannot be under this menu; the hold makes it explicit).
     services.simulation.hold('pause');
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.choices = undefined;

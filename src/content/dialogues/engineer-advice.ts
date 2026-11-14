@@ -16,54 +16,54 @@ export const engineerAdvice = defineDialogue({
   nodes: {
     greeting: {
       speaker: 'engineer',
-      text: '[TODO: the engineer meets the hero for the first time and says who he is]',
+      text: "I'm the ship's engineer. We launch soon, so let's make the cargo count.",
       when: (s) => s.flags.get('engineer.met') !== true,
       effect: (s) => s.flags.set('engineer.met', true),
       next: 'question',
     },
     question: {
       speaker: 'engineer',
-      text: '[TODO: what do you want to know?]',
+      text: 'What do you need to know?',
       choices: [
-        { text: '[TODO: ask about the engineer]', next: 'about-me' },
+        { text: 'Who are you?', next: 'about-me' },
         {
-          text: '[TODO: ask what cargo to take]',
+          text: 'What cargo should I take?',
           when: (s) => !gaveCargoAdvice(s),
           effect: (s) => s.flags.set('advice.engineer.cargo', true),
           next: 'cargo',
         },
-        { text: '[TODO: ask about the cargo again]', when: gaveCargoAdvice, next: 'cargo-again' },
-        { text: '[TODO: say goodbye]', next: 'bye' },
+        { text: 'Remind me about the cargo.', when: gaveCargoAdvice, next: 'cargo-again' },
+        { text: "That's all, thanks.", next: 'bye' },
       ],
     },
     'about-me': {
       speaker: 'engineer',
-      text: '[TODO: the engineer about himself]',
+      text: "I keep the reactor, the air and the water running. If something breaks out there, it's my fault.",
       next: 'about-me-reply',
     },
     'about-me-reply': {
       speaker: 'hero',
-      text: '[TODO: the hero replies]',
+      text: "Good to know someone's watching the engines.",
       next: 'question',
     },
     cargo: {
       speaker: 'engineer',
-      text: '[TODO: advice on the cargo: fuel decides how far, the rest how long]',
+      text: 'Fuel decides how far we get; everything else decides how long we last. Take fuel for the distance, then air, water and food for the days.',
       next: 'cargo-gesture',
     },
     'cargo-gesture': {
       speaker: 'narrator',
-      text: '[TODO: the engineer nods towards the crates]',
+      text: 'He nods toward the crate stands along the wall.',
       next: 'bye',
     },
     'cargo-again': {
       speaker: 'engineer',
-      text: '[TODO: the cargo advice in short]',
+      text: 'Fuel for distance, air, water and food for time. Build what the colony needs with the rest.',
       next: 'bye',
     },
     bye: {
       speaker: 'engineer',
-      text: '[TODO: good luck]',
+      text: 'Good luck out there, pilot.',
     },
   },
 });

@@ -191,16 +191,22 @@ export class Voyage {
    * effects. Returns how it went and what follows (the next queued event, the gate reached
    * behind it, or the end if the crew died), or null if no card is open or the choice is
    * unknown or disabled. Back to `flying` otherwise; the forecast of the rest of the leg is
-   * computed again.
+   * computed again. With `forceHit` (the alarm timed out, plan act2-stations D3) a choice with a
+   * risk goes wrong for sure (its roll is still logged); a choice without one is unaffected.
    */
-  choose(choiceId: string): { resolution: EventResolution; signals: VoyageSignal[] } | null {
+  choose(
+    choiceId: string,
+    options: { forceHit?: boolean } = {},
+  ): { resolution: EventResolution; signals: VoyageSignal[] } | null {
     if (this.state !== 'event') return null;
     const id = this.queue[0];
     const def = this.events[id];
     const choice = def.choices.find((c) => c.id === choiceId);
     const ctx = this.context();
     if (!choice || !enabledChoices(def, ctx).includes(choice)) return null;
-    const { risk, riskRoll, hit } = rollRisk(choice, id, this.seed, ctx);
+    const rolled = rollRisk(choice, id, this.seed, ctx);
+    const { risk, riskRoll } = rolled;
+    const hit = rolled.hit || (options.forceHit === true && choice.risk !== undefined);
     this.simulation.applyEvent(id, choice.effect);
     if (hit) this.simulation.applyEvent(id, choice.onHit);
     const entry = [...this.log].reverse().find((e) => e.eventId === id && e.happened);

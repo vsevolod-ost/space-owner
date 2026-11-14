@@ -19,7 +19,7 @@ const FONT_TIMEOUT_MS = 3000;
 
 /**
  * Loads every asset registry and the font, creates character animations, launches the UI layer
- * (`UiScene`) and the debug overlay (`DebugScene`), then opens the menu, or what the URL asks
+ * (`UiScene`), the alarm's timer bar (`AlarmBarScene`) and the debug overlay (`DebugScene`), then opens the menu, or what the URL asks
  * for (src/debug/startParams.ts): `?act=<id>` starts an act, `?location=<id>&spawn=<name>`
  * opens a location.
  */
@@ -54,6 +54,8 @@ export class BootScene extends Phaser.Scene {
     await waitForFont(this.fontLoad);
     // The UI layer (toasts, fader, dialogue) runs above every scene for the whole game.
     this.scene.launch(SceneKey.Ui);
+    // The station alarm's timer bar (act 2); draws nothing without an alarm.
+    this.scene.launch(SceneKey.AlarmBar);
     // The debug overlay too; it draws nothing until F3 or `?overlay=1`.
     this.scene.launch(SceneKey.Debug);
     this.startFirstScene();

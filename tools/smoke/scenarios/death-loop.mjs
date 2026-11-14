@@ -1,10 +1,13 @@
+import { answerAlarm, openNavigation } from '../alarm.mjs';
 import { VOYAGE_SEED } from '../voyage-seed.mjs';
 
 /**
  * Smoke scenario: the death loop (plan S10, D18; GDD D7). From the warehouse's hatch with
  * `fuel:1,supplies:1,reactor:1` (no oxygen crate, no greenhouse) and the smoke seed, the voyage
- * is flown on the navigation panel with the debug warp: Run, Go on at the Moon, the first choice
- * on every event card, Run again - until the crew dies of hypoxia between the Moon and Mars.
+ * is flown on the navigation panel with the debug warp (time runs while it is open): Go on at
+ * the Moon, every event's alarm answered with its first choice at its deck station
+ * (tools/smoke/alarm.mjs), back to the panel - until the crew dies of hypoxia between the Moon
+ * and Mars.
  * No end screen: the hero stands before the scientists' booth in the warehouse (act 1, a
  * checkpoint there without a voyage), `run.lastCause` is `hypoxia`, `run.attempt` 2, the
  * scientists stand at `post-1` and `post-2` and speak three lines; then the hero is at the
@@ -128,20 +131,53 @@ export default async function deathLoop(page, h) {
   await h.waitReady('Navigation');
   await frames(3);
   await h.eval((warp) => window.nasa.services.simulation.setDebugWarp(warp), WARP);
+  // The alarm's timer bar must be gone before any fade (the death loop's): count the frames it
+  // is shown while the UI's fader is not clear (plan act2-stations S5); `barFrames`: frames it
+  // was shown at all (the events on the way).
+  await h.eval(() => {
+    const game = window.nasa.game;
+    window.__smokeBarOverFade = { frames: 0, sample: null, barFrames: 0 };
+    game.events.on('poststep', () => {
+      const bar = game.scene.getScene('AlarmBar').debugInfo();
+      if (bar.visible) window.__smokeBarOverFade.barFrames += 1;
+      const fader = game.scene.getScene('Ui').debugInfo().fader;
+      if (fader > 0 && bar.visible) {
+        window.__smokeBarOverFade.frames += 1;
+        window.__smokeBarOverFade.sample = { fader, bar };
+      }
+    });
+  });
   await h.mark();
   const lostEvents = () => window.__nasaEvents.filter((e) => e.name === 'flightLost').length;
   const startedAt = Date.now();
   const answered = [];
   while (!(await h.eval(lostEvents))) {
     if (Date.now() - startedAt > 480000) throw new Error('the voyage was not lost in 8 minutes');
+    const voyageOn = await h.eval(
+      () =>
+        window.nasa.services.simulation.voyage?.phase !== 'ended' &&
+        !window.nasa.services.flow.isTransitioning,
+    );
+    // An event: its alarm closes the panel; the first choice at its deck station
+    // (tools/smoke/alarm.mjs), then back to the panel.
+    if (voyageOn && (await h.eval(() => window.nasa.services.stationAlarm.alarm !== null))) {
+      const answer = await answerAlarm(h);
+      answered.push(`event ${answer.eventId}: ${answer.choiceId} at ${answer.station}`);
+      h.log(`event ${answer.eventId}: ${answer.choiceId} at ${answer.station}`);
+      continue;
+    }
     const info = await h.eval(() =>
       window.nasa.game.scene.isActive('Navigation')
         ? window.nasa.game.scene.getScene('Navigation').debugInfo()
         : null,
     );
+    if (!info && voyageOn && (await h.eval(() => window.nasa.game.scene.isActive('World')))) {
+      await openNavigation(h);
+      continue;
+    }
     if (info?.card) {
       const { card } = info;
-      // Go on (gate) or the first choice (event), once the card takes input and it is enabled.
+      // Go on at the gate, once the card takes input and it is enabled.
       if (!card.locked && !card.disabled[card.selected]) {
         answered.push(`${card.kind}: ${card.choices[card.selected]}`);
         h.log(`card ${card.kind}: ${card.choices[card.selected]} (day ${info.day})`);
@@ -151,8 +187,6 @@ export default async function deathLoop(page, h) {
           5000,
         );
       }
-    } else if (info && !info.run && info.status === 'HOLD') {
-      await h.press('Enter');
     }
     await wait(250);
   }
@@ -193,6 +227,11 @@ export default async function deathLoop(page, h) {
   h.log(`debrief: ${JSON.stringify(debrief)}`);
   h.log(`flags: ${JSON.stringify(flags)}`);
   h.log(`save: ${JSON.stringify({ ...save, flags: undefined })}`);
+  const barOverFade = await h.eval(() => window.__smokeBarOverFade);
+  h.log(`alarm bar over the fade: ${JSON.stringify(barOverFade)}`);
+  if (barOverFade.frames > 0) {
+    throw new Error(`the alarm bar drew over the fade: ${JSON.stringify(barOverFade)}`);
+  }
   if (flags['run.lastCause'] !== 'hypoxia') {
     throw new Error(`run.lastCause is ${flags['run.lastCause']}, want hypoxia`);
   }

@@ -5,20 +5,25 @@ import type { VoyageEventDef } from '@/core/voyage/voyageEvents';
  * real belt lies past Mars; the route ends there, so the event moved in) - wait for a clear corridor (days of every stock) or fly through (a chance of a hit).
  */
 export const asteroidBelt: VoyageEventDef = {
-  // OWNER: design - the leg (1: Moon -> Mars), the point and the chance.
+  // OWNER: design - the leg (1: Moon -> Mars), the point and the chance (0.6 before the alarms
+  // grew more frequent late on the leg, plan act2-stations D11).
   leg: 1,
   at: 0.65,
-  chance: () => 0.6,
+  chance: () => 0.7,
   speaker: 'computer',
   // OWNER: script
   title: 'Asteroid belt',
-  text: '[TODO: dense rocks ahead; wait for a corridor or fly through]',
+  text: 'Dense rocks ahead; wait for a corridor or fly through.',
+  // OWNER: design - the deck station the alarm is answered at, and the choice applied when its
+  // timer runs out: flying through, and the hit (oxygen -40, fuel -6 t) (plan act2-stations D3, D8).
+  station: 'porthole',
+  timeoutChoice: 'fly',
   choices: [
     {
       id: 'wait',
       // OWNER: script
-      text: '[TODO: Wait for a corridor (24 d)]',
-      result: '[TODO: a corridor opens, the ship slips through]',
+      text: 'Wait for a corridor (24 d).',
+      result: 'A corridor opens; the ship slips through.',
       // OWNER: design - days of every stock spent waiting (GDD `evt-asteroid`: N ~ 10-15 % of the
       // leg: the leg is now 185-265 days, so 24, four times the 53-day voyage's 6; plan
       // variable-mass S9).
@@ -27,9 +32,9 @@ export const asteroidBelt: VoyageEventDef = {
     {
       id: 'fly',
       // OWNER: script
-      text: '[TODO: Fly through]',
-      result: '[TODO: not a scratch]',
-      hitResult: '[TODO: a hit: a tank and the air line are holed]',
+      text: 'Fly through.',
+      result: 'Not a scratch.',
+      hitResult: 'A hit: a tank and the air line are holed.',
       // OWNER: design - the chance of a hit (lower with the regolith kit's shield plates) and
       // its price: days of oxygen (four times the 53-day voyage's 10, plan variable-mass S9), and
       // a fuel leak.

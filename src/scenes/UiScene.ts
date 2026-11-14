@@ -63,6 +63,8 @@ export interface UiDebugInfo {
   dialogue: ({ id: string } & DialogueBoxInfo) | null;
   /** Text of the title on screen (`showTitle`), or null. */
   title: string | null;
+  /** Whether a dialogue window is on screen (an ended one stays until the next step). */
+  dialogueShown: boolean;
 }
 
 /** What `openDialogue` needs from its caller: the controls to lock while the dialogue runs. */
@@ -147,6 +149,14 @@ export class UiScene extends Phaser.Scene {
   get fader(): Fader {
     if (!this.faderView) throw new Error('UiScene.fader used before the scene was created');
     return this.faderView;
+  }
+
+  /**
+   * Opacity of the fader now (0 clear, 1 black); 0 before `create`. Overlays drawn above this
+   * scene (the alarm bar) fade with it.
+   */
+  get faderAlpha(): number {
+    return this.faderView?.alpha ?? 0;
   }
 
   /** This scene's keyboard: for dialogue and choice lists; never locked by the world. */
@@ -346,6 +356,7 @@ export class UiScene extends Phaser.Scene {
       choices: choices ? { items: choices.items, selected: choices.selectedIndex } : null,
       dialogue: this.dialogueInfo(),
       title: this.title?.text ?? null,
+      dialogueShown: this.dialogue?.box.shown ?? false,
     };
   }
 

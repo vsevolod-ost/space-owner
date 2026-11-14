@@ -65,7 +65,10 @@ export class DialogueBox {
   private blinkMs = 0;
   /** Game frame in which the current line appeared: `confirm` in that frame is ignored. */
   private shownFrame = -1;
+  /** The dialogue has ended (or the box was destroyed): no more input, `finished` resolved. */
   private closed = false;
+  /** The window's parts are gone. */
+  private destroyed = false;
   private resolveFinished!: () => void;
   private rejectFinished!: (error: unknown) => void;
 
@@ -120,15 +123,32 @@ export class DialogueBox {
     };
   }
 
+  /** Whether the window is on screen (an ended dialogue stays until `destroy`). */
+  get shown(): boolean {
+    return !this.destroyed;
+  }
+
   /** Removes the window; `finished` resolves if the dialogue had not ended yet. */
   destroy(): void {
+    this.end();
+    if (this.destroyed) return;
+    this.destroyed = true;
+    for (const part of [this.panel, this.portrait, this.name, this.body, this.marker]) {
+      part.destroy();
+    }
+  }
+
+  /**
+   * Ends the dialogue but leaves the last line on screen: the owner destroys the window after
+   * `finished`, in the same frame as the next dialogue opens, so lines said one after another
+   * never leave a frame without the window.
+   */
+  private end(): void {
     if (this.closed) return;
     this.closed = true;
     this.scene.events.off(Phaser.Scenes.Events.UPDATE, this.update, this);
     this.clearChoices();
-    for (const part of [this.panel, this.portrait, this.name, this.body, this.marker]) {
-      part.destroy();
-    }
+    this.marker.setVisible(false);
     this.resolveFinished();
   }
 
@@ -158,7 +178,7 @@ export class DialogueBox {
       next = move();
     } catch (error) {
       this.rejectFinished(error);
-      this.destroy();
+      this.end();
       return;
     }
     this.show(next);
@@ -169,7 +189,7 @@ export class DialogueBox {
     this.clearChoices();
     this.marker.setVisible(false);
     if (step.kind === 'end') {
-      this.destroy();
+      this.end();
       return;
     }
     const pad = theme.panelPadding;

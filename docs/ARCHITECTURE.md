@@ -99,18 +99,20 @@ browser's key event, and what it changes shows a frame later.
 Registered in this order in `src/main.ts` (later scenes draw above earlier ones); keys in
 `src/scenes/keys.ts` (`SceneKey`). Switch scenes through `SceneKey`, never string literals.
 
-| Key          | Class (`src/scenes/`) | What it is                                                            | Started by                                                                     |
-| ------------ | --------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `Boot`       | `BootScene`           | Loads every asset registry and the font, creates the animations       | Phaser (first in the list)                                                     |
-| `MainMenu`   | `MainMenuScene`       | Continue / New Game / Settings / About                                | Boot (no URL parameters), `PhaserSceneDriver.toMainMenu`                       |
-| `Stub`       | `StubScene`           | Placeholder panel ("About"); smallest `PanelScene` example            | MainMenu                                                                       |
-| `World`      | `WorldScene`          | The current location: background, walls, hero, NPCs, interactables    | `PhaserSceneDriver.goTo` (from `flow.goTo`); restarted for every location      |
-| `Ending`     | `EndingScene`         | End screen of an ending: title, text, tier line, Fly again, Main menu | `PhaserSceneDriver.showEnding` (from `flow.finish`)                            |
-| `Ui`         | `UiScene`             | Overlay: "E" hint, toasts, dialogue window, act titles, fader         | Boot (`scene.launch`), runs for the whole game                                 |
-| `Pause`      | `PauseScene`          | Pause menu: Resume / Settings / (Return to warehouse) / Main menu     | World on Esc when the hero's controls are not locked                           |
-| `Settings`   | `SettingsScene`       | Music and SFX volume (panel)                                          | MainMenu, Pause                                                                |
-| `Navigation` | `NavigationScene`     | Gate ribbon, system map, resources, Run/Hold, gate and event cards    | the navigation station on the ship deck (`src/content/locations/ship-deck.ts`) |
-| `Debug`      | `DebugScene`          | Debug overlay (F3, `?overlay=1`)                                      | Boot (`scene.launch`), runs for the whole game                                 |
+| Key            | Class (`src/scenes/`) | What it is                                                            | Started by                                                                     |
+| -------------- | --------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `Boot`         | `BootScene`           | Loads every asset registry and the font, creates the animations       | Phaser (first in the list)                                                     |
+| `MainMenu`     | `MainMenuScene`       | Continue / New Game / Settings / About                                | Boot (no URL parameters), `PhaserSceneDriver.toMainMenu`                       |
+| `Stub`         | `StubScene`           | Placeholder panel ("About"); smallest `PanelScene` example            | MainMenu                                                                       |
+| `World`        | `WorldScene`          | The current location: background, walls, hero, NPCs, interactables    | `PhaserSceneDriver.goTo` (from `flow.goTo`); restarted for every location      |
+| `Ending`       | `EndingScene`         | End screen of an ending: title, text, tier line, Fly again, Main menu | `PhaserSceneDriver.showEnding` (from `flow.finish`)                            |
+| `Ui`           | `UiScene`             | Overlay: "E" hint, toasts, dialogue window, act titles, fader         | Boot (`scene.launch`), runs for the whole game                                 |
+| `Pause`        | `PauseScene`          | Pause menu: Resume / Settings / (Return to warehouse) / Main menu     | World on Esc when the hero's controls are not locked                           |
+| `Settings`     | `SettingsScene`       | Music and SFX volume (panel)                                          | MainMenu, Pause                                                                |
+| `Navigation`   | `NavigationScene`     | Gate ribbon, system map, resources, gate cards, alarm flash           | the navigation station on the ship deck (`src/content/locations/ship-deck.ts`) |
+| `EventStation` | `EventStationScene`   | A voyage event's card at its deck station (airlock, radio, ...)       | the alarm's deck station (`ship-deck.ts`)                                      |
+| `AlarmBar`     | `AlarmBarScene`       | Act 2's station alarm: event, station, seconds left, countdown bar    | Boot (`scene.launch`), runs for the whole game                                 |
+| `Debug`        | `DebugScene`          | Debug overlay (F3, `?overlay=1`)                                      | Boot (`scene.launch`), runs for the whole game                                 |
 
 Boot with `?act=<id>` calls `flow.startAct`, with `?location=<id>` calls `flow.goTo`; otherwise
 it starts MainMenu. The menu's New Game and Continue call `flow.newGame()` /
@@ -118,13 +120,14 @@ it starts MainMenu. The menu's New Game and Continue call `flow.newGame()` /
 runs `flow.die(cause)`: the death loop to the warehouse and the scientists' debrief
 (docs/HOWTO-story.md).
 
-**Overlay scenes.** `Ui` and `Debug` are listed in `OVERLAY_SCENES` (`src/scenes/keys.ts`):
-they run for the whole game above everything else. Panels do not pause them and scene changes do
+**Overlay scenes.** `Ui`, `AlarmBar` and `Debug` are listed in `OVERLAY_SCENES` (`src/scenes/keys.ts`):
+they run for the whole game above everything else (`AlarmBar` and `Debug` re-raise themselves
+over panels that open, `AlarmBar` only during an alarm and under `Debug`). Panels do not pause them and scene changes do
 not stop them (`PanelScene.open` and `PhaserSceneDriver` skip every key for which
 `isOverlayScene(key)` is true). A new always-on layer must be added to `OVERLAY_SCENES`, or the
 next panel pauses it and the next location change stops it.
 
-**Panels** (`Stub`, `Pause`, `Settings`, `Navigation`) extend `PanelScene` (`src/ui/PanelScene.ts`):
+**Panels** (`Stub`, `Pause`, `Settings`, `Navigation`, `EventStation`) extend `PanelScene` (`src/ui/PanelScene.ts`):
 `open(data)` pauses every running non-overlay scene, turns off UiScene's input and resolves when
 the panel closes; panels stack. See [HOWTO-ui.md](HOWTO-ui.md).
 
@@ -133,26 +136,27 @@ the panel closes; panels stack. See [HOWTO-ui.md](HOWTO-ui.md).
 Created once in `src/core/services.ts` before Phaser starts; every scene imports the `services`
 object. No DI container, no Phaser registry.
 
-| `services.`  | Class                                   | One line                                                                                 |
-| ------------ | --------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `events`     | `EventBus<GameEvents>` (`core/events`)  | Typed event bus; all events and payloads are listed in `core/events/events.ts`.          |
-| `state`      | `GameState` (`core/state`)              | Story flags (`state.flags`), the current act/location/spawn (`state.current`), the save. |
-| `flow`       | `FlowService` (`core/flow`)             | New game, continue, acts, `goTo`, checkpoints, the death loop, endings, main menu.       |
-| `cutscenes`  | `CutsceneService` (`core/cutscene`)     | Plays cutscene scripts one at a time (`play(id)`, queued), cancels them on leaving.      |
-| `save`       | `SaveService` (`core/state`)            | The single save slot in `localStorage` (`space-owner.save`).                               |
-| `settings`   | `SettingsService` (`core/settings`)     | Music and SFX volume in `localStorage` (`space-owner.settings`), apart from the save.      |
-| `audio`      | `AudioService` (`core/audio`)           | Music with crossfade, sound effects, volumes; over Phaser's sound manager.               |
-| `simulation` | `SimulationService` (`core/simulation`) | Runs the act 2 ship simulation: start, hold/release, stop, tick, snapshot, clone.        |
-| `voyage`     | `VoyageService` (`core/voyage`)         | Cargo, event and colony registries; what `cargo.<id>` puts aboard; colony tiers.         |
+| `services.`    | Class                                   | One line                                                                                 |
+| -------------- | --------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `events`       | `EventBus<GameEvents>` (`core/events`)  | Typed event bus; all events and payloads are listed in `core/events/events.ts`.          |
+| `state`        | `GameState` (`core/state`)              | Story flags (`state.flags`), the current act/location/spawn (`state.current`), the save. |
+| `flow`         | `FlowService` (`core/flow`)             | New game, continue, acts, `goTo`, checkpoints, the death loop, endings, main menu.       |
+| `cutscenes`    | `CutsceneService` (`core/cutscene`)     | Plays cutscene scripts one at a time (`play(id)`, queued), cancels them on leaving.      |
+| `save`         | `SaveService` (`core/state`)            | The single save slot in `localStorage` (`space-owner.save`).                               |
+| `settings`     | `SettingsService` (`core/settings`)     | Music and SFX volume in `localStorage` (`space-owner.settings`), apart from the save.      |
+| `audio`        | `AudioService` (`core/audio`)           | Music with crossfade, sound effects, volumes; over Phaser's sound manager.               |
+| `simulation`   | `SimulationService` (`core/simulation`) | Runs the act 2 ship simulation: start, hold/release, stop, tick, snapshot, clone.        |
+| `voyage`       | `VoyageService` (`core/voyage`)         | Cargo, event and colony registries; what `cargo.<id>` puts aboard; colony tiers.         |
+| `stationAlarm` | `StationAlarmService` (`core/alarm`)    | Act 2's alarm: the open event's deck station and real-time countdown; the timeout.       |
 
 Not a service but core too: `DialogueRunner` (`core/dialogue`, one per open dialogue, created by
 `UiScene.openDialogue`) and the `Controls` interface (`core/input/controls.ts`: actions
 `moveUp/Down/Left/Right`, `interact` (E), `cancel` (Esc), `confirm` (Enter, Space); scenes ask
 for actions, not keys).
 
-`main.ts` also subscribes to `game.events` `STEP` and calls `services.audio.tick(delta)` and
-`services.simulation.tick(delta)` there, not in a scene: panels pause the world scene, but fades
-keep running and the simulation advances under the navigation panel in Run mode.
+`main.ts` also subscribes to `game.events` `STEP` and calls `services.audio.tick(delta)`,
+`services.simulation.tick(delta)` and `services.stationAlarm.tick(delta)` there, not in a scene: panels pause the world scene, but fades
+keep running and the simulation advances while the navigation panel is open.
 
 ## Location lifecycle
 
@@ -224,8 +228,8 @@ it, only marks the save (`voyage: true`, while the voyage is under way: not afte
 death); Continue starts the voyage again with the same
 `run.seed` (plan D17). The STEP hook
 in `main.ts` ticks it every frame, but simulated time advances only while no hold reason is set
-(`hold(reason)` / `release(reason)`): only the navigation panel in Run mode releases `panel`; the
-pause menu holds `pause`, a hidden tab `blur`. Every new session resets the holds. It emits `simulationTick` about four times a second (not every frame); that event is
+(`hold(reason)` / `release(reason)`): the navigation panel releases `panel` while it is open; a
+gate holds `gate`, an open event `event`, the pause menu `pause`, a hidden tab `blur`. Every new session resets the holds. It emits `simulationTick` about four times a second (not every frame); that event is
 not recorded in `window.__nasaEvents`. The model is plain TypeScript in `src/core/simulation`
 with `// OWNER: physics` marks; see [HOWTO-simulation.md](HOWTO-simulation.md).
 
@@ -246,6 +250,19 @@ Three layers, none with Phaser:
   reasons, the per-frame tick from `main.ts`, the bus events (`gateReached`, `voyageEvent`,
   `shipAlarm`, `voyageEnded`, ...) and the `voyage.*` / `event.*` flag mirrors. `VoyageService`
   (`services.voyage`) holds the registries and answers what is aboard.
+- `StationAlarmService` (`services.stationAlarm`, `core/alarm/`): while the voyage waits for an
+  answer (phase `event`, which happens only while the navigation panel is open), an alarm is on for
+  the open event: its deck station (`station` of the event; `{ bayOf }` is resolved to
+  `bay-access-N` by the hold, `core/alarm/station.ts`) and a real-time countdown
+  (`STATION_TIMER_S`, standing under `pause` and `blur`). Bus events `stationAlarm { eventId, station,
+active }` and `stationAlarmTimedOut`; when the timer runs out the event's `timeoutChoice` is
+  answered with its bad outcome forced (`answerEvent(id, { forceHit: true })`). The scenes
+  around it: `NavigationScene` flashes the alarm and closes (`ALARM_FLASH_MS`), the deck's
+  stations open `EventStationScene` with the card (`ship-deck.ts`), `AlarmBarScene` draws the
+  timer, `src/ui/StationMarker.ts` the pointer over the station, `src/scenes/stationFlow.ts`
+  puts results on the deck as toasts and opens the panel on LOST after a death at a station,
+  `src/scenes/stationSound.ts` raises the drum layer of the deck's music
+  ([HOWTO-voyage.md](HOWTO-voyage.md#events-on-the-way)).
 
 The devtools (`src/devtools/`) build the same `Voyage` from the same content in Node: what
 `npm run voyage-check` and `npm run balance` say is what the game does
@@ -311,10 +328,11 @@ locations`). No `id` or `key` fields: a typo in an id is a compile error.
   `nasa.services.state.flags.toRecord()`, `nasa.services.flow.die('abort')`,
   `nasa.services.save.load()`, `nasa.services.audio.debugInfo()`,
   `nasa.services.simulation.snapshot()`, `nasa.services.simulation.voyage`,
-  `nasa.services.simulation.setDebugWarp(20)` (the flight 20 times faster), and every scene's
+  `nasa.services.simulation.setDebugWarp(20)` (the flight 20 times faster),
+  `nasa.services.stationAlarm.debugInfo()` / `.setDebugTimer(ms)` (the alarm's timer), and every scene's
   `debugInfo()`:
   `nasa.game.scene.getScene('World').debugInfo()` (also `MainMenu`, `Ui`, `Pause`, `Settings`,
-  `Navigation`, `Ending`, `Debug`). Debug mode also records every event in
+  `Navigation`, `EventStation`, `AlarmBar`, `Ending`, `Debug`). Debug mode also records every event in
   `window.__nasaEvents` and scene readiness in `window.__nasaReadyLog`, for the smoke tool.
 - **Overlay** (`DebugScene`, F3 or `?overlay=1`): FPS, location and spawn, the hero's feet in
   map pixels (the numbers Tiled uses), the focused object, act, music, simulation time scale,

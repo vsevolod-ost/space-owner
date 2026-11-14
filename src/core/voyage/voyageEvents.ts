@@ -85,10 +85,51 @@ export interface VoyageEventDef {
   chance: (ctx: EventContext) => number;
   /** Answers; the first is the default one of the tools (`voyage-check --seed`). */
   choices: readonly EventChoiceDef[];
+  /**
+   * Where on the deck the alarm is answered (plan act2-stations D1, D8): the name of an
+   * interactable object of the ship deck (`'airlock'`), or `{ bayOf: '<cargo id>' }` - the
+   * access point of the hold bay the crate of that cargo stands in.
+   */
+  station: EventStation;
+  /**
+   * Id of the choice applied when the alarm's timer runs out (D2, D3): its bad outcome
+   * (`onHit`) is forced, without a roll. It must exist, have no `when`, and its `onHit` must not
+   * kill (`checkEventCatalog`).
+   */
+  timeoutChoice: string;
 }
+
+/**
+ * A deck station of an event (`VoyageEventDef.station`): an interactable object name of the
+ * ship deck, or the hold bay where the crate of cargo `bayOf` stands.
+ */
+export type EventStation = string | { readonly bayOf: string };
 
 /** The event registry as core gets it (`VoyageService.attach` in src/main.ts). */
 export type VoyageEventCatalog = Readonly<Record<string, VoyageEventDef>>;
+
+/**
+ * Checks the event registry's alarm data (plan act2-stations D3): every `timeoutChoice` names a
+ * choice of its event that has no `when` (it must always be allowed) and whose `onHit` does not
+ * kill, and every `station.bayOf` is one of `cargoIds`. Throws one error listing every problem;
+ * `VoyageService.attach` calls it at game start.
+ */
+export function checkEventCatalog(events: VoyageEventCatalog, cargoIds: readonly string[]): void {
+  const problems: string[] = [];
+  for (const [id, def] of Object.entries(events)) {
+    if (typeof def.station !== 'string' && !cargoIds.includes(def.station.bayOf)) {
+      problems.push(`${id}: station bayOf "${def.station.bayOf}" is not a cargo id`);
+    }
+    const choice = def.choices.find((c) => c.id === def.timeoutChoice);
+    if (!choice) {
+      problems.push(`${id}: timeoutChoice "${def.timeoutChoice}" is not one of its choices`);
+      continue;
+    }
+    if (choice.when) problems.push(`${id}: timeoutChoice "${choice.id}" has \`when\``);
+    if (choice.onHit?.die) problems.push(`${id}: timeoutChoice "${choice.id}" kills on a hit`);
+  }
+  if (problems.length > 0) throw new Error(`Voyage events: ${problems.join('; ')}`);
+}
 
 /** A choice as the card shows it: enabled or not. */
 export interface OpenChoice {

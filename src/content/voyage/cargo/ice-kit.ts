@@ -11,7 +11,7 @@ export const ICE_COLONY_MAX_SUN = 0.25;
 export const iceKit: CargoDef = {
   // OWNER: script
   label: 'Ice kit',
-  line: '[TODO: drill ice for water and walls]',
+  line: 'Drill ice for water and walls.',
   // OWNER: physics - a drill and a melter.
   dryMassKg: 2_000,
   // OWNER: design - bays taken and copies allowed

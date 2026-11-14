@@ -16,7 +16,7 @@ import {
 } from '@/core/voyage/loadout';
 import type { CargoCatalog, CargoDef, Loadout } from '@/core/voyage/types';
 import { cargoMassKg, startMassKg } from '@/core/voyage/mass';
-import type { VoyageEventCatalog } from '@/core/voyage/voyageEvents';
+import { checkEventCatalog, type VoyageEventCatalog } from '@/core/voyage/voyageEvents';
 
 /**
  * The voyage's data for the rest of the game (plan D12): the cargo and event registries from
@@ -32,8 +32,12 @@ export class VoyageService {
 
   constructor(private readonly state: GameState) {}
 
-  /** Hands over the cargo, event and colony registries; main.ts calls this once. */
+  /**
+   * Hands over the cargo, event and colony registries; main.ts calls this once. Throws if an
+   * event's alarm data is wrong (`checkEventCatalog`), so it fails at game start, not in flight.
+   */
   attach(catalog: CargoCatalog, events: VoyageEventCatalog, colony: ColonyCatalog): void {
+    checkEventCatalog(events, Object.keys(catalog.items));
     this.catalog = catalog;
     this.eventCatalog = events;
     this.colonyCatalog = colony;
