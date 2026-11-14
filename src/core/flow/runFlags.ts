@@ -14,10 +14,10 @@ export const RUN_FLAGS = {
   lastGate: 'run.lastGate',
   /** Highest gate index any voyage reached (-1: none yet). */
   bestGate: 'run.bestGate',
-  /** Simulated day the last voyage was lost. */
+  /** Whole simulated day (from 0) the last voyage was lost; texts show it + 1, as the panel. */
   lastDay: 'run.lastDay',
-  /** Name of the body of `lastGate` ('' before the first gate). */
-  lastGateName: 'run.lastGateName',
-  /** Name of the body the lost voyage was flying to. */
-  lastNextName: 'run.lastNextName',
+  /** Id of the body of `lastGate` ('' before the first gate); texts name it with `bodyName`. */
+  lastGateBody: 'run.lastGateBody',
+  /** Id of the body the lost voyage was flying to. */
+  lastNextBody: 'run.lastNextBody',
 } as const;

@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import { ABORT_CAUSE } from '@/core/voyage/flightSummary';
 import { SceneKey } from '@/scenes/keys';
@@ -9,15 +9,24 @@ import { ChoiceList } from '@/ui/kit/ChoiceList';
 
 /** What `PauseScene.debugInfo()` returns. */
 export interface PauseDebugInfo {
-  /** The options, top to bottom, and the selected one. */
+  /** The options as shown, top to bottom, and the selected one. */
   choices: { items: string[]; selected: number };
 }
 
-/** An option of the pause menu. OWNER: script - the words (also matched below). */
-type PauseChoice = 'Resume' | 'Settings' | 'Return to warehouse' | 'Main menu';
+/** An option of the pause menu, an id (`CHOICE_LABELS` are the words). */
+type PauseChoice = 'resume' | 'settings' | 'returnToWarehouse' | 'mainMenu';
 
-/** Options of the pause menu, in this order; "Return to warehouse" only during a voyage. */
-const CHOICES: readonly PauseChoice[] = ['Resume', 'Settings', 'Return to warehouse', 'Main menu'];
+/** Options of the pause menu, in this order; `returnToWarehouse` only during a voyage. */
+const CHOICES: readonly PauseChoice[] = ['resume', 'settings', 'returnToWarehouse', 'mainMenu'];
+/** The options as shown; they wrap at the list's width. OWNER: script */
+const CHOICE_LABELS: Readonly<Record<PauseChoice, LocalText>> = {
+  resume: { en: 'Resume', uk: TODO },
+  settings: { en: 'Settings', uk: TODO },
+  returnToWarehouse: { en: 'Return to warehouse', uk: TODO },
+  mainMenu: { en: 'Main menu', uk: TODO },
+};
+/** The panel's title: title glyphs across the panel, max 12. OWNER: script */
+const TITLE: LocalText = { en: 'Paused', uk: TODO, max: 12 };
 const PANEL_WIDTH = 224;
 /** Height of the panel without its option list (title, padding), px. */
 const PANEL_FRAME_HEIGHT = 48;
@@ -29,10 +38,14 @@ const CHOICES_WIDTH = 176;
  * (or Esc again) closes it; Settings opens the settings panel over it; "Return to warehouse",
  * shown only while a voyage is under way (act 2), gives the voyage up: the death loop with
  * cause `abort` (`flow.die`, GDD `win-fail-vs-death`); Main menu leaves the game (the save
- * stays). Opened by `WorldScene` with `open()`.
+ * stays). Opened by `WorldScene` with `open()`. A language change (from the settings opened
+ * over it) rebuilds it in place, keeping the selected option.
  */
 export class PauseScene extends PanelScene {
+  protected rebuildOnLanguageChange = true;
   private choices?: ChoiceList;
+  /** The option selected when the content was torn down, restored by a rebuild. */
+  private keptSelection = 0;
   /** The options shown now (`CHOICES` for this moment). */
   private shown: PauseChoice[] = [];
 
@@ -42,12 +55,14 @@ export class PauseScene extends PanelScene {
 
   protected build(): void {
     const voyage = services.simulation.isUnderWay;
-    this.shown = CHOICES.filter((choice) => voyage || choice !== 'Return to warehouse');
+    this.shown = CHOICES.filter((choice) => voyage || choice !== 'returnToWarehouse');
     const list = new ChoiceList(this, 0, 0, this.controls, { width: CHOICES_WIDTH });
-    list.setChoices(this.shown);
+    list.setChoices(
+      this.shown.map((choice) => tr(CHOICE_LABELS[choice])),
+      this.rebuilding ? this.keptSelection : 0,
+    );
     const height = PANEL_FRAME_HEIGHT + Math.ceil(list.height);
-    // OWNER: script - the panel's title.
-    const area = this.addPanel({ title: 'Paused', width: PANEL_WIDTH, height });
+    const area = this.addPanel({ title: tr(TITLE), width: PANEL_WIDTH, height });
     // The panel was drawn after the list: bring the list back on top.
     this.children.bringToTop(list);
     list.setPosition(Math.round(area.centerX - CHOICES_WIDTH / 2), area.y);
@@ -56,7 +71,8 @@ export class PauseScene extends PanelScene {
     // "Paused" means the ship's clock stops too (it runs only while the navigation panel is
     // open, which it cannot be under this menu; the hold makes it explicit).
     services.simulation.hold('pause');
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    this.onTeardown(() => {
+      this.keptSelection = list.selectedIndex;
       this.choices = undefined;
       services.simulation.release('pause');
     });
@@ -79,19 +95,19 @@ export class PauseScene extends PanelScene {
 
   private choose(index: number): void {
     switch (this.shown[index]) {
-      case 'Resume':
+      case 'resume':
         this.close();
         break;
-      case 'Settings':
+      case 'settings':
         // Opens over this panel; closing it comes back here.
         void (this.scene.get(SceneKey.Settings) as SettingsScene).open();
         break;
-      case 'Return to warehouse':
+      case 'returnToWarehouse':
         // Close the panel first, as for the menu; `die` replaces the world.
         this.close();
         void services.flow.die(ABORT_CAUSE);
         break;
-      case 'Main menu':
+      case 'mainMenu':
         // Close the panel first: the driver must not find the world paused under it.
         this.close();
         services.flow.toMainMenu();

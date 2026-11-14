@@ -138,8 +138,13 @@ export class WorldScene extends Phaser.Scene {
     const offFlags = services.events.on('flagChanged', () => {
       this.dirty = true;
     });
+    // The HOLD caption stays visible under the pause menu and the settings (plan D11).
+    const offLanguage = services.events.on('languageChanged', () => {
+      this.holdStrip?.refresh(services.state.flags);
+    });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       offFlags();
+      offLanguage();
       this.interactables.destroy();
       this.props.clear();
       this.marker?.destroy();

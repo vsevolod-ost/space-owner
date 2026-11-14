@@ -1,3 +1,4 @@
+import { TODO } from '@/core/locale/text';
 import { DAY_S } from '@/core/simulation/constants';
 import type { Body } from '@/core/simulation/types';
 
@@ -15,7 +16,7 @@ import type { Body } from '@/core/simulation/types';
 export const solarSystem: readonly Body[] = [
   {
     id: 'sun',
-    name: 'Sun',
+    name: { en: 'Sun', uk: TODO },
     role: 'scenery',
     massKg: 1.989e30,
     radiusM: 6.957e8,
@@ -25,7 +26,7 @@ export const solarSystem: readonly Body[] = [
   },
   {
     id: 'mercury',
-    name: 'Mercury',
+    name: { en: 'Mercury', uk: TODO },
     role: 'scenery',
     massKg: 3.301e23,
     radiusM: 2.4397e6,
@@ -36,7 +37,7 @@ export const solarSystem: readonly Body[] = [
   },
   {
     id: 'venus',
-    name: 'Venus',
+    name: { en: 'Venus', uk: TODO },
     role: 'scenery',
     massKg: 4.867e24,
     radiusM: 6.0518e6,
@@ -47,7 +48,7 @@ export const solarSystem: readonly Body[] = [
   },
   {
     id: 'earth',
-    name: 'Earth',
+    name: { en: 'Earth', uk: TODO },
     role: 'home',
     massKg: 5.972e24,
     radiusM: 6.371e6,
@@ -58,7 +59,7 @@ export const solarSystem: readonly Body[] = [
   },
   {
     id: 'moon',
-    name: 'Moon',
+    name: { en: 'Moon', uk: TODO },
     role: 'gate',
     massKg: 7.342e22,
     radiusM: 1.7374e6,
@@ -70,7 +71,7 @@ export const solarSystem: readonly Body[] = [
   },
   {
     id: 'mars',
-    name: 'Mars',
+    name: { en: 'Mars', uk: TODO },
     role: 'gate',
     massKg: 6.417e23,
     radiusM: 3.3895e6,

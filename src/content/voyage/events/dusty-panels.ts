@@ -1,3 +1,4 @@
+import { TODO } from '@/core/locale/text';
 import type { VoyageEventDef } from '@/core/voyage/voyageEvents';
 
 /**
@@ -12,8 +13,8 @@ export const dustyPanels: VoyageEventDef = {
   chance: (ctx) => (ctx.has('solar') && !ctx.has('reactor') ? 0.5 : 0),
   speaker: 'computer',
   // OWNER: script
-  title: 'Dusty panels',
-  text: 'Dust on the panels; their output drops.',
+  title: { en: 'Dusty panels', uk: TODO },
+  text: { en: 'Dust on the panels; their output drops.', uk: TODO },
   // OWNER: design - the deck station the alarm is answered at, and the choice applied when its
   // timer runs out: leaving them (power -40; no risk) (plan act2-stations D3, D8).
   station: 'airlock',
@@ -22,16 +23,16 @@ export const dustyPanels: VoyageEventDef = {
     {
       id: 'clean',
       // OWNER: script
-      text: 'Go out and clean them.',
-      result: 'Clean again; the walk cost air.',
+      text: { en: 'Go out and clean them.', uk: TODO },
+      result: { en: 'Clean again; the walk cost air.', uk: TODO },
       // OWNER: design - days of oxygen (four times the 53-day voyage's 4, plan variable-mass S9).
       effect: { stocks: { oxygen: -16 } },
     },
     {
       id: 'leave',
       // OWNER: script
-      text: 'Leave them.',
-      result: 'The batteries make up for it.',
+      text: { en: 'Leave them.', uk: TODO },
+      result: { en: 'The batteries make up for it.', uk: TODO },
       // OWNER: design - days of power (four times the 53-day voyage's 10, plan variable-mass S9).
       effect: { stocks: { power: -40 } },
     },

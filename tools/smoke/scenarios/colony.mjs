@@ -39,19 +39,21 @@ export default async function colony(page, h) {
       n,
     );
 
-  /** Sets the flags of a Stop on `body` with `cargo` aboard (every other cargo flag cleared). */
-  const land = (gate, body, name, cargo) =>
+  /**
+   * Sets the flags of a Stop on body id `body` with `cargo` aboard (every other cargo flag
+   * cleared). Saves hold the id only; texts name the body (plan uk-localization D13).
+   */
+  const land = (gate, body, cargo) =>
     h.eval(
-      ({ gate, body, name, cargo }) => {
+      ({ gate, body, cargo }) => {
         const flags = window.nasa.services.state.flags;
         flags.deletePrefix('cargo.');
         for (const [id, n] of Object.entries(cargo)) flags.set(`cargo.${id}`, n);
         flags.set('voyage.stopGate', gate);
-        flags.set('voyage.stopName', name);
         flags.set('voyage.day', 60);
         flags.set('voyage.stopBody', body);
       },
-      { gate, body, name, cargo },
+      { gate, body, cargo },
     );
   /** Waits until the colony shows `sky` over its sky layer, then returns its props. */
   const painted = async (sky) => {
@@ -114,7 +116,7 @@ export default async function colony(page, h) {
 
   // --- Mars: the sky and the ground in Mars's colours, four buildings, a colony (power 4/4,
   // heat 1/1 from the reactor).
-  await land(1, 'mars', 'Mars', { oxygen: 1, battery: 1, solar: 1, reactor: 1 });
+  await land(1, 'mars', { oxygen: 1, battery: 1, solar: 1, reactor: 1 });
   const mars = await painted(sites.mars.sky);
   h.log(`mars: ${JSON.stringify(mars.background)}, buildings ${buildings(mars)}`);
   if (mars.background['location-colony-ground'] !== sites.mars.ground) {
@@ -128,7 +130,7 @@ export default async function colony(page, h) {
   await h.shot('colony-mars');
 
   // --- The Moon: other colours, three buildings (fuel builds nothing), a settlement.
-  await land(0, 'moon', 'Moon', { fuel: 1, solar: 1, reactor: 1, 'regolith-kit': 1 });
+  await land(0, 'moon', { fuel: 1, solar: 1, reactor: 1, 'regolith-kit': 1 });
   const moon = await painted(sites.moon.sky);
   h.log(`moon: ${JSON.stringify(moon.background)}, buildings ${buildings(moon)}`);
   if (moon.background['location-colony-ground'] !== sites.moon.ground) {
@@ -256,7 +258,6 @@ export default async function colony(page, h) {
   const landedOn = await h.eval(() => ({
     status: window.nasa.game.scene.getScene('Navigation').debugInfo().status,
     stopBody: window.nasa.services.state.flags.get('voyage.stopBody'),
-    stopName: window.nasa.services.state.flags.get('voyage.stopName'),
     day: window.nasa.services.state.flags.get('voyage.day'),
   }));
   h.log(`landed: ${JSON.stringify(landedOn)}`);

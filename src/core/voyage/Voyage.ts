@@ -180,7 +180,7 @@ export class Voyage {
           id: choice.id,
           text: choice.text,
           enabled,
-          needs: enabled ? '' : (choice.needs ?? ''),
+          needs: enabled ? null : (choice.needs ?? null),
         };
       }),
     };
@@ -216,7 +216,7 @@ export class Voyage {
       eventId: id,
       choiceId: choice.id,
       hit,
-      text: (hit ? choice.hitResult : choice.result) ?? '',
+      text: (hit ? choice.hitResult : choice.result) ?? null,
     };
     return { resolution, signals: this.afterEvents() };
   }

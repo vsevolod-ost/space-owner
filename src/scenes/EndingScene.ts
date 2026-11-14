@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config';
 import { endings, isEndingId, tierLine } from '@/content/endings';
-import type { Ending } from '@/content/endings';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import type { ColonyTier } from '@/core/voyage/colony';
 import { SceneKey } from '@/scenes/keys';
@@ -27,12 +27,17 @@ export interface EndingDebugInfo {
   tier: ColonyTier | null;
   /** The tier line under the text ('' without a tier). */
   tierLine: string;
-  /** The buttons, top to bottom, and the selected one. */
+  /** The buttons as shown, top to bottom, and the selected one. */
   choices: { items: string[]; selected: number };
 }
 
-/** Options under the text, in this order. OWNER: script - the words (also matched below). */
-const CHOICES = ['Fly again', 'Main menu'] as const;
+/** Options under the text, in this order: ids (`CHOICE_LABELS` are the words). */
+const CHOICES = ['flyAgain', 'mainMenu'] as const;
+/** The options as shown; they wrap at the list's width. OWNER: script */
+const CHOICE_LABELS: Readonly<Record<(typeof CHOICES)[number], LocalText>> = {
+  flyAgain: { en: 'Fly again', uk: TODO },
+  mainMenu: { en: 'Main menu', uk: TODO },
+};
 /** Prefix of a colony ending's id before the body id: `colony-mars`. */
 const COLONY_PREFIX = 'colony-';
 /** Gap between the ending's text and its tier line: one empty line. */
@@ -55,7 +60,8 @@ const CHOICES_WIDTH = 200;
  */
 export class EndingScene extends Phaser.Scene {
   private endingId = '';
-  private ending: Ending = { title: '', text: '' };
+  /** The ending's heading and text in the language of the moment the screen started. */
+  private ending = { title: '', text: '' };
   private tier: ColonyTier | null = null;
   private tierText = '';
   private choices?: ChoiceList;
@@ -67,14 +73,14 @@ export class EndingScene extends Phaser.Scene {
   init(data: EndingSceneData): void {
     this.endingId = data.endingId;
     this.ending = isEndingId(data.endingId)
-      ? endings[data.endingId]
+      ? { title: tr(endings[data.endingId].title), text: tr(endings[data.endingId].text) }
       : { title: data.endingId, text: '' };
     // Every ending is a colony's (`colony-<body>`): the tier of the cargo aboard on that body.
     this.tier = null;
     this.tierText = '';
     if (isEndingId(data.endingId)) {
       this.tier = services.voyage.colonyTier(data.endingId.slice(COLONY_PREFIX.length));
-      this.tierText = tierLine(data.endingId, this.tier);
+      this.tierText = tr(tierLine(data.endingId, this.tier));
     }
   }
 
@@ -94,7 +100,7 @@ export class EndingScene extends Phaser.Scene {
       );
 
     const list = new ChoiceList(this, 0, 0, new KeyboardControls(this), { width: CHOICES_WIDTH });
-    list.setChoices(CHOICES);
+    list.setChoices(CHOICES.map((choice) => tr(CHOICE_LABELS[choice])));
     const pad = theme.panelPadding;
     const left = Math.round(centerX - CHOICES_WIDTH / 2);
     const top = Math.round(text.y + Math.ceil(text.height) + GAP);
@@ -131,7 +137,7 @@ export class EndingScene extends Phaser.Scene {
 
   private choose(index: number): void {
     const choice = CHOICES[index];
-    if (choice === 'Fly again') void services.flow.flyAgain();
-    else if (choice === 'Main menu') services.flow.toMainMenu();
+    if (choice === 'flyAgain') void services.flow.flyAgain();
+    else if (choice === 'mainMenu') services.flow.toMainMenu();
   }
 }

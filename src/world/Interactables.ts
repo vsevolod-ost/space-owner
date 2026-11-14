@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { services } from '@/core/services';
 import { characters } from '@/content/characters';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { formatText } from '@/core/text/format';
 import type { DialogueId } from '@/content/dialogues';
 import type { LocationId } from '@/content/locations';
 import type {
@@ -17,6 +19,8 @@ import type { Player } from '@/world/Player';
 import { isPresent } from '@/world/presence';
 import type { WorldContext } from '@/world/WorldContext';
 
+/** The toast at an NPC without a dialogue: `{name}` the character's name. OWNER: script */
+const NOTHING_TO_SAY: LocalText = { en: '{name} has nothing to say yet.', uk: TODO };
 /**
  * How close the hero's feet must be to an interactable or an NPC to focus it, px: measured to
  * the nearest point of the object's rectangle (a point object: to the point; an NPC: to its
@@ -185,12 +189,12 @@ export class Interactables {
     else this.talkTo(name, binding);
   }
 
-  /** E next to an NPC: its dialogue, or a placeholder toast when it has none. OWNER: script */
+  /** E next to an NPC: its dialogue, or the `NOTHING_TO_SAY` toast when it has none. */
   private talkTo(name: string, binding: NpcBinding): void {
     const { dialogue } = binding;
     if (!dialogue) {
       this.options.context.ui.toast(
-        `${characters[binding.character].name} has nothing to say yet.`,
+        formatText(tr(NOTHING_TO_SAY), { name: tr(characters[binding.character].name) }),
       );
       return;
     }

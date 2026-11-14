@@ -1,6 +1,8 @@
 import type Phaser from 'phaser';
 import { characters } from '@/content/characters';
 import type { Controls } from '@/core/input/controls';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { formatText } from '@/core/text/format';
 import type { OpenEvent } from '@/core/voyage/voyageEvents';
 import { Card } from '@/ui/navigation/Card';
 import { theme } from '@/ui/theme';
@@ -13,6 +15,11 @@ const PORTRAIT_GAP = 8;
 const TITLE_Y = 16;
 const TEXT_Y = 56;
 const CHOICES_Y = 164;
+/**
+ * A choice the cargo does not allow: `{choice}` its text, `{needs}` what it needs (`?` when the
+ * event does not say). It wraps. OWNER: script
+ */
+const NEEDS: LocalText = { en: '{choice} (needs: {needs})', uk: TODO };
 
 /**
  * The card of an event on the way (plan D15, GDD `evt-presentation` A): the speaker's portrait
@@ -34,7 +41,7 @@ export class EventCard extends Card {
   ) {
     super(scene, area, controls, CHOICES_Y);
     const { x, y } = area;
-    const speaker = (characters as Record<string, { name: string; portrait?: string }>)[
+    const speaker = (characters as Record<string, { name: LocalText; portrait?: string }>)[
       event.speaker
     ];
     const textX = x + PORTRAIT + PORTRAIT_GAP;
@@ -44,17 +51,21 @@ export class EventCard extends Card {
       this.objects.push(portrait);
     }
     this.texts.push(
-      this.text(textX, y, speaker?.name ?? event.speaker, 'small'),
-      this.text(textX, y + TITLE_Y, event.title.toUpperCase(), 'body', true).setColor(
+      this.text(textX, y, speaker ? tr(speaker.name) : event.speaker, 'small'),
+      this.text(textX, y + TITLE_Y, tr(event.title).toUpperCase(), 'body', true).setColor(
         theme.text.highlight,
       ),
-      this.text(x, y + TEXT_Y, event.text, 'body', true),
+      this.text(x, y + TEXT_Y, tr(event.text), 'body', true),
     );
     this.ids = event.choices.map((choice) => choice.id);
     this.setChoices(
       event.choices.map((choice) =>
-        // OWNER: script - the "(needs: ...)" suffix of a choice the cargo does not allow.
-        choice.enabled ? choice.text : `${choice.text} (needs: ${choice.needs || '?'})`,
+        choice.enabled
+          ? tr(choice.text)
+          : formatText(tr(NEEDS), {
+              choice: tr(choice.text),
+              needs: choice.needs ? tr(choice.needs) : '?',
+            }),
       ),
       0,
       event.choices.map((choice) => !choice.enabled),

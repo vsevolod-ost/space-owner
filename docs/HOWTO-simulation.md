@@ -58,7 +58,7 @@ in the panel.
 // src/core/simulation/types.ts (short)
 interface Body {
   id: string;
-  name: string;
+  name: LocalText; // { en: 'Mars', uk: TODO }: `tr` it when shown
   role: 'home' | 'gate' | 'parent' | 'scenery'; // what it is for in the voyage
   massKg: number;
   radiusM: number;
@@ -340,7 +340,7 @@ with what to do when one fails in [HOWTO-voyage.md](HOWTO-voyage.md#how-to-balan
 Add a line to `src/content/simulation/solar-system.ts`; a parent must come before its moons.
 
 ```ts
-{ id: 'phobos', name: 'Phobos', role: 'scenery', massKg: 1.06e16, radiusM: 1.1e4,
+{ id: 'phobos', name: { en: 'Phobos', uk: TODO }, role: 'scenery', massKg: 1.06e16, radiusM: 1.1e4,
   orbitRadiusM: 9.376e6, periodS: 0.3189 * DAY_S, parent: 'mars', color: 0x9a8f80 },
 ```
 
@@ -423,8 +423,8 @@ the contract of the engine:
 - **At a gate**: `gateReached {gateIndex, body, last}`, time held (`gate`), flags
   `voyage.gateIndex`, `voyage.gate`, `voyage.day`. `goOn()` is always allowed (plan D6; the ship
   may drift) and releases `gate`: the ship flies on at once (the panel is open). `stopHere()` ends the voyage `landed` with flags
-  `voyage.stopGate`, `voyage.stopBody`, `voyage.stopName`, `voyage.day`, `voyage.o2Days`; after a
-  1 s beat (LANDED) the flow starts act 3 in the colony (`FlowContent.landingAct`).
+  `voyage.stopGate`, `voyage.stopBody` (an id: texts name it with `bodyName`), `voyage.day`,
+  `voyage.o2Days`; after a 1 s beat (LANDED) the flow starts act 3 in the colony (`FlowContent.landingAct`).
 - **Leg mirrors**: `voyage.nextGate` (body of the gate flown to or parked at, set at the start
   and on Go on) and `voyage.legProgress` (whole per cent of the leg by time, set with
   `simulationTick`, so about once a real second; 100 at the gate). Every flag change marks the
@@ -485,12 +485,13 @@ The project has no unit tests yet. When you want them, add Vitest with one comma
 
 ```ts
 import { expect, test } from 'vitest';
+import { TODO } from '@/core/locale/text';
 import { SolarSystem } from '@/core/simulation/SolarSystem';
 
 test('a body is back where it started after one period', () => {
   const earth = {
     id: 'earth',
-    name: 'Earth',
+    name: { en: 'Earth', uk: TODO },
     role: 'home' as const,
     massKg: 6e24,
     radiusM: 6.4e6,

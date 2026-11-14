@@ -60,10 +60,13 @@ PR, [CONTRIBUTING.md](CONTRIBUTING.md#who-owns-what)).
 
 ### Texts
 
-Every text the player reads is marked `OWNER: script` (`grep -rn "OWNER: script" src`). Texts in
-`src/ui/` and `src/scenes/` sit in the UI owner's files: change the string, tell them. A few
-words are also compared in code (the status words, the pause and ending options, the cabin
-states): rename them everywhere in that file.
+Every text the player reads is marked `OWNER: script` (`grep -rn "OWNER: script" src`) and is a
+`LocalText` pair `{ en: '...', uk: TODO }`: change the `en` text, leave `uk` to the translator
+([HOWTO-localization.md](HOWTO-localization.md)). Texts in `src/ui/` and `src/scenes/` sit in the
+UI owner's files: change the string, tell them. No visible word is compared in code: the status
+words, the pause and ending options, the cabin states and the engine states are ids with a
+table of labels next to them (`STATUS_LABELS`, `CHOICE_LABELS`, `HEAT_NAMES`, `ENGINE_WORDS`),
+so change only the label. Strings with `max` must stay within it in every language.
 
 | Text                                                                                                                                               | File                                                                                           |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -73,7 +76,7 @@ states): rename them everywhere in that file.
 | Ship deck: the porthole, radio and airlock toasts; the station names (`deckStationNames`), the "not here - go to" toast                            | `src/content/locations/ship-deck.ts`                                                           |
 | Colony: shelter, systems, overlook                                                                                                                 | `src/content/locations/colony.ts`                                                              |
 | Endings, tier lines                                                                                                                                | `src/content/endings.ts`                                                                       |
-| The end screen's buttons ("Fly again", "Main menu")                                                                                                | `src/scenes/EndingScene.ts` (`CHOICES`)                                                        |
+| The end screen's buttons ("Fly again", "Main menu")                                                                                                | `src/scenes/EndingScene.ts` (`CHOICE_LABELS`)                                                  |
 | The scientists' debrief, the warehouse arrival                                                                                                     | `src/content/cutscenes/debrief.ts`, `warehouse-arrival.ts`                                     |
 | The advisers' dialogues                                                                                                                            | `src/content/dialogues/<id>.ts`                                                                |
 | Act titles; the landing's title card                                                                                                               | `src/content/story/<act>.ts` (`title`; `act3.ts`)                                              |
@@ -90,6 +93,8 @@ states): rename them everywhere in that file.
 | The HOLD strip's caption                                                                                                                           | `src/ui/HoldStrip.ts`                                                                          |
 | Pause menu; main menu; settings; the "(in development)" stub                                                                                       | `src/scenes/PauseScene.ts`, `MainMenuScene.ts`, `SettingsScene.ts`, `StubScene.ts`             |
 | "... has nothing to say yet." (an NPC without a dialogue)                                                                                          | `src/world/Interactables.ts`                                                                   |
+| The "Checkpoint" toast                                                                                                                             | `src/core/flow/FlowService.ts` (`CHECKPOINT_TOAST`)                                            |
+| The interact hint ("E")                                                                                                                            | `src/scenes/UiScene.ts` (`INTERACT_HINT`)                                                      |
 
 ## Gates and legs
 
@@ -142,8 +147,8 @@ One kind:
 ```ts
 // src/content/voyage/cargo/solar.ts (short)
 export const solar: CargoDef = {
-  label: 'Solar panels', // on the crate and in lists, at most 14 characters
-  line: '[TODO: power from the Sun, fading past Mars]', // the stand's line, at most 60
+  label: { en: 'Solar panels', uk: TODO, max: 14 }, // on the crate and in lists
+  line: { en: 'Power from the Sun, fading past Mars.', uk: TODO, max: 60 }, // the stand's line
   bays: 1, // bays one copy takes
   maxCopies: 1, // crates of it in the warehouse (fuel: 3)
   icon: 4, // frame in ui/items.png
@@ -220,25 +225,31 @@ export const hullBreach: VoyageEventDef = {
   at: 0.4, // 40 % into the leg (keep under 0.9)
   chance: () => 0.45, // may read the cargo: (ctx) => (ctx.has('reactor') ? 0.4 : 0)
   speaker: 'computer', // portrait on the card
-  title: 'Hull breach',
-  text: '[TODO: a micrometeoroid holed a module; air is leaking]',
+  title: { en: 'Hull breach', uk: TODO },
+  text: { en: 'A micrometeoroid holed a module; air is leaking.', uk: TODO },
   station: 'airlock', // deck object where it is answered; or { bayOf: 'reactor' }
   timeoutChoice: 'patch', // applied, its bad outcome sure, when the timer runs out
   choices: [
-    { id: 'seal', text: '[TODO: Seal the module off]', effect: { stocks: { oxygen: -16 } } },
+    {
+      id: 'seal',
+      text: { en: 'Seal the module off.', uk: TODO },
+      result: { en: 'The module is lost with the air in it.', uk: TODO },
+      effect: { stocks: { oxygen: -16 } },
+    },
     {
       id: 'patch',
-      text: '[TODO: Patch it from outside]',
+      text: { en: 'Patch it from outside.', uk: TODO },
       risk: () => 0.5, // chance it goes wrong
       onHit: { stocks: { oxygen: -48 } }, // then this, on top of `effect`
-      result: '[TODO: the patch holds]',
-      hitResult: '[TODO: the patch tore, much air is gone]',
+      result: { en: 'The patch holds.', uk: TODO },
+      hitResult: { en: 'The patch tore; much air is gone.', uk: TODO },
     },
     {
       id: 'foam',
-      text: '[TODO: Fill it with the regolith kit foam]',
+      text: { en: 'Fill it with the regolith kit foam.', uk: TODO },
       when: (ctx) => ctx.has('regolith-kit'), // otherwise shown dim with "Needs: ..."
-      needs: 'Regolith kit',
+      needs: { en: 'Regolith kit', uk: TODO },
+      result: { en: 'The foam sets; little air lost.', uk: TODO },
       effect: { stocks: { oxygen: -4 } },
     },
   ],
@@ -304,7 +315,9 @@ and were picked by a search so that I4 and I5 hold (below).
 - **Tier** (`colonyCheck` in `src/core/voyage/colony.ts`): every need met - **colony**; more
   than half of the need levels covered (each need counted up to its level) - **settlement**;
   otherwise **outpost**. Every tier is a colony that lives; there is no failed landing. The gate
-  card's "Stop here: build &lt;tier&gt;", the colony location and the end screen all use it.
+  card's "Stop here: build an outpost / a settlement / a colony" (one whole phrase per tier,
+  `STOP_TEXTS` in `src/ui/navigation/GateCard.ts`), the colony location and the end screen all
+  use it.
 - `sky`, `ground` - colours multiplied over the grey colony layers (art).
 - `colonyBuildings` - which picture each colony item puts up on the places `build-1..7` (one
   per bay of the hold).

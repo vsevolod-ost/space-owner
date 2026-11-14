@@ -25,11 +25,12 @@ Everything goes through `services.flow` (`src/core/flow/FlowService.ts`).
 
 ```ts
 // src/content/story/act1.ts
+import { TODO } from '@/core/locale/text';
 import type { Act } from '@/content/story/types';
 
 /** Act 1: the warehouse, where the cargo is chosen. */
 export const act1: Act = {
-  title: 'Act 1',
+  title: { en: 'Act 1', uk: TODO }, // OWNER: script
   async start(flow) {
     await flow.goTo('warehouse', 'spawn-default');
     flow.checkpoint();
@@ -120,16 +121,18 @@ the debrief says what it has lines for).
 | ----------------------------------------------------------------------------------------------------- | ------------------------- | --------------------- |
 | `cargo.<id>`                                                                                          | crates aboard             | never by a death      |
 | `advice.*`                                                                                            | what the advisers said    | never by a death      |
-| `run.attempt`, `lastCause`, `lastGate`, `bestGate`, `seed`, `lastDay`, `lastGateName`, `lastNextName` | the count across attempts | only by New game      |
+| `run.attempt`, `lastCause`, `lastGate`, `bestGate`, `seed`, `lastDay`, `lastGateBody`, `lastNextBody` | the count across attempts | only by New game      |
 | `voyage.*`, `event.*`                                                                                 | the voyage under way      | at every voyage start |
 
 `run.attempt` is unset (attempt 1) in a new game and grows by one with every death, abort or
 Fly again; gates are indices (`-1`: none reached), `run.bestGate` is the highest gate any voyage
-reached or landed at. The voyage's own flags, for texts and conditions: `voyage.gateIndex`,
+reached or landed at; `run.lastGateBody` and `run.lastNextBody` are body ids, as every
+`voyage.*` body flag: saves hold no display names, texts name a body with `bodyName(id)` from
+`src/core/locale/names.ts`. The voyage's own flags, for texts and conditions: `voyage.gateIndex`,
 `voyage.gate` (body of the last gate reached), `voyage.day`, `voyage.nextGate`,
-`voyage.legProgress` (0-100); after Stop `voyage.stopGate`, `voyage.stopBody`,
-`voyage.stopName`, `voyage.o2Days`; after a death `voyage.cause`; `event.<id>` (the chosen answer) and
-`event.<id>.hit` (it went wrong). They stay readable in the colony and on the end screen, and go
+`voyage.legProgress` (0-100); after Stop `voyage.stopGate`, `voyage.stopBody`, `voyage.o2Days`;
+after a death `voyage.cause`; `event.<id>` (the chosen answer) and `event.<id>.hit` (it went
+wrong). They stay readable in the colony and on the end screen, and go
 at the next voyage's start. Other flags (`warehouse.arrivalSeen`, the prologue's)
 live on like `cargo.*`. New game clears everything.
 
@@ -146,12 +149,17 @@ lines (`TIER_LINES`) that an entry may replace with its own `tiers`:
 
 ```ts
 export const endings = {
-  'colony-mars': { title: 'Mars', text: '[TODO: a colony under a butterscotch sky]' },
+  'colony-mars': {
+    title: { en: 'Mars', uk: TODO },
+    text: { en: 'A colony under a butterscotch sky; the first to stay.', uk: TODO },
+  },
   // ...
 } as const satisfies Record<`colony-${ColonyBodyId}`, Ending>;
 ```
 
-The ids are checked by the compiler: a misspelt ending id does not build.
+The ids are checked by the compiler: a misspelt ending id does not build. Every text is a
+`LocalText` pair (an act's `title` may also be a function of the state, like a dialogue line);
+see [HOWTO-localization.md](HOWTO-localization.md).
 
 ## Restarts and the story
 

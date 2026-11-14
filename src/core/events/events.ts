@@ -1,3 +1,4 @@
+import type { DisplayLanguage, LocalText } from '@/core/locale/text';
 import type { FlagValue, GameSave } from '@/core/state/GameState';
 import type { FlightSummary } from '@/core/voyage/flightSummary';
 import type { VoyageOutcome } from '@/core/voyage/Voyage';
@@ -55,8 +56,11 @@ export interface GameEvents {
    * time is held (`event`); `services.simulation.voyage.openEvent` has the card.
    */
   voyageEvent: { eventId: string };
-  /** The open event was answered with `choiceId`; `hit`: its risk struck; `text` to show. */
-  voyageEventResolved: { eventId: string; choiceId: string; hit: boolean; text: string };
+  /**
+   * The open event was answered with `choiceId`; `hit`: its risk struck; `text` to show (`tr` it
+   * when shown; null: nothing to show).
+   */
+  voyageEventResolved: { eventId: string; choiceId: string; hit: boolean; text: LocalText | null };
   /**
    * The voyage ended (`endVoyage`): `landed` at a gate (Stop) or `died` (after `shipDied`).
    * `FlowService` listens: `died` starts the death loop (`die`); `landed` - the colony (S11).
@@ -84,4 +88,9 @@ export interface GameEvents {
    * follow.
    */
   stationAlarmTimedOut: { eventId: string; choiceId: string };
+  /**
+   * The language `tr` shows changed from `previous` to `language` (`services.locale.setLanguage`:
+   * the settings row, or `pseudo` from the console/smoke): open screens rebuild their text.
+   */
+  languageChanged: { language: DisplayLanguage; previous: DisplayLanguage };
 }

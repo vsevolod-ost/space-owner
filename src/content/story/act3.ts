@@ -1,17 +1,26 @@
 import type { Act } from '@/content/story/types';
+import { bodyName } from '@/core/locale/names';
+import { TODO, tr } from '@/core/locale/text';
 import type { GameState } from '@/core/state/GameState';
 import { formatText } from '@/core/text/format';
 
 /**
  * The title card of the landing (GDD `act2-arrival` D): "<Body> · day N" from the flags Stop
- * set (`voyage.stopName`, `voyage.day`; the day as the navigation panel shows it, from 1);
+ * set (`voyage.stopBody` named by `bodyName`, `voyage.day`; the day as the navigation panel shows
+ * it, from 1);
  * "Act 3" when no voyage landed (`?act=act3`). OWNER: script
  */
 function landingTitle(state: GameState): string {
-  const name = state.flags.get('voyage.stopName');
+  const body = state.flags.get('voyage.stopBody');
   const day = state.flags.get('voyage.day');
-  if (typeof name !== 'string' || typeof day !== 'number') return 'Act 3';
-  return formatText('{body} · day {day}', { body: name, day: day + 1 });
+  if (typeof body !== 'string' || !body || typeof day !== 'number') {
+    return tr({ en: 'Act 3', uk: TODO });
+  }
+  const name = bodyName(body);
+  return formatText(tr({ en: '{body} · day {day}', uk: TODO }), {
+    body: name ? tr(name) : body,
+    day: day + 1,
+  });
 }
 
 /**

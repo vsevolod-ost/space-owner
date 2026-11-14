@@ -1,4 +1,3 @@
-import type { SolarSystem } from '@/core/simulation/SolarSystem';
 import type { GateDef } from '@/core/simulation/types';
 import type { Voyage } from '@/core/voyage/Voyage';
 
@@ -19,10 +18,16 @@ export interface FlightSummary {
   cause: string;
   /** Index of the last gate reached, -1 before the first. */
   gate: number;
-  /** Name of that gate's body ('' before the first gate). */
-  gateName: string;
-  /** Name of the body flown to when it ended, or of the next gate when parked at one ('' when landed). */
-  nextName: string;
+  /**
+   * Id of that gate's body ('' before the first gate); the view names it with `bodyName`
+   * (plan uk-localization D16).
+   */
+  gateBody: string;
+  /**
+   * Id of the body flown to when it ended, or of the next gate when parked at one ('' when
+   * landed).
+   */
+  nextBody: string;
   /** Index of the leg flown when it ended (at a gate: the leg that ends there). */
   leg: number;
   /** How far along that leg by time, 0..1. */
@@ -39,21 +44,16 @@ export function summarizeFlight(
   voyage: Voyage | null,
   cause: string,
   gates: readonly GateDef[],
-  system: SolarSystem | null,
 ): FlightSummary {
-  const nameOf = (gate: number): string => {
-    const body = gates[gate]?.body;
-    if (!body) return '';
-    return system?.get(body).name ?? body;
-  };
+  const bodyOf = (gate: number): string => gates[gate]?.body ?? '';
   const outcome = voyage?.outcome ?? null;
   if (outcome?.kind === 'landed') {
     return {
       kind: 'landed',
       cause: '',
       gate: outcome.gate,
-      gateName: nameOf(outcome.gate),
-      nextName: '',
+      gateBody: bodyOf(outcome.gate),
+      nextBody: '',
       leg: outcome.gate,
       legFraction: 1,
       day: Math.floor(outcome.day),
@@ -64,8 +64,8 @@ export function summarizeFlight(
       kind: 'died',
       cause: outcome.cause,
       gate: outcome.gate,
-      gateName: nameOf(outcome.gate),
-      nextName: nameOf(outcome.leg),
+      gateBody: bodyOf(outcome.gate),
+      nextBody: bodyOf(outcome.leg),
       leg: outcome.leg,
       legFraction: outcome.legFraction,
       day: Math.floor(outcome.day),
@@ -79,8 +79,8 @@ export function summarizeFlight(
     kind: cause === ABORT_CAUSE ? 'aborted' : 'died',
     cause,
     gate,
-    gateName: nameOf(gate),
-    nextName: nameOf(next),
+    gateBody: bodyOf(gate),
+    nextBody: bodyOf(next),
     leg,
     legFraction: voyage?.legFraction ?? 0,
     day: Math.floor(voyage?.day ?? 0),

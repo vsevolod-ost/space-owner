@@ -1,3 +1,4 @@
+import { TODO } from '@/core/locale/text';
 import type { CargoDef } from '@/core/voyage/types';
 
 /**
@@ -6,8 +7,8 @@ import type { CargoDef } from '@/core/voyage/types';
  */
 export const greenhouse: CargoDef = {
   // OWNER: script
-  label: 'Greenhouse',
-  line: 'Air, water and food while the lamps are on.',
+  label: { en: 'Greenhouse', uk: TODO, max: 14 },
+  line: { en: 'Air, water and food while the lamps are on.', uk: TODO, max: 60 },
   // OWNER: physics - grow modules, lamps and the hydroponics' water and plants.
   dryMassKg: 4_000,
   // OWNER: design - bays taken and copies allowed

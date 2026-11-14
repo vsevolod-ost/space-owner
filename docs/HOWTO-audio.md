@@ -59,7 +59,7 @@ A location plays its track when the hero enters it: the `music` field of its def
 
 ```ts
 export const warehouse: LocationDef = {
-  title: 'Warehouse',
+  title: { en: 'Warehouse', uk: TODO },
   // ...
   music: 'music-demo',
 };

@@ -1,3 +1,4 @@
+import { TODO } from '@/core/locale/text';
 import type { CargoDef } from '@/core/voyage/types';
 
 /**
@@ -10,8 +11,8 @@ export const ICE_COLONY_MAX_SUN = 0.25;
 /** Ice drill and melter: water and shelter on an icy body. Colony only. */
 export const iceKit: CargoDef = {
   // OWNER: script
-  label: 'Ice kit',
-  line: 'Drill ice for water and walls.',
+  label: { en: 'Ice kit', uk: TODO, max: 14 },
+  line: { en: 'Drill ice for water and walls.', uk: TODO, max: 60 },
   // OWNER: physics - a drill and a melter.
   dryMassKg: 2_000,
   // OWNER: design - bays taken and copies allowed

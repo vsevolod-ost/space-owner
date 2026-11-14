@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config';
 import type { Controls } from '@/core/input/controls';
+import { services } from '@/core/services';
 import { isOverlayScene, SceneKey } from '@/scenes/keys';
+import type { UiScene } from '@/scenes/UiScene';
 import { KeyboardControls } from '@/world/KeyboardControls';
 import { Panel } from '@/ui/kit/Panel';
 import { createText } from '@/ui/kit/text';
@@ -24,7 +26,8 @@ const TITLE_GAP = 8;
  * panel. `open(data)` starts the scene on top and pauses every scene under it except the
  * overlays, UiScene and DebugScene (the world stops: physics, timers, input; the simulation
  * keeps ticking on `game.events`);
- * `close()` stops it and resumes them. Esc (`cancel`) closes by default.
+ * `close()` stops it and resumes them. Esc (`cancel`) closes by default. A panel that sets
+ * `rebuildOnLanguageChange` rebuilds its content in place on `languageChanged` (`rebuild()`).
  *
  * A subclass registers in main.ts, gives its key in the constructor and builds its content in
  * `build(data)`, usually starting with `addPanel`. `this.controls` is the panel's own keyboard.
@@ -44,6 +47,16 @@ const TITLE_GAP = 8;
 export abstract class PanelScene<TData extends object = object> extends Phaser.Scene {
   /** Whether `cancel` (Esc) closes the panel; set false in `build` to handle it yourself. */
   protected closeOnCancel = true;
+  /**
+   * Whether `languageChanged` rebuilds the content in place (`rebuild()`). Set it (as a field) on
+   * panels that can be open while the language changes: the settings panel and what it opens
+   * over (plan uk-localization D11).
+   */
+  protected rebuildOnLanguageChange = false;
+  /** True while `rebuild()` runs `build`: keep the selection instead of starting over. */
+  protected rebuilding = false;
+  private buildData = {} as TData;
+  private teardowns: (() => void)[] = [];
   private keyboard?: KeyboardControls;
   /** Scenes this panel paused, resumed when it closes. */
   private pausedKeys: string[] = [];
@@ -68,9 +81,11 @@ export abstract class PanelScene<TData extends object = object> extends Phaser.S
     for (const other of this.pausedKeys) manager.pause(other);
 
     // UiScene keeps running (fader, toasts) but must not react to keys or clicks meant for us.
-    const ui = manager.getScene(SceneKey.Ui);
+    const ui = manager.getScene(SceneKey.Ui) as UiScene | null;
     this.disabledUiInput = Boolean(ui?.sys.isActive() && ui.input.enabled);
     if (ui && this.disabledUiInput) setSceneInput(ui, false);
+    // A toast shown before the panel would be half covered by it: the panel takes over.
+    ui?.clearToast();
 
     manager.run(key, data);
     manager.bringToTop(key);
@@ -97,13 +112,16 @@ export abstract class PanelScene<TData extends object = object> extends Phaser.S
   create(data: TData): void {
     this.keyboard = new KeyboardControls(this);
     this.closeOnCancel = true;
-    // Dims the paused scenes and catches clicks that miss the panel.
-    this.add
-      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, theme.backdrop.color, theme.backdrop.alpha)
-      .setOrigin(0)
-      .setInteractive();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.onShutdown());
-    this.build(data ?? ({} as TData));
+    this.buildData = data ?? ({} as TData);
+    this.addBackdrop();
+    this.build(this.buildData);
+    if (this.rebuildOnLanguageChange) {
+      this.onTeardown(
+        services.events.on('languageChanged', () => this.rebuild()),
+        true,
+      );
+    }
   }
 
   /** Closes on `cancel` when `closeOnCancel`. Call `super.update()` if you override it. */
@@ -111,8 +129,39 @@ export abstract class PanelScene<TData extends object = object> extends Phaser.S
     if (this.closeOnCancel && this.keyboard?.justPressed('cancel')) this.close();
   }
 
-  /** Builds the panel's content. Called from `create` with the data given to `open`. */
+  /**
+   * Builds the panel's content. Called from `create` with the data given to `open`, and again
+   * by `rebuild()` (then `rebuilding` is true). Undo outside effects with `onTeardown`.
+   */
   protected abstract build(data: TData): void;
+
+  /**
+   * Runs `teardown` when the content goes: before a `rebuild()` and when the panel closes
+   * (`untilShutdown`: only when it closes). For what `build` does outside its game objects
+   * (holds, event handlers).
+   */
+  protected onTeardown(teardown: () => void, untilShutdown = false): void {
+    if (untilShutdown) this.events.once(Phaser.Scenes.Events.SHUTDOWN, teardown);
+    else this.teardowns.push(teardown);
+  }
+
+  /**
+   * Builds the content again in place, with the data given to `open`: in the current language,
+   * after `languageChanged`. The panel stays open and keeps what it paused and its `open()`
+   * promise; it works while the panel is paused under another one. `build` sees `rebuilding`.
+   */
+  protected rebuild(): void {
+    if (!this.keyboard) return;
+    this.runTeardowns();
+    for (const child of [...this.children.list]) child.destroy();
+    this.addBackdrop();
+    this.rebuilding = true;
+    try {
+      this.build(this.buildData);
+    } finally {
+      this.rebuilding = false;
+    }
+  }
 
   /**
    * Draws a panel in the middle of the screen with the title at its top and returns the
@@ -137,7 +186,22 @@ export abstract class PanelScene<TData extends object = object> extends Phaser.S
     );
   }
 
+  /** Dims the paused scenes and catches clicks that miss the panel. */
+  private addBackdrop(): void {
+    this.add
+      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, theme.backdrop.color, theme.backdrop.alpha)
+      .setOrigin(0)
+      .setInteractive();
+  }
+
+  private runTeardowns(): void {
+    const teardowns = this.teardowns;
+    this.teardowns = [];
+    for (const teardown of teardowns) teardown();
+  }
+
   private onShutdown(): void {
+    this.runTeardowns();
     const manager = this.game.scene;
     for (const key of this.pausedKeys) {
       if (manager.isPaused(key)) manager.resume(key);

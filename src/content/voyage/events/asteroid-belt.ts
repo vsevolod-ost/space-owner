@@ -1,3 +1,4 @@
+import { TODO } from '@/core/locale/text';
 import type { VoyageEventDef } from '@/core/voyage/voyageEvents';
 
 /**
@@ -12,8 +13,8 @@ export const asteroidBelt: VoyageEventDef = {
   chance: () => 0.7,
   speaker: 'computer',
   // OWNER: script
-  title: 'Asteroid belt',
-  text: 'Dense rocks ahead; wait for a corridor or fly through.',
+  title: { en: 'Asteroid belt', uk: TODO },
+  text: { en: 'Dense rocks ahead; wait for a corridor or fly through.', uk: TODO },
   // OWNER: design - the deck station the alarm is answered at, and the choice applied when its
   // timer runs out: flying through, and the hit (oxygen -40, fuel -6 t) (plan act2-stations D3, D8).
   station: 'porthole',
@@ -22,8 +23,8 @@ export const asteroidBelt: VoyageEventDef = {
     {
       id: 'wait',
       // OWNER: script
-      text: 'Wait for a corridor (24 d).',
-      result: 'A corridor opens; the ship slips through.',
+      text: { en: 'Wait for a corridor (24 d).', uk: TODO },
+      result: { en: 'A corridor opens; the ship slips through.', uk: TODO },
       // OWNER: design - days of every stock spent waiting (GDD `evt-asteroid`: N ~ 10-15 % of the
       // leg: the leg is now 185-265 days, so 24, four times the 53-day voyage's 6; plan
       // variable-mass S9).
@@ -32,9 +33,9 @@ export const asteroidBelt: VoyageEventDef = {
     {
       id: 'fly',
       // OWNER: script
-      text: 'Fly through.',
-      result: 'Not a scratch.',
-      hitResult: 'A hit: a tank and the air line are holed.',
+      text: { en: 'Fly through.', uk: TODO },
+      result: { en: 'Not a scratch.', uk: TODO },
+      hitResult: { en: 'A hit: a tank and the air line are holed.', uk: TODO },
       // OWNER: design - the chance of a hit (lower with the regolith kit's shield plates) and
       // its price: days of oxygen (four times the 53-day voyage's 10, plan variable-mass S9), and
       // a fuel leak.

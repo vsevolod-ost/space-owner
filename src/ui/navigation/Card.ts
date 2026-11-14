@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import type { Controls } from '@/core/input/controls';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
 import type { Point } from '@/world/Actor';
 import { ChoiceList } from '@/ui/kit/ChoiceList';
 import { createText } from '@/ui/kit/text';
@@ -12,8 +13,12 @@ import { theme } from '@/ui/theme';
  */
 export const CARD_INPUT_LOCK_S = 0.4;
 
-/** The key legend at the bottom of a card. OWNER: script */
-const LEGEND = '↑↓: select   Enter: choose';
+/**
+ * The key legend at the bottom of a card. Max 26: on the station card it shares the bottom
+ * line (37 characters) with `LEAVE_HINT` (src/scenes/EventStationScene.ts, max 10); the two can
+ * trade room. OWNER: script
+ */
+const LEGEND: LocalText = { en: '↑↓: select   Enter: choose', uk: TODO, max: 26 };
 
 /** What a card's `debugInfo` returns. */
 export interface CardInfo {
@@ -54,7 +59,7 @@ export abstract class Card {
     this.list.on(ChoiceList.CHOSEN, (index: number) => this.chosen(index));
     this.objects.push(
       this.list,
-      createText(scene, area.x, area.bottom, LEGEND, 'small').setOrigin(0, 1),
+      createText(scene, area.x, area.bottom, tr(LEGEND), 'small').setOrigin(0, 1),
     );
   }
 

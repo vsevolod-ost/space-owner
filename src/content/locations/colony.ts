@@ -2,6 +2,8 @@ import type { ImageKey } from '@/assets';
 import type { EndingId } from '@/content/endings';
 import type { BackgroundLayer, Binding, LocationDef } from '@/content/locations/types';
 import type { ColonyBodyId } from '@/content/voyage/colony';
+import { bodyName as registeredBodyName } from '@/core/locale/names';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
 import type { GameState } from '@/core/state/GameState';
 import type { ColonyTier } from '@/core/voyage/colony';
 import type { ColonyAxis } from '@/core/voyage/types';
@@ -13,45 +15,45 @@ import type { WorldContext } from '@/world/WorldContext';
  * The shelter's line by the colony's tier; `{body}` is the body's name.
  * OWNER: script
  */
-const SHELTER_LINES: Readonly<Record<ColonyTier, string>> = {
-  outpost: 'The shelter on {body} barely holds; an outpost.',
-  settlement: 'The shelter on {body} holds; a settlement.',
-  colony: 'The shelter on {body} is a home; a colony.',
+const SHELTER_LINES: Readonly<Record<ColonyTier, LocalText>> = {
+  outpost: { en: 'The shelter on {body} barely holds; an outpost.', uk: TODO },
+  settlement: { en: 'The shelter on {body} holds; a settlement.', uk: TODO },
+  colony: { en: 'The shelter on {body} is a home; a colony.', uk: TODO },
 };
 
 /**
  * The systems' line per need of the body: met or short; `{have}` and `{need}` are the levels.
  * OWNER: script
  */
-const SYSTEM_LINES: Readonly<Record<ColonyAxis, { met: string; short: string }>> = {
+const SYSTEM_LINES: Readonly<Record<ColonyAxis, { met: LocalText; short: LocalText }>> = {
   power: {
-    met: 'Power holds ({have}/{need}).',
-    short: 'Power falls short ({have}/{need}).',
+    met: { en: 'Power holds ({have}/{need}).', uk: TODO },
+    short: { en: 'Power falls short ({have}/{need}).', uk: TODO },
   },
   heat: {
-    met: 'The modules stay warm ({have}/{need}).',
-    short: 'The cold gets in ({have}/{need}).',
+    met: { en: 'The modules stay warm ({have}/{need}).', uk: TODO },
+    short: { en: 'The cold gets in ({have}/{need}).', uk: TODO },
   },
   shielding: {
-    met: 'The shielding holds the radiation off ({have}/{need}).',
-    short: 'The radiation gets through ({have}/{need}).',
+    met: { en: 'The shielding holds the radiation off ({have}/{need}).', uk: TODO },
+    short: { en: 'The radiation gets through ({have}/{need}).', uk: TODO },
   },
   life: {
-    met: 'Air and food will last ({have}/{need}).',
-    short: 'Air and food run thin ({have}/{need}).',
+    met: { en: 'Air and food will last ({have}/{need}).', uk: TODO },
+    short: { en: 'Air and food run thin ({have}/{need}).', uk: TODO },
   },
 };
 
 /** The systems' line for a body with no needs. OWNER: script */
-const SYSTEMS_NO_NEEDS = 'Nothing here asks for more.';
+const SYSTEMS_NO_NEEDS: LocalText = { en: 'Nothing here asks for more.', uk: TODO };
 
 /**
  * The overlook's line per body, before the ending (GDD `act3-content` A: the view, then the
  * signal home). OWNER: script
  */
-const OVERLOOK_LINES: Readonly<Record<ColonyBodyId, string>> = {
-  moon: 'The Earth over the horizon; the signal takes a second.',
-  mars: 'A small Sun over red dunes; the signal is minutes old.',
+const OVERLOOK_LINES: Readonly<Record<ColonyBodyId, LocalText>> = {
+  moon: { en: 'The Earth over the horizon; the signal takes a second.', uk: TODO },
+  mars: { en: 'A small Sun over red dunes; the signal is minutes old.', uk: TODO },
 };
 
 /** The colony site the colony stands on now (`voyage.stopBody`, the Moon without a landing). */
@@ -59,10 +61,13 @@ function bodyOf(voyage: VoyageService, ctx: WorldContext): string {
   return voyage.colonyBody(ctx.state.flags);
 }
 
-/** The body's display name (from the solar system), or its id. */
-function bodyName(ctx: WorldContext, body: string): string {
-  const name = ctx.state.flags.get('voyage.stopName');
-  if (typeof name === 'string' && ctx.state.flags.get('voyage.stopBody') === body) return name;
+/**
+ * The body's display name in the current language: the name the solar system registers
+ * (`bodyName` of src/core/locale/names.ts), else its id with a capital.
+ */
+function bodyName(body: string): string {
+  const registered = registeredBodyName(body);
+  if (registered) return tr(registered);
   return body.charAt(0).toUpperCase() + body.slice(1);
 }
 
@@ -70,24 +75,36 @@ function bodyName(ctx: WorldContext, body: string): string {
 async function shelter(voyage: VoyageService, ctx: WorldContext): Promise<void> {
   const body = bodyOf(voyage, ctx);
   const tier = voyage.colonyTier(body);
-  await ctx.ui.say('narrator', formatText(SHELTER_LINES[tier], { body: bodyName(ctx, body) }), ctx);
+  await ctx.ui.say(
+    'narrator',
+    () => formatText(tr(SHELTER_LINES[tier]), { body: bodyName(body) }),
+    ctx,
+  );
 }
 
 /** The systems: each need of the body, met or short. */
 async function systems(voyage: VoyageService, ctx: WorldContext): Promise<void> {
   const check = voyage.colonyCheck(bodyOf(voyage, ctx));
-  const lines = (check?.needs ?? []).map(({ axis, need, have, met }) =>
-    formatText(met ? SYSTEM_LINES[axis].met : SYSTEM_LINES[axis].short, { have, need }),
-  );
-  await ctx.ui.say('narrator', lines.length > 0 ? lines.join('\n') : SYSTEMS_NO_NEEDS, ctx);
+  const needs = check?.needs ?? [];
+  if (needs.length === 0) {
+    await ctx.ui.say('narrator', SYSTEMS_NO_NEEDS, ctx);
+    return;
+  }
+  const text = () =>
+    needs
+      .map(({ axis, need, have, met }) =>
+        formatText(tr(met ? SYSTEM_LINES[axis].met : SYSTEM_LINES[axis].short), { have, need }),
+      )
+      .join('\n');
+  await ctx.ui.say('narrator', text, ctx);
 }
 
 /** The overlook: the body's line, then its ending. */
 async function overlook(voyage: VoyageService, ctx: WorldContext): Promise<void> {
   const body = bodyOf(voyage, ctx);
-  const line = Object.hasOwn(OVERLOOK_LINES, body)
+  const line: LocalText = Object.hasOwn(OVERLOOK_LINES, body)
     ? OVERLOOK_LINES[body as ColonyBodyId]
-    : 'The view.'; // OWNER: script - a body without its own line
+    : { en: 'The view.', uk: TODO }; // OWNER: script - a body without its own line
   await ctx.ui.say('narrator', line, ctx);
   // The colony registry and the endings registry list the same bodies (`colony-<body>`);
   // `flow.finish` warns about an id it does not know.
@@ -142,7 +159,7 @@ function background(voyage: VoyageService): readonly BackgroundLayer[] {
  * screen). Lines are placeholders. OWNER: script
  */
 export const colony: LocationDef = {
-  title: 'Colony', // OWNER: script
+  title: { en: 'Colony', uk: TODO }, // OWNER: script
   background: ({ voyage }) => background(voyage),
   map: 'colony',
   bindings: ({ voyage }) => ({

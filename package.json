@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:links": "node tools/check-links.mjs",
+    "i18n:todo": "node tools/i18n-todo.mjs",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run check:links",
     "smoke": "npm run build && node tools/smoke.mjs --scenario tools/smoke/scenarios/menu.mjs",
     "voyage-check": "tsx --tsconfig src/devtools/tsconfig.json src/devtools/voyageCheck.ts",

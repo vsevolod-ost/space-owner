@@ -1,5 +1,15 @@
-import Phaser from 'phaser';
+import type Phaser from 'phaser';
+import {
+  LANGUAGE_NAMES,
+  LANGUAGES,
+  pseudo,
+  TODO,
+  tr,
+  type DisplayLanguage,
+  type LocalText,
+} from '@/core/locale/text';
 import { services } from '@/core/services';
+import { formatText } from '@/core/text/format';
 import { SceneKey } from '@/scenes/keys';
 import type { Point } from '@/world/Actor';
 import { PanelScene } from '@/ui/PanelScene';
@@ -9,33 +19,76 @@ import { theme } from '@/ui/theme';
 
 /** A volume the settings panel changes. */
 export type VolumeSetting = 'music' | 'sfx';
+/** What a row of the settings panel changes: a volume or the language. */
+export type SettingsRow = VolumeSetting | 'language';
+
+/** One row as shown, for the smoke tool. */
+export interface SettingsRowInfo {
+  setting: SettingsRow;
+  /** The label and the value as shown ("Music", "70%"; "Language", "English"). */
+  label: string;
+  value: string;
+}
 
 /** What `SettingsScene.debugInfo()` returns. */
 export interface SettingsDebugInfo {
   /** Volumes as stored in the settings, 0..1. */
   music: number;
   sfx: number;
-  /** Selected row: 0 Music, 1 SFX, 2 Back. */
+  /** The language shown now (`services.locale.language`). */
+  language: DisplayLanguage;
+  /** Selected row: 0 Music, 1 SFX, 2 Language, 3 Back. */
   selected: number;
+  /** The panel's title, its rows top to bottom and the Back button's label, as shown. */
+  title: string;
+  rows: SettingsRowInfo[];
+  back: string;
   /** Button centres in game pixels, for `h.click(x, y)`. */
-  buttons: { musicDown: Point; musicUp: Point; sfxDown: Point; sfxUp: Point; back: Point };
+  buttons: {
+    musicDown: Point;
+    musicUp: Point;
+    sfxDown: Point;
+    sfxUp: Point;
+    languageDown: Point;
+    languageUp: Point;
+    back: Point;
+  };
 }
 
-/** Rows of the panel, top to bottom; Up/Down moves between them. OWNER: script - the labels. */
+/**
+ * Rows of the panel, top to bottom; Up/Down moves between them. Labels max 13: the room left
+ * of the "-" button. OWNER: script - the labels.
+ */
 const ROWS = [
-  { setting: 'music', label: 'Music' },
-  { setting: 'sfx', label: 'SFX' },
-] as const satisfies readonly { setting: VolumeSetting; label: string }[];
+  { setting: 'music', label: { en: 'Music', uk: TODO, max: 13 } },
+  { setting: 'sfx', label: { en: 'SFX', uk: TODO, max: 13 } },
+  { setting: 'language', label: { en: 'Language', uk: TODO, max: 13 } },
+] as const satisfies readonly { setting: SettingsRow; label: LocalText }[];
+/** The panel's title (title glyphs, max 14) and the Back button (96 px, max 10). OWNER: script */
+const TITLE: LocalText = { en: 'Settings', uk: TODO, max: 14 };
+const BACK_LABEL: LocalText = { en: 'Back', uk: TODO, max: 10 };
+/** A volume as shown: `{percent}` 0..100. OWNER: script */
+// budget: 7 chars, between "-" and "+" ("100%")
+const PERCENT: LocalText = { en: '{percent}%', uk: TODO };
 /** Change of a volume per "+" / "-" press. */
 const STEP = 0.1;
-const PANEL_WIDTH = 256;
-const PANEL_HEIGHT = 136;
+/**
+ * The value column of the `pseudo` row: the language's name in itself, like the others
+ * (`LANGUAGE_NAMES`).
+ */
+const PSEUDO_NAME = 'Pseudo';
+/** Wide enough for the labels (13 glyphs), the marker and the widest value column. */
+const PANEL_WIDTH = 288;
+const PANEL_HEIGHT = 164;
 /** Distance between row centres, px. */
 const ROW_SPACING = 28;
 /** Size of the "-" and "+" buttons, px. */
 const SMALL_BUTTON = { width: 24, height: 20 };
-/** Width of the column with the percentage between "-" and "+", px. */
-const VALUE_WIDTH = 56;
+/**
+ * Width of the value column between "-" and "+", px: the longest language name ("Українська",
+ * 10 glyphs) and a glyph of air.
+ */
+const VALUE_WIDTH = 88;
 /** Size of the Back button, px. */
 const BACK_BUTTON = { width: 96, height: 24 };
 /** Distance from the selection marker to what it marks, px. */
@@ -43,15 +96,18 @@ const MARKER_GAP = 12;
 
 /**
  * Settings panel: music and sound effects volume, each with "-" / "+" (step 10%)
- * and the value in percent, and Back. Keyboard: Up/Down selects a row, Left/Right changes it,
- * Enter on Back or Esc closes. Values are saved at once (`services.audio.setMusicVolume`).
- * Opens over the main menu or over the pause menu with `open()`; close it before the panel
- * under it.
+ * and the value in percent; the language, "-" / "+" cycling `LANGUAGES` (each shown by its own
+ * name); and Back. Keyboard: Up/Down selects a row, Left/Right changes it, Enter on Back or Esc
+ * closes. Values are saved at once (`services.audio.setMusicVolume`,
+ * `services.locale.setLanguage`). Opens over the main menu or over the pause menu with `open()`;
+ * close it before the panel under it. A language change rebuilds it in place (`PanelScene`),
+ * keeping the selected row; the screen under it rebuilds itself too.
  */
 export class SettingsScene extends PanelScene {
+  protected rebuildOnLanguageChange = true;
   private selected = 0;
   private rows: {
-    setting: VolumeSetting;
+    setting: SettingsRow;
     label: Phaser.GameObjects.Text;
     value: Phaser.GameObjects.Text;
     down: Button;
@@ -59,14 +115,16 @@ export class SettingsScene extends PanelScene {
   }[] = [];
   private back?: Button;
   private marker?: Phaser.GameObjects.Text;
+  /** The title as drawn by `addPanel`. */
+  private shownTitle = '';
 
   constructor() {
     super(SceneKey.Settings);
   }
 
   protected build(): void {
-    // OWNER: script - the panel's title and the Back button.
-    const area = this.addPanel({ title: 'Settings', width: PANEL_WIDTH, height: PANEL_HEIGHT });
+    const area = this.addPanel({ title: tr(TITLE), width: PANEL_WIDTH, height: PANEL_HEIGHT });
+    this.shownTitle = tr(TITLE);
     const right = area.right;
     const upX = right - SMALL_BUTTON.width / 2;
     const valueX = upX - SMALL_BUTTON.width / 2 - VALUE_WIDTH / 2;
@@ -77,7 +135,7 @@ export class SettingsScene extends PanelScene {
       const y = area.y + SMALL_BUTTON.height / 2 + index * ROW_SPACING;
       return {
         setting,
-        label: createText(this, labelX, y, label, 'body').setOrigin(0, 0.5),
+        label: createText(this, labelX, y, tr(label), 'body').setOrigin(0, 0.5),
         value: createText(this, valueX, y, '', 'body').setOrigin(0.5),
         down: new Button(this, downX, y, '-', () => this.change(index, -1), SMALL_BUTTON),
         up: new Button(this, upX, y, '+', () => this.change(index, 1), SMALL_BUTTON),
@@ -87,16 +145,16 @@ export class SettingsScene extends PanelScene {
       this,
       area.centerX,
       area.bottom - BACK_BUTTON.height / 2,
-      'Back',
+      tr(BACK_LABEL),
       () => this.close(),
       BACK_BUTTON,
     );
     this.marker = createText(this, area.x, 0, '>', 'body', { color: theme.text.highlight });
     this.marker.setOrigin(0, 0.5);
 
-    this.select(0);
+    this.select(this.rebuilding ? this.selected : 0);
     this.refresh();
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    this.onTeardown(() => {
       this.rows = [];
       this.back = undefined;
       this.marker = undefined;
@@ -123,12 +181,22 @@ export class SettingsScene extends PanelScene {
     return {
       music: services.settings.get('music'),
       sfx: services.settings.get('sfx'),
+      language: services.locale.language,
       selected: this.selected,
+      title: this.shownTitle,
+      rows: this.rows.map(({ setting, label, value }) => ({
+        setting,
+        label: label.text,
+        value: value.text,
+      })),
+      back: this.back?.label ?? '',
       buttons: {
         musicDown: center(this.rows[0]?.down),
         musicUp: center(this.rows[0]?.up),
         sfxDown: center(this.rows[1]?.down),
         sfxUp: center(this.rows[1]?.up),
+        languageDown: center(this.rows[2]?.down),
+        languageUp: center(this.rows[2]?.up),
         back: center(this.back),
       },
     };
@@ -148,11 +216,20 @@ export class SettingsScene extends PanelScene {
     }
   }
 
-  /** Moves volume of row `index` one step up (+1) or down (-1), saves and applies it. */
+  /**
+   * Moves the value of row `index` one step up (+1) or down (-1), saves and applies it: a
+   * volume by 10%, the language to the next or previous of `LANGUAGES` (which rebuilds the panel
+   * at once, `languageChanged`).
+   */
   private change(index: number, direction: 1 | -1): void {
     const row = this.rows[index];
     if (!row) return;
     this.select(index);
+    if (row.setting === 'language') {
+      services.locale.setLanguage(stepLanguage(services.locale.language, direction));
+      this.refresh();
+      return;
+    }
     const current = services.settings.get(row.setting);
     // Round to whole steps: 0.1 additions drift (0.7 + 0.1 = 0.7999...).
     const next = Math.round((current + direction * STEP) * 10) / 10;
@@ -163,7 +240,28 @@ export class SettingsScene extends PanelScene {
 
   private refresh(): void {
     for (const row of this.rows) {
-      row.value.setText(`${Math.round(services.settings.get(row.setting) * 100)}%`);
+      if (row.setting === 'language') {
+        row.value.setText(languageName(services.locale.language));
+        continue;
+      }
+      const percent = Math.round(services.settings.get(row.setting) * 100);
+      row.value.setText(formatText(tr(PERCENT), { percent }));
     }
   }
+}
+
+/**
+ * The language after `language` in `LANGUAGES` (+1) or before it (-1), wrapping around; from
+ * `pseudo` (not in the list) the first one (+1) or the last (-1).
+ */
+function stepLanguage(language: DisplayLanguage, direction: 1 | -1): DisplayLanguage {
+  const count = LANGUAGES.length;
+  const index = LANGUAGES.findIndex((other) => other === language);
+  if (index < 0) return LANGUAGES[direction > 0 ? 0 : count - 1];
+  return LANGUAGES[(index + direction + count) % count];
+}
+
+/** A language as the settings row shows it: its own name, not translated. */
+function languageName(language: DisplayLanguage): string {
+  return language === 'pseudo' ? pseudo(PSEUDO_NAME) : LANGUAGE_NAMES[language];
 }

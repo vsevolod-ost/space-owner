@@ -1,12 +1,15 @@
 import type Phaser from 'phaser';
+import { tr } from '@/core/locale/text';
 import { createText } from '@/ui/kit/text';
 import {
-  levelBar,
   levelColor,
+  levelFrame,
+  resourceBarColor,
   ROW_ICONS,
   ROW_IDS,
   ROW_LABELS,
   statusColor,
+  STATUS_LABELS,
   type RowId,
   type RowView,
   type Status,
@@ -15,6 +18,7 @@ import { theme } from '@/ui/theme';
 
 /** What `StatusColumn.draw` shows. */
 export interface ColumnView {
+  /** The status id; the word shown is its `STATUS_LABELS` entry. */
   status: Status;
   /** "Day 42", or empty before the voyage. */
   day: string;
@@ -53,8 +57,9 @@ const VALUE_X = 204;
 /**
  * The right column of the navigation panel (GDD `ux-panel-layout` B): the status word (RUN /
  * HOLD / DRIFTING / LANDED / LOST), the day, the next gate and when it comes, six resource rows
- * (icon, name, bar, value; normal / low / critical colours, D14), two telemetry lines (mass,
- * acceleration, gravity, escape speed; plan variable-mass D12), and the log of what happened.
+ * (icon, name, bar, value; each bar has the colour of its icon, and its frame and value turn
+ * amber / red when the resource is low / critical, D14), two telemetry lines (mass, acceleration, gravity,
+ * escape speed; plan variable-mass D12), and the log of what happened.
  * Gate and event cards hide it and take its place.
  */
 export class StatusColumn {
@@ -82,7 +87,7 @@ export class StatusColumn {
     ROW_IDS.forEach((id, i) => {
       const rowY = y + ROWS_Y + i * ROW_STEP;
       icons.push(scene.add.image(x, rowY, 'panel-icons', ROW_ICONS[id]).setOrigin(0));
-      icons.push(createText(scene, x + NAME_X, rowY, ROW_LABELS[id], 'small'));
+      icons.push(createText(scene, x + NAME_X, rowY, tr(ROW_LABELS[id]), 'small'));
       values[id] = createText(scene, x + VALUE_X, rowY, '', 'body');
     });
     this.values = values as Record<RowId, Phaser.GameObjects.Text>;
@@ -115,7 +120,7 @@ export class StatusColumn {
 
   /** Draws `view`. */
   draw(view: ColumnView): void {
-    this.status.setText(view.status).setColor(statusColor(view.status));
+    this.status.setText(tr(STATUS_LABELS[view.status])).setColor(statusColor(view.status));
     this.day.setText(view.day);
     this.next.setText(view.next).setColor(view.nextColor);
     this.detail.setText(view.detail);
@@ -128,9 +133,11 @@ export class StatusColumn {
       g.fillStyle(theme.bar.back, 1);
       g.fillRect(barX, rowY, BAR_WIDTH, BAR_HEIGHT);
       if (row) {
-        g.fillStyle(levelBar(row.level), 1);
+        g.fillStyle(resourceBarColor(id), 1);
         g.fillRect(barX, rowY, Math.round(BAR_WIDTH * row.fraction), BAR_HEIGHT);
       }
+      g.lineStyle(1, levelFrame(row?.level ?? 'normal'), 1);
+      g.strokeRect(barX, rowY, BAR_WIDTH, BAR_HEIGHT);
       this.values[id].setText(row?.value ?? '-').setColor(levelColor(row?.level ?? 'normal'));
     });
     this.telemetry.forEach((line, i) => line.setText(view.telemetry[i] ?? ''));

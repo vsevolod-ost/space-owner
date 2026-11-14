@@ -2,7 +2,8 @@
  * Smoke scenario: dialogue. In the warehouse the hero stands next to the engineer and
  * presses E: the dialogue opens at `greeting`, the NPC turns to the hero, the world is locked
  * (E does not reopen it). Enter moves to the choices; ArrowDown + Enter picks option 2, which
- * sets `advice.engineer.cargo`; Enter to the end. A second E starts at another node
+ * sets `advice.engineer.cargo`; its long answer is split into pages that Enter turns; Enter
+ * to the end. A second E starts at another node
  * (`question`, since `greeting` is skipped by its `when`), and the NPC turns back afterwards.
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/dialogue.mjs
  *
@@ -99,6 +100,22 @@ export default async function dialogue(page, h) {
   await confirm();
   const told = await h.eval(() => window.nasa.services.state.flags.get('advice.engineer.cargo'));
   if (told !== true) throw new Error(`advice.engineer.cargo is ${told}, want true`);
+
+  // The cargo advice is taller than the window: it is split into pages, Enter turns them.
+  const cargo = await h.eval(dialogueInfo);
+  h.log(`cargo line: page ${cargo.page + 1} of ${cargo.pages}`);
+  if (cargo.nodeId !== 'cargo' || cargo.pages < 2 || cargo.page !== 0) {
+    throw new Error(`want cargo on page 1 of 2+, got ${JSON.stringify(cargo)}`);
+  }
+  await h.waitFor(() => !window.nasa.game.scene.getScene('Ui').debugInfo().dialogue.typing, 10000);
+  await h.shot('dialogue-page-1');
+  await confirm();
+  const turned = await h.eval(dialogueInfo);
+  if (turned.nodeId !== 'cargo' || turned.page !== 1 || !turned.typing) {
+    throw new Error(`Enter should turn to page 2 of cargo, got ${JSON.stringify(turned)}`);
+  }
+  await h.waitFor(() => !window.nasa.game.scene.getScene('Ui').debugInfo().dialogue.typing, 10000);
+  await h.shot('dialogue-page-2');
   const rest = await confirmToEnd();
   h.log(`after choice 2: ${rest.join(' -> ')}`);
   await h.waitFor(() => !window.nasa.game.scene.getScene('World').controls.isLocked());

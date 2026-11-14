@@ -39,6 +39,7 @@ formats on save.
 | `npm run check:links`           | Checks that relative links in `README.md` and `docs/` resolve.      |
 | `npm run balance`               | Balance invariants I1-I8 over every loadout (~6.5 min on 16 threads); see below. |
 | `npm run voyage-check -- --all` | The loadout sweep: summary, CSV in `tools/out/`, check against the game.         |
+| `npm run i18n:todo`             | Ukrainian strings still `TODO`, by file, and strings over their `max`.           |
 
 ## Checks
 
@@ -57,7 +58,9 @@ Before you open a pull request:
 
    Scenarios: `menu`, `state`, `ui`, `world`, `doors`, `dialogue`, `cutscene`,
    `cutscene-cancel`, `flow`, `audio`, `ship`, `debug`, `props`, `warehouse`, `death-loop`,
-   `colony`, `voyage`. `death-loop` and `voyage` fly a whole voyage: add `--timeout 600000`.
+   `colony`, `voyage`, `stations`, `locale` (languages; on `?lang=pseudo` it fails on any text
+   that did not go through `tr`: run it after adding a screen or a string,
+   [HOWTO-localization.md](HOWTO-localization.md#checking)). `death-loop` and `voyage` fly a whole voyage: add `--timeout 600000`.
    `voyage` plays the loop end to end on seed 1 (New game, warehouse, fuel + oxygen + supplies
    - solar, Moon, Go on, Mars, Stop, colony, ending). Screenshots go to `smoke-out/`. A scenario fails on
      any console error, page error or failed request (a missing file is a 404).
@@ -110,6 +113,8 @@ are in the comment at the top of that file.
   characters at most - `Add astronomer dialogue to warehouse`, `Fix spawn in home`. Details,
   if needed, go into the body after an empty line.
 - Everything in the repository is in English: code, comments, docs, commit messages, game text.
+  The one exception: Ukrainian text in the `uk:` slot of a `LocalText` pair, and a language's
+  own name (`'Українська'` in `LANGUAGE_NAMES`). See [HOWTO-localization.md](HOWTO-localization.md).
 
 ## Adding an asset
 
@@ -141,7 +146,10 @@ Places marked `OWNER: <who>` in the code are the team's work list, by who fills 
 chances, alarm and balance thresholds), `script` (every text the player reads: `[TODO: ...]`
 lines, names, titles, panel and menu words) and `art` (colony colours, which picture an item
 puts up). `grep -rn "OWNER: design" src` lists one owner's places; the texts by file are in
-[HOWTO-voyage.md](HOWTO-voyage.md#texts).
+[HOWTO-voyage.md](HOWTO-voyage.md#texts). Every `OWNER: script` text is a pair
+`{ en: '...', uk: TODO }`: writers change `en`, the translator replaces `TODO` with the
+Ukrainian text; `npm run i18n:todo` lists what is left
+([HOWTO-localization.md](HOWTO-localization.md)).
 
 References like "plan S8" / "plan D14" and "GDD `res-list`" / "GDD D12" in the code and the
 docs point to the architect's working notes (the implementation plan and the game design

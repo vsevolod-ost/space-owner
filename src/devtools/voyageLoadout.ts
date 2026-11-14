@@ -19,7 +19,9 @@ export function parseLoadout(spec: string): Record<string, number> {
     if (part === '' || part === 'base') continue;
     const [id, count = '1'] = part.split(':');
     if (!Object.hasOwn(cargoItems, id)) {
-      throw new Error(`--loadout: unknown cargo "${id}" (known: ${Object.keys(cargoItems)})`);
+      throw new Error(
+        `--loadout: unknown cargo "${id}" (known: ${Object.keys(cargoItems).join(',')})`,
+      );
     }
     const n = Number(count);
     if (!Number.isInteger(n) || n < 0) throw new Error(`--loadout: bad count "${count}" for ${id}`);

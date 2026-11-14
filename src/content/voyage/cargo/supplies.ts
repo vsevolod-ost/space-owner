@@ -1,10 +1,11 @@
+import { TODO } from '@/core/locale/text';
 import type { CargoDef } from '@/core/voyage/types';
 
 /** Water and food. */
 export const supplies: CargoDef = {
   // OWNER: script
-  label: 'Supplies',
-  line: 'Water and food.',
+  label: { en: 'Supplies', uk: TODO, max: 14 },
+  line: { en: 'Water and food.', uk: TODO, max: 60 },
   // OWNER: physics - water containers, food lockers and the crate; the contents weigh by
   // `stock-mass.ts`.
   dryMassKg: 500,

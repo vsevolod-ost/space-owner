@@ -1,3 +1,5 @@
+import type { LocalText } from '@/core/locale/text';
+
 /**
  * Data model of the voyage's resources and cargo (plan D5, D14; GDD `cargo-catalog` A): what a
  * cargo item declares, what the ship carries, how resources flow per day, and why the ship's
@@ -58,10 +60,10 @@ export type ColonyAxis = 'power' | 'heat' | 'shielding' | 'life';
  * twice `flows`.
  */
 export interface CargoDef {
-  /** Name on the crate and in lists, at most 14 characters. */
-  label: string;
-  /** One line about it for the warehouse stand, at most 60 characters. */
-  line: string;
+  /** Name on the crate and in lists (OWNER: script), `max: 14` characters. */
+  label: LocalText;
+  /** One line about it for the warehouse stand (OWNER: script), `max: 60` characters. */
+  line: LocalText;
   /**
    * Mass of one copy with its stocks used up, kg: the crate, tanks and gear (for the base, the
    * ship itself: hull, engine and its reactor, empty tank). Its stocks add their own mass

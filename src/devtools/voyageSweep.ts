@@ -214,6 +214,8 @@ function rowsOnWorkers(count: number, threads: number, rows: SweepRow[]): Promis
       if (settled) return;
       settled = true;
       for (const worker of pool) void worker.terminate();
+      // A worker's error may be any value; its default string form is all there is to say.
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
       if (error) reject(error instanceof Error ? error : new Error(String(error)));
       else resolve();
     };

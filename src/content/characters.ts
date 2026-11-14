@@ -1,4 +1,5 @@
 import type { ImageKey, SpritesheetKey } from '@/assets';
+import { TODO, type LocalText } from '@/core/locale/text';
 
 /** Facing direction of a character; also the name of a row in its sprite sheet. */
 export type Direction = 'down' | 'left' | 'right' | 'up';
@@ -13,7 +14,7 @@ export type CharacterDef = SpeakerDef | ActorDef;
 /** A character that only speaks: no sprite sheet. */
 export interface SpeakerDef {
   /** Name shown to the player (dialogue speaker, messages). */
-  name: string;
+  name: LocalText;
   /** Portrait shown in the dialogue window when this character speaks (48x48). */
   portrait?: ImageKey;
   spritesheet?: never;
@@ -22,7 +23,7 @@ export interface SpeakerDef {
 /** A character that stands and walks in locations: everything needed to animate and move it. */
 export interface ActorDef {
   /** Name shown to the player (dialogue speaker, messages). */
-  name: string;
+  name: LocalText;
   /** Portrait shown in the dialogue window when this character speaks (48x48). */
   portrait?: ImageKey;
   /** Sprite sheet with the frames; frame size is set in src/assets/spritesheets.ts. */
@@ -72,21 +73,21 @@ const STANDING_SHEET = {
  */
 export const characters = {
   hero: {
-    name: 'Hero',
+    name: { en: 'Hero', uk: TODO },
     portrait: 'portrait-hero',
     spritesheet: 'hero',
     ...STANDARD_SHEET,
     speed: DEFAULT_SPEED,
   },
   engineer: {
-    name: 'Engineer',
+    name: { en: 'Engineer', uk: TODO },
     portrait: 'portrait-engineer',
     spritesheet: 'npc-engineer',
     ...STANDING_SHEET,
     speed: DEFAULT_SPEED,
   },
   astronomer: {
-    name: 'Astronomer',
+    name: { en: 'Astronomer', uk: TODO },
     portrait: 'portrait-astronomer',
     spritesheet: 'npc-astronomer',
     ...STANDING_SHEET,
@@ -94,7 +95,7 @@ export const characters = {
   },
   /** The ship's computer: speaks on the deck and the panel, has no body. */
   computer: {
-    name: 'Computer',
+    name: { en: 'Computer', uk: TODO },
     portrait: 'portrait-computer',
   },
 } as const satisfies Record<string, CharacterDef>;

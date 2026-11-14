@@ -1,9 +1,9 @@
 # How the UI works
 
-All UI is drawn by Phaser (no HTML) with a small kit in `src/ui/kit/`: a 9-slice panel, a button,
+All UI is drawn by Phaser (no HTML) with a small kit in `src/ui/kit/`: a panel, a button (both drawn in code),
 a text helper, a label, a toast, a choice list and a fader. Colours, spacing and text sizes live
 in one file, `src/ui/theme.ts`. Phaser 4 API reference: `node_modules/phaser/skills/*/SKILL.md`
-(`sprites-and-images` for nine-slice, `scenes`, `input-keyboard-mouse-touch`, `tweens`) and
+(`graphics-and-shapes` for the panel and button plates, `scenes`, `input-keyboard-mouse-touch`, `tweens`) and
 `node_modules/phaser/types/phaser.d.ts`.
 
 Rules for every piece of UI:
@@ -37,7 +37,7 @@ pixels. Inside it, `UiDepth` orders the layers: `hint` 0, `dialogue` 10, `toast`
 What other code calls on it (the world reaches it as `ctx.ui` in location scripts):
 
 ```ts
-ui.toast('A dusty terminal.'); // message at the bottom for 2 s
+ui.toast(tr(DUSTY_TERMINAL)); // message at the bottom for 2 s; DUSTY_TERMINAL is a pair
 ui.placeHint({ x, y }); // WorldScene does this every frame
 await ui.fader.fadeOut(500); // black screen (cutscenes use it)
 await ui.fader.fadeIn(500);
@@ -56,9 +56,11 @@ ui.controls.justPressed('confirm'); // UiScene's own keyboard, never locked by t
 | `text.alarm`, `text.warn`, `text.good`     | Navigation panel: critical, low, good (RUN, LANDED).                    |
 | `fontSize.body` (8), `fontSize.title` (16) | Text sizes; multiples of 8 only.                                        |
 | `lineSpacing`                              | Extra space between lines of multi-line text.                           |
-| `panelTint`                                | Colour multiplied into the panel art (`0xffffff` = as drawn).           |
-| `panelBorder`                              | Corner size of `ui/panel.png` (8). Change it with the art.              |
-| `buttonBorder`                             | Corner size of `ui/button-*.png` (4), used by resized buttons.          |
+| `panel`                                    | Panel plate: fill, its alpha, outline, corner-mark colour.              |
+| `button`                                   | Button plate per state (`normal`, `hover`, `pressed`): fill, outline.   |
+| `menu`                                     | Main menu sky gradient and star colours.                                |
+| `ship`                                     | Navigation status column: status words, levels, resource bar colours.   |
+| `panelBorder`                              | How far a panel's frame reaches in from the edge (8).                   |
 | `panelPadding`, `labelPadding`             | Space between a panel's / label's edge and its content.                 |
 | `rowGap`                                   | Gap between choice list rows.                                           |
 | `backdrop`                                 | Dark layer behind panel scenes.                                         |
@@ -70,19 +72,30 @@ ui.controls.justPressed('confirm'); // UiScene's own keyboard, never locked by t
 
 All are Phaser game objects added to the scene they are created in.
 
+**Text is a pair, the kit takes strings.** Every visible string is written as a `LocalText`
+pair `{ en: 'Back', uk: TODO }` (a constant at the top of the file is fine) and turned into the
+string of the current language with `tr(pair)` from `src/core/locale/text.ts` **when the
+object is built or redrawn**, never at module level. The kit (`createText`, `Button`, `Label`,
+`Toast`, `ChoiceList`) and `ui.toast` take finished strings, so a bare English literal passed to
+them still compiles: the `pseudo` check of the smoke scenario `locale` is what catches it. A
+string that must fit a fixed space gets `max` in its pair. See
+[HOWTO-localization.md](HOWTO-localization.md).
+
 ### `createText(scene, x, y, text, variant = 'body', style = {})` — `kit/text.ts`
 
 Text in the game font. Variants: `title` (16 px), `body` (8 px), `small` (8 px, dim colour).
 `style` adds Phaser text style fields (`align`, `wordWrap`, `color`).
 
 ```ts
-createText(this, 320, 40, 'Settings', 'title').setOrigin(0.5, 0);
+createText(this, 320, 40, tr(TITLE), 'title').setOrigin(0.5, 0); // TITLE = { en: 'Settings', uk: TODO, max: 14 }
 ```
 
 ### `new Panel(scene, x, y, width, height)` — `kit/Panel.ts`
 
-Framed background from `ui/panel.png`, stretched as a 9-slice (corners stay as drawn). `(x, y)` is
-the top-left corner. `panel.resize(width, height)` changes the size.
+Framed background drawn in code (`theme.panel`): a plate with cut corners, an outline and, on
+panels taller than 36 px, four corner marks. `(x, y)` is the top-left corner.
+`panel.resize(width, height)` changes the size; a plain `panel.setInteractive()` makes the whole
+panel clickable.
 
 ```ts
 const panel = new Panel(this, 120, 80, 400, 200);
@@ -90,14 +103,14 @@ const panel = new Panel(this, 120, 80, 400, 200);
 
 ### `new Button(scene, x, y, label, onClick, { width?, height? })` — `kit/Button.ts`
 
-Button from `ui/button-{normal,hover,pressed}.png` with the label drawn on top. `(x, y)` is the
-centre. Mouse only: hover, press, click on release; a click plays the `ui-click` sound (so does a
+Button drawn in code (`theme.button`: a plate with cut corners whose colours change on hover and
+press) with the label on top. `(x, y)` is the centre. Mouse only: hover, press, click on release; a click plays the `ui-click` sound (so does a
 choice in a `ChoiceList`). `setEnabled(false)` fades it and ignores input; `isEnabled()`, `label`.
-The default size is the art's 160x36; another `width`/`height` stretches the art as a 9-slice
-with `theme.buttonBorder` corners (the settings panel's 24x20 "-" / "+" buttons).
+The default size is 160x36; buttons under 40x28 (the settings panel's 24x20 "-" / "+") are
+plain rectangles.
 
 ```ts
-new Button(this, 320, 220, 'Back', () => this.close());
+new Button(this, 320, 220, tr(BACK), () => this.close()); // BACK = { en: 'Back', uk: TODO, max: 18 }
 new Button(this, 400, 150, '+', () => louder(), { width: 24, height: 20 });
 ```
 
@@ -107,18 +120,19 @@ Short text on a panel fitted around it. `originX/originY` say which point of the
 `(x, y)` (like `setOrigin`; default centre). `setText` refits it; `text` reads it.
 
 ```ts
-const hint = new Label(this, 100, 50, 'E', { originX: 0.5, originY: 1 });
+const hint = new Label(this, 100, 50, tr(INTERACT_HINT), { originX: 0.5, originY: 1 });
 ```
 
 ### `new Toast(scene, x, y, wrapWidth)` — `kit/Toast.ts`
 
 A `Label` that hides itself. `(x, y)` is the bottom centre. `show(text, ms = theme.toastMs)`,
 `hide()`, `message` (text on screen or null). UiScene owns one; call `ui.toast(text)` instead of
-making another.
+making another. Opening a panel (`PanelScene.open`) hides that toast (`ui.clearToast()`): the panel
+would cover it; a toast shown while a panel is open stays.
 
 ```ts
 const toast = new Toast(this, 320, 344, 576);
-toast.show('Saved');
+toast.show(tr(SAVED));
 ```
 
 ### `new ChoiceList(scene, x, y, controls, { width?, cancelable? })` — `kit/ChoiceList.ts`
@@ -140,7 +154,7 @@ choose at once.
 ```ts
 const panel = new Panel(this, 200, 120, 240, 0); // create the background first: it draws below
 const list = new ChoiceList(this, 212, 132, this.controls, { width: 216 });
-list.setChoices(['Yes', 'No']);
+list.setChoices([tr(YES), tr(NO)]);
 panel.resize(240, list.height + 24);
 list.once(ChoiceList.CHOSEN, (index: number) => {
   list.destroy();
@@ -180,6 +194,17 @@ A panel that opens over the game is its own scene extending `PanelScene`
 - A dark backdrop (`theme.backdrop`) covers the screen behind the panel and catches clicks.
 - `addPanel({ title?, width, height })` draws a centred `Panel` with the title and returns the
   content area inside it (`Phaser.Geom.Rectangle`: `x`, `y`, `width`, `height`, `centerX`, …).
+- `onTeardown(fn, untilShutdown?)` runs `fn` when the content goes (before a rebuild and on
+  close; with `untilShutdown`, only on close): release holds and event handlers `build` took.
+- **Language change.** A panel that can be open while the language changes (the settings
+  panel, and the pause menu under it) sets the field `protected rebuildOnLanguageChange = true`:
+  on `languageChanged` its children are destroyed, its teardowns run and `build(data)` runs
+  again with the same data, while `this.rebuilding` is true (keep the selection then, as
+  `PauseScene` does). `open()` resets `closeOnCancel` to true, `rebuild()` does not: a `build`
+  that sets it keeps working. A scene that is not a panel and stays visible under the settings
+  (the main menu, overlays) subscribes itself: `services.events.on('languageChanged', ...)` in
+  `create`, the returned `off` called on `SHUTDOWN` (see `MainMenuScene`, `UiScene`,
+  `AlarmBarScene`). Details: [HOWTO-localization.md](HOWTO-localization.md).
 
 `StubScene` (`src/scenes/StubScene.ts`) is the smallest working example; the game's pause menu
 is `src/scenes/PauseScene.ts` (opened by `WorldScene` on Esc), and `src/scenes/SettingsScene.ts`
@@ -189,6 +214,7 @@ here as a simpler pause panel with a reason:
 
 ```ts
 // A sketch in the shape of src/scenes/PauseScene.ts (the real file uses a ChoiceList)
+import { TODO, tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import { SceneKey } from '@/scenes/keys';
 import { PanelScene } from '@/ui/PanelScene';
@@ -198,8 +224,15 @@ import { createText } from '@/ui/kit/text';
 
 /** Data for `PauseScene.open`. */
 export interface PauseSceneData {
-  reason?: string;
+  reason?: LocalText;
 }
+
+// Pairs live at module level; `tr` runs in `build`. OWNER: script
+const PAUSED: LocalText = { en: 'Paused', uk: TODO };
+const TITLE: LocalText = { en: 'Pause', uk: TODO, max: 12 };
+const RESUME: LocalText = { en: 'Resume', uk: TODO };
+const SETTINGS: LocalText = { en: 'Settings', uk: TODO };
+const MAIN_MENU: LocalText = { en: 'Main menu', uk: TODO, max: 18 };
 
 /** Pause menu over the world. */
 export class PauseScene extends PanelScene<PauseSceneData> {
@@ -207,20 +240,22 @@ export class PauseScene extends PanelScene<PauseSceneData> {
     super(SceneKey.Pause); // 1. add `Pause: 'Pause'` to SceneKey in src/scenes/keys.ts
   }
 
-  protected build({ reason = 'Paused' }: PauseSceneData): void {
-    const area = this.addPanel({ title: 'Pause', width: 256, height: 176 });
-    createText(this, area.centerX, area.y, reason, 'small').setOrigin(0.5, 0);
+  protected rebuildOnLanguageChange = true; // the settings panel opens over it
+
+  protected build({ reason = PAUSED }: PauseSceneData): void {
+    const area = this.addPanel({ title: tr(TITLE), width: 256, height: 176 });
+    createText(this, area.centerX, area.y, tr(reason), 'small').setOrigin(0.5, 0);
 
     // Keyboard and mouse: a choice list.
     const list = new ChoiceList(this, area.x + 48, area.y + 24, this.controls, { width: 160 });
-    list.setChoices(['Resume', 'Settings']);
+    list.setChoices([tr(RESUME), tr(SETTINGS)]);
     list.on(ChoiceList.CHOSEN, (index: number) => {
       if (index === 0) this.close();
       // index 1: open the settings panel over this one (it pauses this scene).
     });
 
     // Mouse only: a button.
-    new Button(this, area.centerX, area.bottom - 18, 'Main menu', () => {
+    new Button(this, area.centerX, area.bottom - 18, tr(MAIN_MENU), () => {
       this.close(); // close the panel first, then leave
       services.flow.toMainMenu();
     });
@@ -234,7 +269,7 @@ export class PauseScene extends PanelScene<PauseSceneData> {
 ```ts
 import type { PauseScene } from '@/scenes/PauseScene';
 
-await (this.scene.get(SceneKey.Pause) as PauseScene).open({ reason: 'Taking a break' });
+await (this.scene.get(SceneKey.Pause) as PauseScene).open({ reason: TAKING_A_BREAK }); // a pair
 // the world runs again here
 ```
 
@@ -243,16 +278,17 @@ Panels stack: a panel opened from a panel pauses the lower one, and closing it r
 ## UI art
 
 Files live in `public/assets/ui/` and are registered in `src/assets/images.ts`. Placeholders are
-generated by `tools/placeholders.py` (`buttons()`, `panel()`); to replace one, overwrite the PNG
-with art of the same size and keep the name — no code change.
+generated by `tools/placeholders.py` (`buttons()`, `panel()`). Panels and buttons are now drawn in
+code from `theme.panel` / `theme.button`; the panel and button pictures below are loaded but not
+drawn (going back to art means `Panel` / `Button` drawing them as 9-slices again).
 
-| File                     | Key               | Size   | Notes                                                               |
-| ------------------------ | ----------------- | ------ | ------------------------------------------------------------------- |
-| `ui/panel.png`           | `ui-panel`        | 24×24  | 9-slice: 8 px corners and edges, the 8×8 centre stretches. No text. |
-| `ui/button-normal.png`   | `button-normal`   | 160×36 | Button at rest. No text. Resized buttons keep 4 px corners/edges.   |
-| `ui/button-hover.png`    | `button-hover`    | 160×36 | Under the mouse.                                                    |
-| `ui/button-pressed.png`  | `button-pressed`  | 160×36 | Held down.                                                          |
-| `ui/cursor-interact.png` | `cursor-interact` | 16×16  | Not used yet; the "E" hint is a `Label`.                            |
+| File                     | Key               | Size   | Notes                                                       |
+| ------------------------ | ----------------- | ------ | ----------------------------------------------------------- |
+| `ui/panel.png`           | `ui-panel`        | 24×24  | Not drawn (panels are drawn in code). 9-slice, 8 px border. |
+| `ui/button-normal.png`   | `button-normal`   | 160×36 | Not drawn (buttons are drawn in code). Button at rest.      |
+| `ui/button-hover.png`    | `button-hover`    | 160×36 | Under the mouse.                                            |
+| `ui/button-pressed.png`  | `button-pressed`  | 160×36 | Held down.                                                  |
+| `ui/cursor-interact.png` | `cursor-interact` | 16×16  | Not used yet; the "E" hint is a `Label`.                    |
 
 A panel with a different border width needs `theme.panelBorder` changed to match. A button of a
 different size needs the menu layout constants (`BUTTON_WIDTH`, `BUTTON_HEIGHT`,

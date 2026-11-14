@@ -1,3 +1,4 @@
+import { TODO } from '@/core/locale/text';
 import type { CargoDef } from '@/core/voyage/types';
 
 /**
@@ -6,8 +7,8 @@ import type { CargoDef } from '@/core/voyage/types';
  */
 export const reactor: CargoDef = {
   // OWNER: script
-  label: 'Reactor',
-  line: 'Steady power anywhere, if it holds.',
+  label: { en: 'Reactor', uk: TODO, max: 14 },
+  line: { en: 'Steady power anywhere, if it holds.', uk: TODO, max: 60 },
   // OWNER: physics - a small fission reactor with its shield and radiators (tens of kW).
   dryMassKg: 6_000,
   // OWNER: design - bays taken and copies allowed

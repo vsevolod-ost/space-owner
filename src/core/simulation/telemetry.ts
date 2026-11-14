@@ -15,7 +15,10 @@ export interface Telemetry {
   accelMS2: number;
   /** Local gravity, m/s^2: the size of `Workspace.gravity` at the ship. */
   gravityMS2: number;
-  /** The body that pulls the ship hardest (its `name`) and the escape speed from it, m/s. */
+  /**
+   * The body that pulls the ship hardest (its id, '' when none; the view names it with
+   * `bodyName`, plan uk-localization D16) and the escape speed from it, m/s.
+   */
   escapeBody: string;
   escapeMS: number;
 }
@@ -55,7 +58,7 @@ export function computeTelemetry(
     massRateKgPerS,
     accelMS2: ship.massKg > 0 ? ship.thrustN / ship.massKg : 0,
     gravityMS2: Math.hypot(work.ax, work.ay),
-    escapeBody: best < 0 ? '' : system.bodies[best].name,
+    escapeBody: best < 0 ? '' : system.bodies[best].id,
     escapeMS: best < 0 ? 0 : Math.sqrt((2 * system.gm[best]) / bestR),
   };
 }

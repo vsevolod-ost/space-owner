@@ -1,4 +1,5 @@
 import type { ColonyBodyId } from '@/content/voyage/colony';
+import { TODO, type LocalText } from '@/core/locale/text';
 import type { ColonyTier } from '@/core/voyage/colony';
 
 /**
@@ -13,11 +14,11 @@ import type { ColonyTier } from '@/core/voyage/colony';
 /** One ending: a heading, the text under it and, optionally, its own tier lines. */
 export interface Ending {
   /** Heading of the end screen. */
-  title: string;
+  title: LocalText;
   /** Text under the heading; `\n` starts a new line, long lines wrap. */
-  text: string;
+  text: LocalText;
   /** Lines of the colony's tier for this ending only, instead of `TIER_LINES`. */
-  tiers?: Partial<Record<ColonyTier, string>>;
+  tiers?: Partial<Record<ColonyTier, LocalText>>;
 }
 
 /**
@@ -25,10 +26,10 @@ export interface Ending {
  * about how it feels, not about an item; every tier is a colony that lives).
  * OWNER: script
  */
-export const TIER_LINES: Readonly<Record<ColonyTier, string>> = {
-  outpost: 'Outpost. It barely holds, but it holds.',
-  settlement: 'Settlement. Most of what the place asks for is there.',
-  colony: 'Colony. Everything this world asks for, you brought.',
+export const TIER_LINES: Readonly<Record<ColonyTier, LocalText>> = {
+  outpost: { en: 'Outpost. It barely holds, but it holds.', uk: TODO },
+  settlement: { en: 'Settlement. Most of what the place asks for is there.', uk: TODO },
+  colony: { en: 'Colony. Everything this world asks for, you brought.', uk: TODO },
 };
 
 /**
@@ -38,12 +39,12 @@ export const TIER_LINES: Readonly<Record<ColonyTier, string>> = {
  */
 export const endings = {
   'colony-moon': {
-    title: 'Moon',
-    text: 'A colony in sight of home; the Earth hangs in a black sky.',
+    title: { en: 'Moon', uk: TODO },
+    text: { en: 'A colony in sight of home; the Earth hangs in a black sky.', uk: TODO },
   },
   'colony-mars': {
-    title: 'Mars',
-    text: 'A colony under a butterscotch sky; the first to stay.',
+    title: { en: 'Mars', uk: TODO },
+    text: { en: 'A colony under a butterscotch sky; the first to stay.', uk: TODO },
   },
 } as const satisfies Record<`colony-${ColonyBodyId}`, Ending>;
 
@@ -56,7 +57,7 @@ export function isEndingId(id: string): id is EndingId {
 }
 
 /** The tier line of ending `id` for a colony of tier `tier`: its own, else `TIER_LINES`. */
-export function tierLine(id: EndingId, tier: ColonyTier): string {
+export function tierLine(id: EndingId, tier: ColonyTier): LocalText {
   const own: Ending = endings[id];
   return own.tiers?.[tier] ?? TIER_LINES[tier];
 }

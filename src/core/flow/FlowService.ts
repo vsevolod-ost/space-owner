@@ -12,6 +12,7 @@ import type { EventBus } from '@/core/events/EventBus';
 import type { CutsceneService } from '@/core/cutscene/CutsceneService';
 import type { GameEvents } from '@/core/events/events';
 import { RUN_FLAGS } from '@/core/flow/runFlags';
+import { type LocalText, TODO, tr } from '@/core/locale/text';
 import type { SceneDriver } from '@/core/flow/SceneDriver';
 import type { SimulationService } from '@/core/simulation/SimulationService';
 import type { GameSave, GameState } from '@/core/state/GameState';
@@ -23,8 +24,8 @@ import type { VoyageOutcome } from '@/core/voyage/Voyage';
 
 /** Act id used when a location is opened outside the story (`?location=<id>`). */
 const NO_ACT = 'debug';
-/** Text of the toast shown when a checkpoint is saved. */
-const CHECKPOINT_TOAST = 'Checkpoint';
+/** Text of the toast shown when a checkpoint is saved (`tr` when shown). OWNER: script */
+const CHECKPOINT_TOAST: LocalText = { en: 'Checkpoint', uk: TODO };
 /**
  * Real time the navigation panel shows a lost voyage (LOST, the cause) before the death loop
  * takes the player away, ms (GDD `loop-scene-format` A: at most 2 s from the loss to the first
@@ -245,7 +246,7 @@ export class FlowService {
       return;
     }
     this.events.emit('checkpointSaved', { save });
-    this.requireDriver().toast(CHECKPOINT_TOAST);
+    this.requireDriver().toast(tr(CHECKPOINT_TOAST));
   }
 
   /**
@@ -272,12 +273,7 @@ export class FlowService {
   /** The `FlightSummary` of the voyage now (step 1 of `die`). */
   private summarize(cause: string): FlightSummary {
     const { simulation } = this;
-    return summarizeFlight(
-      simulation.voyage,
-      cause,
-      simulation.content?.gates ?? [],
-      simulation.system,
-    );
+    return summarizeFlight(simulation.voyage, cause, simulation.content?.gates ?? []);
   }
 
   /** Steps 2-7 of `die` for a summary taken already. */
@@ -394,8 +390,8 @@ export class FlowService {
     flags.set(RUN_FLAGS.lastGate, summary.gate);
     flags.set(RUN_FLAGS.bestGate, Math.max(summary.gate, typeof best === 'number' ? best : -1));
     flags.set(RUN_FLAGS.lastDay, summary.day);
-    flags.set(RUN_FLAGS.lastGateName, summary.gateName);
-    flags.set(RUN_FLAGS.lastNextName, summary.nextName);
+    flags.set(RUN_FLAGS.lastGateBody, summary.gateBody);
+    flags.set(RUN_FLAGS.lastNextBody, summary.nextBody);
   }
 
   private showEnding(id: string): void {

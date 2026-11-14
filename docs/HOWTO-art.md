@@ -48,10 +48,10 @@ it is loaded but nothing draws it until a programmer wires it up.
 | 18   | `portraits/computer.png`                                                     | 48×48                            | The ship's computer: a screen or an indicator, not a face                                                                                                                                                                                                     | P0   | event cards at the deck stations        |
 | 19   | `images/locations/home.png`                                                  | 640×360                          | The hero's flat, prologue                                                                                                                                                                                                                                     | P0   | home                                    |
 | 20   | `images/locations/ship-deck.png`                                             | 640×360                          | Ship deck, act 2: navigation station, porthole, radio, airlock, hold with 7 empty 32×32 mounts (one per bay of the hold, [HOWTO-voyage.md](HOWTO-voyage.md#cargo))                                                                                            | P0   | ship deck                               |
-| 21   | `ui/panel.png`                                                               | 24×24                            | Frame of every panel and dialogue window, 9-slice, 8 px border (see "UI art")                                                                                                                                                                                 | P0   | every panel                             |
-| 22   | `ui/button-normal.png`, `ui/button-hover.png`, `ui/button-pressed.png`       | 160×36 each                      | Button at rest, under the mouse, held down; no text, 4 px border                                                                                                                                                                                              | P0   | menus, panels                           |
+| 21   | `ui/panel.png`                                                               | 24×24                            | Not shown now: panels are drawn in code (see "UI art")                                                                                                                                                                                                        | P0   | every panel                             |
+| 22   | `ui/button-normal.png`, `ui/button-hover.png`, `ui/button-pressed.png`       | 160×36 each                      | Not shown now: buttons are drawn in code (see "UI art")                                                                                                                                                                                                       | P0   | menus, panels                           |
 | 23   | `ui/cursor-interact.png`                                                     | 16×16                            | "Press E" marker over an object                                                                                                                                                                                                                               | P0   | not yet (the game draws a text "E")     |
-| 24   | `menu/background.png`                                                        | 640×360                          | Main menu background                                                                                                                                                                                                                                          | P1   | main menu                               |
+| 24   | `menu/background.png`                                                        | 640×360                          | Not shown now: the menu draws a starry sky (see "UI art")                                                                                                                                                                                                     | P1   | main menu                               |
 | 25   | `menu/logo.png`                                                              | 320×100                          | Game logo, transparent background (waits for the game's name)                                                                                                                                                                                                 | P1   | main menu                               |
 | —    | `menu/ship.png`                                                              | 344×150                          | The ship on the main menu, right of the buttons, transparent background (delivered)                                                                                                                                                                           | P1   | main menu                               |
 | 26   | `sprites/colony/{greenhouse,solar,reactor,battery,regolith,ice,thermal}.png` | up to 64×64 (placeholders 64×64) | Own colony buildings instead of the module                                                                                                                                                                                                                    | P1   | colony, one per item taken              |
@@ -101,17 +101,12 @@ can name its own portrait, so once the file is registered the writer picks it pe
 
 ## UI art
 
-- **Panel** `ui/panel.png`, **24×24**, drawn as a 9-slice with a **border of 8 px**: the four
-  8×8 corners are drawn as they are, the edges between them stretch along one axis and the 8×8
-  centre stretches in both. Every panel in the game (dialogue window, menus, settings, the
-  navigation panel) is this one picture stretched. The centre may be partly transparent so the
-  game shows through (the placeholder is fully opaque). A different border width needs a
-  one-line change in `src/ui/theme.ts` (`panelBorder`).
-- **Buttons** `ui/button-{normal,hover,pressed}.png`, **160×36**, three states of the same
-  button, **no text**. Buttons of other sizes (the small "-" / "+" in the settings panel are
-  24×20) stretch the same pictures as a 9-slice with a **4 px border** (`buttonBorder` in
-  `src/ui/theme.ts`), so keep the outer 4 px of the button art as its frame and the middle
-  plain.
+- **Panels and buttons** are drawn in code now (colours in `src/ui/theme.ts`: `panel`,
+  `button`), so `ui/panel.png` and `ui/button-{normal,hover,pressed}.png` are not shown. To bring
+  art back, `Panel` and `Button` have to draw the pictures as 9-slices again (panel: 24×24 with
+  an 8 px border; buttons: 160×36, no text, 4 px border).
+- **Main menu** `menu/background.png` is not shown either: the menu draws a gradient sky with
+  stars (`theme.menu`).
 
 ## Location backgrounds
 
@@ -128,7 +123,8 @@ can name its own portrait, so once the file is registered the writer picks it pe
   empty (the warehouse's 12 crate places, the deck's 7 mounts, the colony's building places).
 - **Keep the top strip clear in the warehouse and on the ship deck.** The HOLD strip (`HOLD
 n/7` and the cargo icons) is drawn over the top of the screen there: about the top 32 px, in
-  the middle (x 220-420). Put nothing the player needs to see there (a door, a sign, an NPC's
+  the middle (x 220-420 in English; a longer caption in another language widens it to at most
+  x 159-481). Put nothing the player needs to see there (a door, a sign, an NPC's
   place); wall or ceiling is fine.
 - **Any size that fits the design.** A location as big as the screen (640×360) does not scroll;
   a larger one scrolls with the hero. Prefer multiples of 16 px (the map grid); if not, the map

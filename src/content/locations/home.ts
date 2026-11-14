@@ -1,3 +1,4 @@
+import { TODO } from '@/core/locale/text';
 import type { LocationDef } from '@/content/locations/types';
 
 /**
@@ -5,7 +6,7 @@ import type { LocationDef } from '@/content/locations/types';
  * starts act 1 in the warehouse.
  */
 export const home: LocationDef = {
-  title: 'Home', // OWNER: script
+  title: { en: 'Home', uk: TODO }, // OWNER: script
   background: 'location-home',
   map: 'home',
   music: 'music-demo',

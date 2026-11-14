@@ -26,7 +26,7 @@ export interface WorldContext {
   flow: FlowService;
   /**
    * The voyage's data (same as `services.voyage`): the cargo registry and what is aboard -
-   * `ctx.voyage.count('oxygen')`, `ctx.voyage.item('fuel').label`.
+   * `ctx.voyage.count('oxygen')`, `tr(ctx.voyage.item('fuel').label)` (a `LocalText`).
    */
   voyage: VoyageService;
   /**

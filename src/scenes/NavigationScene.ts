@@ -1,9 +1,12 @@
 import Phaser from 'phaser';
 import { stationName } from '@/content/locations/ship-deck';
+import { bodyName } from '@/core/locale/names';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import { deltaVMS } from '@/core/simulation/rocket';
 import type { Telemetry } from '@/core/simulation/telemetry';
 import type { AutopilotState, SimulationSnapshot, Vec2 } from '@/core/simulation/types';
+import { formatText } from '@/core/text/format';
 import type { LegForecast } from '@/core/voyage/forecast';
 import type { Voyage } from '@/core/voyage/Voyage';
 import { SceneKey } from '@/scenes/keys';
@@ -46,7 +49,10 @@ export interface NavigationDebugInfo {
   autopilot: { phase: AutopilotState['phase']; thrusting: boolean } | null;
   /** Whether simulated time advances now (`simulation.isRunning`: no hold reason). */
   run: boolean;
-  /** The status word as shown (RUN, HOLD, DRIFTING, LANDED, LOST, OFFLINE). */
+  /**
+   * The status id (RUN, HOLD, DRIFTING, LANDED, LOST, OFFLINE) in every language; the word
+   * shown is its `STATUS_LABELS` entry.
+   */
   status: Status;
   /** Day of the voyage as shown (from 1; 0 when not started). */
   day: number;
@@ -99,9 +105,52 @@ const MAP_SIZE = 288;
 /** Gap between the map and the right column, px. */
 const COLUMN_GAP = 12;
 const CLOSE_BUTTON = { width: 104, height: 24 };
-/** The key legend over the buttons and its distance above the column's bottom, px. OWNER: script */
-const LEGEND = 'E/Esc: close';
+/** The key legend over the buttons; max 37: the column's width. OWNER: script */
+const LEGEND: LocalText = { en: 'E/Esc: close', uk: TODO, max: 37 };
+/** The legend's distance above the column's bottom, px. */
 const LEGEND_Y = 36;
+/** The Close button's label; max 11: the button's 104 px. OWNER: script */
+const CLOSE_LABEL: LocalText = { en: 'Close', uk: TODO, max: 11 };
+/** The ribbon's first node when the system has no home planet. OWNER: script */
+const HOME_FALLBACK: LocalText = { en: 'Earth', uk: TODO };
+/**
+ * The log's lines: `{body}` a body's name in capitals, `{cause}` a death cause (`causeText`);
+ * each goes after "Day N: " (`LOG_ENTRY`). They wrap. OWNER: script
+ */
+const LOG_LINES: Readonly<Record<'onCourse' | 'reached' | 'landed' | 'lost', LocalText>> = {
+  onCourse: { en: 'on course for {body}', uk: TODO },
+  reached: { en: 'reached {body}', uk: TODO },
+  landed: { en: 'landed on {body}', uk: TODO },
+  lost: { en: 'LOST: {cause}', uk: TODO },
+};
+/** A log entry: `{day}` the shown day, `{text}` the line. OWNER: script */
+const LOG_ENTRY: LocalText = { en: 'Day {day}: {text}', uk: TODO };
+/**
+ * The column's "next" line (body text, one line): `{gate}` the gate flown to in capitals,
+ * `{body}` the landing body in capitals, `{cause}` a death cause, `{day}` a shown day, `{days}`
+ * days to the gate. OWNER: script
+ */
+// budget: 37 chars each, the column's width ("Next: GANYMEDE in 51 d")
+const NEXT_LINES: Readonly<
+  Record<'offline' | 'next' | 'nextIn' | 'landed' | 'lost' | 'drifting' | 'atGate', LocalText>
+> = {
+  offline: { en: 'Simulation not running (act 2 only)', uk: TODO },
+  next: { en: 'Next: {gate}', uk: TODO },
+  nextIn: { en: 'Next: {gate} in {days} d', uk: TODO },
+  landed: { en: 'Landed on {body}', uk: TODO },
+  lost: { en: 'Lost: {cause}, day {day}', uk: TODO },
+  drifting: { en: 'Out of fuel before {gate}', uk: TODO },
+  atGate: { en: 'At {gate}', uk: TODO },
+};
+/** The day at the top right of the column: `{day}` the shown day. OWNER: script */
+// budget: 8 chars, beside the status word ("Day 123")
+const DAY_LABEL: LocalText = { en: 'Day {day}', uk: TODO };
+/**
+ * The detail line: `{leg}` of `{legs}`, `{engine}` what the engine does (`ENGINE_WORDS`).
+ * OWNER: script
+ */
+// budget: 37 chars, the column's width ("Leg 3/6 · docking")
+const DETAIL_LINE: LocalText = { en: 'Leg {leg}/{legs} · {engine}', uk: TODO };
 /** Most trail points kept: older ones are thinned out (every other one dropped). */
 const TRAIL_MAX = 600;
 /** Log entries kept (the column shows those that fit). */
@@ -197,8 +246,9 @@ export class NavigationScene extends PanelScene {
     const gates = simulation.content?.gates ?? [];
     if (system) {
       this.map = new SystemMap(this, mapArea, system, gates);
-      const home = system.bodies.find((body) => body.role === 'home')?.name ?? 'Earth';
-      const names = [home, ...gates.map((gate) => system.get(gate.body).name)];
+      const homeBody = system.bodies.find((body) => body.role === 'home');
+      const home = tr(homeBody ? homeBody.name : HOME_FALLBACK);
+      const names = [home, ...gates.map((gate) => tr(system.get(gate.body).name))];
       this.ribbon = new GateRibbon(
         this,
         new Phaser.Geom.Rectangle(area.x, area.y, area.width, RIBBON_HEIGHT),
@@ -207,13 +257,13 @@ export class NavigationScene extends PanelScene {
     }
     this.column = new StatusColumn(this, this.columnArea);
     const col = this.columnArea;
-    this.legend = createText(this, col.x, col.bottom - LEGEND_Y, LEGEND, 'small');
+    this.legend = createText(this, col.x, col.bottom - LEGEND_Y, tr(LEGEND), 'small');
     const buttonY = col.bottom - CLOSE_BUTTON.height / 2;
     this.closeButton = new Button(
       this,
       col.right - CLOSE_BUTTON.width / 2,
       buttonY,
-      'Close',
+      tr(CLOSE_LABEL),
       () => this.close(),
       CLOSE_BUTTON,
     );
@@ -232,15 +282,14 @@ export class NavigationScene extends PanelScene {
     const unsubscribe = [
       events.on('simulationTick', () => this.onTick()),
       events.on('gateReached', ({ body }) =>
-        this.addLog(`reached ${this.bodyName(body).toUpperCase()}`),
+        this.addLog(formatText(tr(LOG_LINES.reached), { body: this.bodyName(body).toUpperCase() })),
       ),
-      events.on('voyageEvent', ({ eventId }) =>
-        this.addLog(services.simulation.voyage?.openEvent?.title ?? eventId),
-      ),
+      events.on('voyageEvent', ({ eventId }) => this.addLog(this.eventTitle(eventId))),
       events.on('voyageEventResolved', ({ text }) => {
         if (!text) return;
-        this.addLog(text);
-        this.toast?.show(text);
+        const line = tr(text);
+        this.addLog(line);
+        this.toast?.show(line);
       }),
       events.on('shipAlarm', ({ cause, days }) => {
         const text = alarmText(cause, days);
@@ -251,8 +300,10 @@ export class NavigationScene extends PanelScene {
       events.on('voyageEnded', ({ outcome }) =>
         this.addLog(
           outcome.kind === 'landed'
-            ? `landed on ${this.bodyName(outcome.body).toUpperCase()}`
-            : `LOST: ${causeText(outcome.cause)}`,
+            ? formatText(tr(LOG_LINES.landed), {
+                body: this.bodyName(outcome.body).toUpperCase(),
+              })
+            : formatText(tr(LOG_LINES.lost), { cause: causeText(outcome.cause) }),
         ),
       ),
     ];
@@ -362,7 +413,11 @@ export class NavigationScene extends PanelScene {
       this.trail = [];
       this.log = [];
       const first = simulation.content?.gates[0]?.body;
-      if (voyage && first) this.addLog(`on course for ${this.bodyName(first).toUpperCase()}`);
+      if (voyage && first) {
+        this.addLog(
+          formatText(tr(LOG_LINES.onCourse), { body: this.bodyName(first).toUpperCase() }),
+        );
+      }
       this.column?.drawLog(this.log);
     }
   }
@@ -423,7 +478,7 @@ export class NavigationScene extends PanelScene {
   private openNotice(voyage: Voyage): AlarmNotice {
     const alarm = services.stationAlarm.alarm;
     return new AlarmNotice(this, this.columnArea, {
-      title: voyage.openEvent?.title ?? '',
+      title: voyage.openEvent ? tr(voyage.openEvent.title) : '',
       station: alarm ? stationName(alarm.station) : '?',
     });
   }
@@ -485,7 +540,7 @@ export class NavigationScene extends PanelScene {
     this.column?.draw(this.columnView());
   }
 
-  /** What the column shows now. OWNER: script - the "next", day and leg lines. */
+  /** What the column shows now. */
   private columnView(): ColumnView {
     const simulation = services.simulation;
     const voyage = simulation.voyage;
@@ -495,7 +550,7 @@ export class NavigationScene extends PanelScene {
       const view: ColumnView = {
         status: 'OFFLINE',
         day: '',
-        next: 'Simulation not running (act 2 only)',
+        next: tr(NEXT_LINES.offline),
         nextColor: theme.text.dim,
         detail: '',
         rows: null,
@@ -511,24 +566,29 @@ export class NavigationScene extends PanelScene {
     const target = voyage.legIndex;
     const gates = content.gates;
     const name = this.bodyName(gates[target]?.body ?? '').toUpperCase();
-    let next = `Next: ${name}`;
+    let next = formatText(tr(NEXT_LINES.next), { gate: name });
     let nextColor: string = theme.text.normal;
     const forecast = voyage.forecast;
     if (outcome?.kind === 'landed') {
-      next = `Landed on ${this.bodyName(outcome.body).toUpperCase()}`;
+      next = formatText(tr(NEXT_LINES.landed), {
+        body: this.bodyName(outcome.body).toUpperCase(),
+      });
       nextColor = theme.text.good;
     } else if (outcome?.kind === 'died') {
-      next = `Lost: ${causeText(outcome.cause)}, day ${shownDay(outcome.day)}`;
+      next = formatText(tr(NEXT_LINES.lost), {
+        cause: causeText(outcome.cause),
+        day: shownDay(outcome.day),
+      });
       nextColor = theme.text.alarm;
     } else if (phase === 'drifting') {
-      next = `Out of fuel before ${name}`;
+      next = formatText(tr(NEXT_LINES.drifting), { gate: name });
       nextColor = theme.text.alarm;
     } else if (phase === 'atGate') {
-      next = `At ${name}`;
+      next = formatText(tr(NEXT_LINES.atGate), { gate: name });
       nextColor = theme.text.highlight;
     } else if (forecast && forecast.leg === target && forecast.arrives) {
       const days = Math.max(0, Math.ceil(forecast.startDay + forecast.legDays - voyage.day));
-      next = `Next: ${name} in ${days} d`;
+      next = formatText(tr(NEXT_LINES.nextIn), { gate: name, days });
     }
     const alarms = simulation
       .forecastLife()
@@ -550,10 +610,14 @@ export class NavigationScene extends PanelScene {
     });
     const view: ColumnView = {
       status,
-      day: `Day ${shownDay(voyage.day)}`,
+      day: formatText(tr(DAY_LABEL), { day: shownDay(voyage.day) }),
       next,
       nextColor,
-      detail: `Leg ${target + 1}/${gates.length} · ${engineWord(snapshot.autopilot)}`,
+      detail: formatText(tr(DETAIL_LINE), {
+        leg: target + 1,
+        legs: gates.length,
+        engine: tr(ENGINE_WORDS[engineState(snapshot.autopilot)]),
+      }),
       rows,
       telemetry: telemetry ? telemetryLines(telemetry) : [],
     };
@@ -582,18 +646,25 @@ export class NavigationScene extends PanelScene {
     return { leg: voyage.legIndex, fraction: voyage.legFraction };
   }
 
-  /** Adds "Day N: text" to the log. OWNER: script - the log lines are written at its callers. */
+  /** Adds "Day N: text" to the log (`LOG_ENTRY`). */
   private addLog(text: string): void {
     const voyage = services.simulation.voyage;
     const day = voyage ? shownDay(voyage.day) : 0;
-    this.log.push(`Day ${day}: ${text}`);
+    this.log.push(formatText(tr(LOG_ENTRY), { day, text }));
     if (this.log.length > LOG_MAX) this.log.shift();
     this.column?.drawLog(this.log);
   }
 
   private bodyName(id: string): string {
     if (!id) return '';
-    return services.simulation.system?.get(id).name ?? id;
+    const name = bodyName(id);
+    return name ? tr(name) : id;
+  }
+
+  /** The open event's title in the current language, else its id. */
+  private eventTitle(eventId: string): string {
+    const open = services.simulation.voyage?.openEvent;
+    return open ? tr(open.title) : eventId;
   }
 }
 
@@ -602,8 +673,20 @@ function fuelDv(ispS: number, snapshot: SimulationSnapshot): number {
   return deltaVMS(ispS, snapshot.ship.massKg, snapshot.resources.fuel.value);
 }
 
-/** What the engine does, for the detail line. OWNER: script */
-function engineWord(pilot: AutopilotState): string {
+/** What the engine does, an id (`ENGINE_WORDS` are the words). */
+type EngineState = 'burn' | 'coast' | 'docking' | 'parked' | 'drift';
+
+/** What the engine does, for the detail line (`{engine}` of `DETAIL_LINE`). OWNER: script */
+const ENGINE_WORDS: Readonly<Record<EngineState, LocalText>> = {
+  burn: { en: 'burn', uk: TODO },
+  coast: { en: 'coast', uk: TODO },
+  docking: { en: 'docking', uk: TODO },
+  parked: { en: 'parked', uk: TODO },
+  drift: { en: 'drift', uk: TODO },
+};
+
+/** What the engine does now. */
+function engineState(pilot: AutopilotState): EngineState {
   switch (pilot.phase) {
     case 'flying':
       return pilot.thrusting ? 'burn' : 'coast';

@@ -3,7 +3,9 @@
 A dialogue is a TypeScript object: lines (nodes) by id, which line follows which, choices for the
 player, and conditions and effects over the game state. The compiler checks node ids, speakers
 and portraits (not flag names), and the editor autocompletes them. There is no separate dialogue
-language and no localisation: lines are written in English right in the file.
+language and no string tables: every line is a pair `{ en: '...', uk: TODO }` written right in
+the file; a translator later replaces `TODO` with the Ukrainian text (see
+[HOWTO-localization.md](HOWTO-localization.md)).
 
 ## Where things are
 
@@ -23,6 +25,7 @@ Copy this into `src/content/dialogues/<id>.ts` (here `astronomer-intro`):
 
 ```ts
 import { defineDialogue } from '@/core/dialogue/types';
+import { TODO } from '@/core/locale/text';
 
 /** The astronomer meets the hero in the warehouse. */
 export const astronomerIntro = defineDialogue({
@@ -30,31 +33,31 @@ export const astronomerIntro = defineDialogue({
   nodes: {
     hello: {
       speaker: 'astronomer',
-      text: 'So you are the new pilot.',
+      text: { en: 'So you are the new pilot.', uk: TODO },
       next: 'reply',
     },
     reply: {
       speaker: 'hero',
-      text: 'Ready when you are, doctor.',
+      text: { en: 'Ready when you are, doctor.', uk: TODO },
       next: 'orders',
     },
     orders: {
       speaker: 'astronomer',
-      text: 'Good. Any questions?',
+      text: { en: 'Good. Any questions?', uk: TODO },
       choices: [
-        { text: 'Where are we going?', next: 'destination' },
-        { text: 'No, sir.', next: 'dismissed' },
+        { text: { en: 'Where are we going?', uk: TODO }, next: 'destination' },
+        { text: { en: 'No, sir.', uk: TODO }, next: 'dismissed' },
       ],
     },
     destination: {
       speaker: 'astronomer',
-      text: 'Mars. The rest you will learn on board.',
+      text: { en: 'Mars. The rest you will learn on board.', uk: TODO },
       effect: (s) => s.flags.set('astronomer.toldDestination', true),
       next: 'dismissed',
     },
     dismissed: {
       speaker: 'narrator',
-      text: 'The astronomer turns back to the window.',
+      text: { en: 'The astronomer turns back to the window.', uk: TODO },
       // No `next`: the dialogue ends here.
     },
   },
@@ -77,19 +80,21 @@ a compile error instead of a dialogue that stops in the middle of the game.
 
 ## Nodes
 
-| Field      | Meaning                                                                                                                                  |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `speaker`  | A key of `characters` (`'hero'`, `'engineer'`, ...) or `'narrator'` (default).                                                           |
-| `portrait` | An image key; default: the speaker's `portrait`. Use it for another expression.                                                          |
-| `text`     | The line. It wraps by itself; about 260 characters fit the window. May be a function of the state, read when the node shows (see below). |
-| `next`     | Id of the next node, or a function `(s) => id`. No `next` and no choices: the end.                                                       |
-| `choices`  | Options shown after the line (keep it to four or fewer): `{ text, next?, when?, effect? }`.                                              |
-| `when`     | `(s) => boolean`: the node is shown only if true; otherwise it is skipped along `next`.                                                  |
-| `effect`   | `(s) => void`: runs once when the node is shown (not when it is skipped).                                                                |
+| Field      | Meaning                                                                                                                                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `speaker`  | A key of `characters` (`'hero'`, `'engineer'`, ...) or `'narrator'` (default).                                                                                                                               |
+| `portrait` | An image key; default: the speaker's `portrait`. Use it for another expression.                                                                                                                              |
+| `text`     | The line, a pair `{ en, uk }`. It wraps by itself; about 260 characters fit one page of the window, a longer line is split into pages. May be a function of the state, read when the node shows (see below). |
+| `next`     | Id of the next node, or a function `(s) => id`. No `next` and no choices: the end.                                                                                                                           |
+| `choices`  | Options shown after the line (keep it to four or fewer): `{ text, next?, when?, effect? }`.                                                                                                                  |
+| `when`     | `(s) => boolean`: the node is shown only if true; otherwise it is skipped along `next`.                                                                                                                      |
+| `effect`   | `(s) => void`: runs once when the node is shown (not when it is skipped).                                                                                                                                    |
 
 How the window behaves: the line types out at 40 characters per second; Enter, Space or a
-click first shows the whole line, then goes on. At a node with `choices`, the list opens above
-the window once the line is typed out; arrows (or W/S) move, Enter/Space or a click picks.
+click first shows the whole page, then goes on. A line taller than the window (4 lines of text
+under a name, 6 for the narrator) is split into pages: each types out in turn, a blinking `>`
+says there is more, and Enter turns the page. At a node with `choices`, the list opens above
+the window once the last page is typed out; arrows (or W/S) move, Enter/Space or a click picks.
 The narrator has no name and no portrait. While a dialogue runs the hero cannot move.
 
 A choice goes to its own `next`; without one, to the node's `next`; without that, the dialogue
@@ -122,7 +127,7 @@ start: 'greeting',
 nodes: {
   greeting: {
     speaker: 'engineer',
-    text: 'Oh, a new face!',
+    text: { en: 'Oh, a new face!', uk: TODO },
     when: (s) => s.flags.get('engineer.met') !== true,
     effect: (s) => s.flags.set('engineer.met', true),
     next: 'question', // first visit: after the greeting; later visits: straight here
@@ -167,7 +172,7 @@ From an interactable or a trigger script, open any dialogue yourself:
 
 **From a cutscene:** `await api.dialogue('astronomer-intro')` waits for the dialogue to end (a thin
 wrapper over `ui.openDialogue`); for a single line without a dialogue file use
-`await api.say('astronomer', 'Welcome aboard.')`. See [HOWTO-cutscene.md](HOWTO-cutscene.md).
+`await api.say('astronomer', { en: 'Welcome aboard.', uk: TODO })`. See [HOWTO-cutscene.md](HOWTO-cutscene.md).
 
 **A dialogue built by code** (its nodes depend on the game): build it with `defineDialogue` in
 the location's script and run it with `ctx.ui.openDialogueDef(dialogue, ctx, id?)`: the same
@@ -184,10 +189,12 @@ and `debugInfo()` (default `code`). The warehouse has two, in `src/content/locat
 Writers change the strings in those functions; the logic around them stays.
 
 **Numbers in a line.** A node's `text`, a choice's `text`, `say`'s text and an act's `title`
-may be a function of the state (`StateText`); fill the gaps with `formatText` from
-`src/core/text/format.ts`:
-`text: (s) => formatText('Oxygen for {o2Days} days.', { o2Days: daysOf(s) })`. The function runs
-when the line is shown, after its node's `effect`. A `{name}` without a value stays on screen
+may be a function of the state (`StateText`) that returns the finished string; translate the
+template with `tr` inside it and fill the gaps with `formatText` from `src/core/text/format.ts`:
+`text: (s) => formatText(tr({ en: 'Oxygen: {o2Days} d.', uk: TODO }), { o2Days: daysOf(s) })`.
+The function runs when the line is shown, after its node's `effect`. Placeholder values are
+nominatives and numbers; a translator builds the sentence around them (see
+[HOWTO-localization.md](HOWTO-localization.md)). A `{name}` without a value stays on screen
 and warns in the console. Where the game fills gaps for you:
 
 | Text                                               | Gaps                                                                       |
@@ -197,13 +204,13 @@ and warns in the console. Where the game fills gaps for you:
 | Hatch check (`warehouse.ts`)                       | `{gaps}`, `{free}`                                                         |
 | Landing title (`src/content/story/act3.ts`)        | `{body}`, `{day}`                                                          |
 
-**Placeholders.** A line still to be written is `[TODO: what this line should say]`, with an
-`OWNER: script` comment nearby; `grep -rn "\[TODO" src` lists them. Replace the whole bracket
-with the line.
+**Placeholders.** A line still to be written is `{ en: '[TODO: what this line should say]', uk:
+TODO }`, with an `OWNER: script` comment nearby; `grep -rn "\[TODO" src` lists them. Replace the
+whole bracket with the line (the `uk: TODO` stays for the translator).
 
 ## A new speaker
 
-Add the character to `src/content/characters.ts` with a `name` and a `portrait`. The portrait is
+Add the character to `src/content/characters.ts` with a `name` (a pair) and a `portrait`. The portrait is
 a 48×48 PNG in `public/assets/portraits/`, registered in `src/assets/images.ts`
 (`'portrait-<name>'`). No art yet: add the name to `portraits()` in `tools/placeholders.py` and run
 `python3 tools/placeholders.py` (it rewrites every placeholder - check `git status` afterwards).
@@ -228,8 +235,8 @@ a 48×48 PNG in `public/assets/portraits/`, registered in `src/assets/images.ts`
 
 ## What not to do
 
-- **No runtime imports between content modules.** A dialogue file imports `defineDialogue`
-  and types only. Refer to other content by id (`'astronomer'`, `'engineer-advice'`); when you need a
+- **No runtime imports between content modules.** A dialogue file imports `defineDialogue`,
+  `TODO`/`tr` from `@/core/locale/text` and types only. Refer to other content by id (`'astronomer'`, `'engineer-advice'`); when you need a
   type from another content module, use `import type`. Runtime imports between content files
   create import cycles that break at start-up.
 - **No Phaser in `src/core`.** The dialogue model and runner are plain TypeScript so they stay
@@ -240,3 +247,6 @@ a 48×48 PNG in `public/assets/portraits/`, registered in `src/assets/images.ts`
   branch with nodes and `when`, and change flags only in `effect`.
 - **Do not open a dialogue with `new DialogueBox`** - always `ui.openDialogue(id, ctx)`, which
   locks the hero and emits `dialogueStarted` / `dialogueEnded`.
+- **No plain strings for visible text, and no `tr` at the top of the file.** A bare `'Hi'` where
+  a pair belongs does not compile; `tr(...)` outside a function runs before the language is set
+  and freezes English.

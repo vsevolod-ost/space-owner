@@ -1,3 +1,4 @@
+import { TODO } from '@/core/locale/text';
 import type { VoyageEventDef } from '@/core/voyage/voyageEvents';
 
 /**
@@ -14,8 +15,11 @@ export const solarFlare: VoyageEventDef = {
   chance: () => 0.6,
   speaker: 'computer',
   // OWNER: script
-  title: 'Solar flare',
-  text: 'A flare just lit up the Sun side of the sky. A radiation storm is rolling in. The shelter is that way; the work is this way. Your call, pilot.',
+  title: { en: 'Solar flare', uk: TODO },
+  text: {
+    en: 'A flare just lit up the Sun side of the sky. A radiation storm is rolling in. The shelter is that way; the work is this way. Your call, pilot.',
+    uk: TODO,
+  },
   // OWNER: design - the deck station the alarm is answered at, and the choice applied when its
   // timer runs out: working on through the storm, the dearer one (no risk: plan act2-stations
   // D3, D11).
@@ -25,8 +29,11 @@ export const solarFlare: VoyageEventDef = {
     {
       id: 'shelter',
       // OWNER: script
-      text: 'Sit it out in the storm shelter.',
-      result: 'The storm passes. Cold meals in the shelter. Nobody glowed. Probably.',
+      text: { en: 'Sit it out in the storm shelter.', uk: TODO },
+      result: {
+        en: 'The storm passes. Cold meals in the shelter. Nobody glowed. Probably.',
+        uk: TODO,
+      },
       // OWNER: physics - days of food (small: under the 16 days of oxygen of "Seal the
       // module", plan act2-stations D11).
       effect: { stocks: { food: -6 } },
@@ -34,8 +41,11 @@ export const solarFlare: VoyageEventDef = {
     {
       id: 'work-on',
       // OWNER: script
-      text: 'Keep working through it.',
-      result: 'The radiation spoiled part of the food stores. The crew did not glow. Much.',
+      text: { en: 'Keep working through it.', uk: TODO },
+      result: {
+        en: 'The radiation spoiled part of the food stores. The crew did not glow. Much.',
+        uk: TODO,
+      },
       // OWNER: physics - days of food.
       effect: { stocks: { food: -14 } },
     },

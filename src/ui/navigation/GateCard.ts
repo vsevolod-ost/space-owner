@@ -1,5 +1,7 @@
 import type Phaser from 'phaser';
 import type { Controls } from '@/core/input/controls';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { formatText } from '@/core/text/format';
 import type { LegForecast } from '@/core/voyage/forecast';
 import type { ColonyTier } from '@/core/voyage/colony';
 import { Card } from '@/ui/navigation/Card';
@@ -45,6 +47,34 @@ const HAZARD_Y = 172;
 const CHOICES_Y = 208;
 
 /**
+ * The card's lines: `{gate}` of `{total}`, `{day}` the shown day, `{next}` the next gate's
+ * name in capitals. The hazard and only-stop lines wrap; the others are one line of the card
+ * (37 characters). OWNER: script
+ */
+const TEXTS = {
+  // budget: 10 chars, top right beside the gate's name in title glyphs ("Gate 3/6")
+  gate: { en: 'Gate {gate}/{total}', uk: TODO },
+  // budget: 37 chars, the card's width ("Day 42. Next leg: GANYMEDE"), and for lastGate
+  subtitle: { en: 'Day {day}. Next leg: {next}', uk: TODO },
+  lastGate: { en: 'Day {day}. The last gate.', uk: TODO },
+  hazard: { en: 'Events on the way are not in the forecast.', uk: TODO },
+  onlyStop: { en: 'Only Stop here: no gate lies beyond.', uk: TODO },
+  computing: { en: 'Computing the forecast...', uk: TODO, max: 37 },
+  // budget: 37 chars, a choice row ("Go on to GANYMEDE"); it would wrap
+  goOn: { en: 'Go on to {next}', uk: TODO },
+} as const satisfies Record<string, LocalText>;
+
+/**
+ * "Stop here" with the colony it builds: a whole phrase per tier (no article from code).
+ * OWNER: script
+ */
+const STOP_TEXTS: Readonly<Record<ColonyTier, LocalText>> = {
+  outpost: { en: 'Stop here: build an outpost', uk: TODO },
+  settlement: { en: 'Stop here: build a settlement', uk: TODO },
+  colony: { en: 'Stop here: build a colony', uk: TODO },
+};
+
+/**
  * The gate card (plan S8, D6, D15; GDD `gate-panel-view` A, `ux-decision-support` B): the
  * gate, then the forecast of the next leg (fuel and stocks now and on arrival, the leg's days,
  * the delta-v it needs against what the fuel gives, an explicit red warning when the fuel does
@@ -52,8 +82,7 @@ const CHOICES_Y = 208;
  * "events are not in the forecast"), and "Go on to <next>" / "Stop here: <tier>". While the
  * forecast computes nothing can be chosen and the cursor waits on Go on; then Go on is always
  * allowed (D6) and the cursor starts on it. Only Stop at the last gate.
- * OWNER: script - the card's texts here (gate, day, "Go on to", "Stop here: build", the
- * hazard and computing lines); the forecast's texts are in `navigationView.ts`.
+ * The card's texts are `TEXTS` and `STOP_TEXTS`; the forecast's are in `navigationView.ts`.
  */
 export class GateCard extends Card {
   protected readonly kind = 'gate' as const;
@@ -77,26 +106,21 @@ export class GateCard extends Card {
     super(scene, area, controls, CHOICES_Y);
     const { x, y } = area;
     this.title = this.text(x, y, data.body.toUpperCase(), 'title').setColor(theme.text.highlight);
-    this.text(area.right, y + 4, `Gate ${data.gate + 1}/${data.total}`, 'small').setOrigin(1, 0);
+    const gate = formatText(tr(TEXTS.gate), { gate: data.gate + 1, total: data.total });
+    this.text(area.right, y + 4, gate, 'small').setOrigin(1, 0);
     this.subtitle = this.text(
       x,
       y + SUBTITLE_Y,
       data.next
-        ? `Day ${data.day}. Next leg: ${data.next.toUpperCase()}`
-        : `Day ${data.day}. The last gate.`,
+        ? formatText(tr(TEXTS.subtitle), { day: data.day, next: data.next.toUpperCase() })
+        : formatText(tr(TEXTS.lastGate), { day: data.day }),
     );
     this.heading = this.text(x, y + HEADING_Y, '', 'small');
     for (let i = 0; i < 5; i++) this.rows.push(this.text(x, y + ROWS_Y + i * ROW_STEP, ''));
     this.leg = this.text(x, y + LEG_Y, '', 'small');
     this.dv = this.text(x, y + DV_Y, '', 'small');
     this.warning = this.text(x, y + WARNING_Y, '', 'body', true);
-    this.hazard = this.text(
-      x,
-      y + HAZARD_Y,
-      data.next ? 'Events on the way are not in the forecast.' : '',
-      'small',
-      true,
-    );
+    this.hazard = this.text(x, y + HAZARD_Y, data.next ? tr(TEXTS.hazard) : '', 'small', true);
     this.setForecast(null);
   }
 
@@ -109,12 +133,12 @@ export class GateCard extends Card {
       this.rows.forEach((row) => row.setText(''));
       this.leg.setText('');
       this.dv.setText('');
-      this.warning.setText('Only Stop here: no gate lies beyond.').setColor(theme.text.normal);
+      this.warning.setText(tr(TEXTS.onlyStop)).setColor(theme.text.normal);
       this.setChoices([this.stopText()], 0, [false]);
       return;
     }
     if (!forecast) {
-      this.heading.setText('Computing the forecast...');
+      this.heading.setText(tr(TEXTS.computing));
       this.rows.forEach((row) => row.setText(''));
       this.leg.setText('');
       this.dv.setText('');
@@ -130,7 +154,7 @@ export class GateCard extends Card {
       const warning = forecastWarning(forecast, data.next.toUpperCase());
       this.warning.setText(warning?.text ?? '').setColor(levelColor(warning?.level ?? 'normal'));
     }
-    const goOn = `Go on to ${data.next.toUpperCase()}`;
+    const goOn = formatText(tr(TEXTS.goOn), { next: data.next.toUpperCase() });
     // Computing: both rows disabled, so the cursor stays on Go on and Stop cannot be chosen.
     const computing = forecast === null;
     this.setChoices([goOn, this.stopText()], 0, [computing, computing]);
@@ -162,7 +186,6 @@ export class GateCard extends Card {
   }
 
   private stopText(): string {
-    const tier = this.data.tier;
-    return `Stop here: build ${/^[aeiou]/.test(tier) ? 'an' : 'a'} ${tier}`;
+    return tr(STOP_TEXTS[this.data.tier]);
   }
 }

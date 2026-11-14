@@ -5,7 +5,9 @@ import type {
   PropSpec,
 } from '@/content/locations/types';
 import { bayAccessName, stationObject } from '@/core/alarm/station';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
 import type { GameState } from '@/core/state/GameState';
+import { formatText } from '@/core/text/format';
 import type { VoyageService } from '@/core/voyage/VoyageService';
 import type { EventStationScene } from '@/scenes/EventStationScene';
 import { SceneKey } from '@/scenes/keys';
@@ -17,19 +19,31 @@ import type { WorldContext } from '@/world/WorldContext';
  * (the navigation panel's flash, the station card, the "wrong station" toast). The hold's
  * access points `bay-access-N` read "Bay N" (`stationName`). OWNER: script
  */
-export const deckStationNames: Readonly<Record<string, string>> = {
-  airlock: 'Airlock',
-  porthole: 'Porthole',
-  radio: 'Radio',
-  'station-navigation': 'Navigation',
+export const deckStationNames: Readonly<Record<string, LocalText>> = {
+  airlock: { en: 'Airlock', uk: TODO },
+  porthole: { en: 'Porthole', uk: TODO },
+  radio: { en: 'Radio', uk: TODO },
+  'station-navigation': { en: 'Navigation', uk: TODO },
 };
 
-/** Name of deck station `object` for the player (`deckStationNames`; "Bay N"). OWNER: script */
+/** Name of a hold access point; `{n}` is the bay's number. OWNER: script */
+const BAY_NAME: LocalText = { en: 'Bay {n}', uk: TODO };
+
+/**
+ * Name of deck station `object` for the player, in the current language (`deckStationNames`;
+ * "Bay N"; an unknown object: its own name). Call it when the name is shown.
+ */
 export function stationName(object: string): string {
   const bay = /^bay-access-(\d+)$/.exec(object);
-  if (bay) return `Bay ${bay[1]}`;
-  return deckStationNames[object] ?? object;
+  if (bay) return formatText(tr(BAY_NAME), { n: bay[1] });
+  return Object.hasOwn(deckStationNames, object) ? tr(deckStationNames[object]) : object;
 }
+
+/**
+ * The toast at a deck station while the alarm is answered at another one: `{event}` is the
+ * event's title, `{station}` the station's name (`stationName`) in lower case. OWNER: script
+ */
+const WRONG_STATION: LocalText = { en: '{event}: not here - go to the {station}!', uk: TODO };
 
 /**
  * What a deck station does on E (plan act2-stations D1, D13): when the alarm is answered here,
@@ -44,9 +58,14 @@ function alarmStation(name: string, idle: (ctx: WorldContext) => void): Interact
     } else if (alarm.station === name) {
       void (ctx.scene.scene.get(SceneKey.EventStation) as EventStationScene).open();
     } else {
-      const title = ctx.voyage.events[alarm.eventId]?.title ?? alarm.eventId;
-      // OWNER: script
-      ctx.ui.toast(`${title}: not here - go to the ${stationName(alarm.station).toLowerCase()}!`);
+      const def = ctx.voyage.events[alarm.eventId];
+      const title = def ? tr(def.title) : alarm.eventId;
+      ctx.ui.toast(
+        formatText(tr(WRONG_STATION), {
+          event: title,
+          station: stationName(alarm.station).toLowerCase(),
+        }),
+      );
     }
   };
 }
@@ -104,7 +123,7 @@ function bayAccess(voyage: VoyageService): Record<string, Binding> {
           when: (state) => openBayStation(voyage, state) === name,
           // Never without an alarm: the point is there only while its event is open.
           run: alarmStation(name, (ctx) =>
-            ctx.ui.toast('Nothing open here. Just crates and ambition.'),
+            ctx.ui.toast(tr({ en: 'Nothing open here. Just crates and ambition.', uk: TODO })),
           ),
         },
       ];
@@ -126,7 +145,7 @@ function bayAccess(voyage: VoyageService): Record<string, Binding> {
  * `music-flight-drums` comes in over it, in time (`src/scenes/stationSound.ts`).
  */
 export const shipDeck: LocationDef = {
-  title: 'Ship deck', // OWNER: script
+  title: { en: 'Ship deck', uk: TODO }, // OWNER: script
   background: 'location-ship-deck',
   map: 'ship-deck',
   music: 'music-flight', // OWNER: art
@@ -141,15 +160,15 @@ export const shipDeck: LocationDef = {
     },
     porthole: {
       kind: 'interactable',
-      run: alarmStation('porthole', (ctx) => ctx.ui.toast('Porthole view.')),
+      run: alarmStation('porthole', (ctx) => ctx.ui.toast(tr({ en: 'Porthole view.', uk: TODO }))),
     },
     radio: {
       kind: 'interactable',
-      run: alarmStation('radio', (ctx) => ctx.ui.toast('Radio.')),
+      run: alarmStation('radio', (ctx) => ctx.ui.toast(tr({ en: 'Radio.', uk: TODO }))),
     },
     airlock: {
       kind: 'interactable',
-      run: alarmStation('airlock', (ctx) => ctx.ui.toast('Airlock.')),
+      run: alarmStation('airlock', (ctx) => ctx.ui.toast(tr({ en: 'Airlock.', uk: TODO }))),
     },
   }),
 };

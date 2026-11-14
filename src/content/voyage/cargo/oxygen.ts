@@ -1,10 +1,11 @@
+import { TODO } from '@/core/locale/text';
 import type { CargoDef } from '@/core/voyage/types';
 
 /** Oxygen tanks: days of oxygen, no power needed. */
 export const oxygen: CargoDef = {
   // OWNER: script
-  label: 'Oxygen',
-  line: 'Oxygen tanks, no power needed.',
+  label: { en: 'Oxygen', uk: TODO, max: 14 },
+  line: { en: 'Oxygen tanks, no power needed.', uk: TODO, max: 60 },
   // OWNER: physics - pressure tanks, regulators and the crate; the oxygen itself is light
   // (`stock-mass.ts`).
   dryMassKg: 500,

@@ -1,4 +1,5 @@
 import type { Cutscene } from '@/core/cutscene/types';
+import { TODO } from '@/core/locale/text';
 
 /**
  * The hero's first steps into the warehouse (trigger `arrival`, once): the engineer walks up
@@ -17,14 +18,14 @@ export const warehouseArrival: Cutscene = {
 
     await api.walk('npc-engineer', 'player');
     api.face('player', 'npc-engineer');
-    await api.say(
-      'engineer',
-      'Ah, the new pilot. Welcome aboard - and sorry about the lighting, the warehouse is allergic to cheerfulness.',
-    );
-    await api.say(
-      'engineer',
-      "Seven bays, ten kinds of cargo. Load what you can carry; the hatch to the ship is over there - check it when you think you're ready. Or when I say so.",
-    );
+    await api.say('engineer', {
+      en: 'Ah, the new pilot. Welcome aboard - and sorry about the lighting, the warehouse is allergic to cheerfulness.',
+      uk: TODO,
+    });
+    await api.say('engineer', {
+      en: "Seven bays, ten kinds of cargo. Load what you can carry; the hatch to the ship is over there - check it when you think you're ready. Or when I say so.",
+      uk: TODO,
+    });
 
     // Both look at the hatch, then he goes back.
     api.face('npc-engineer', 'spawn-hatch');

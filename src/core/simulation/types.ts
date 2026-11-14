@@ -1,3 +1,4 @@
+import type { LocalText } from '@/core/locale/text';
 import type { LegConditions, LifeState } from '@/core/voyage/types';
 
 /**
@@ -30,8 +31,8 @@ export type BodyRole = 'home' | 'gate' | 'parent' | 'scenery';
 export interface Body {
   /** Unique id; other bodies name it in `parent`. */
   id: string;
-  /** Name shown in the navigation panel. */
-  name: string;
+  /** Name shown in the navigation panel, the cards and the landing title (OWNER: script). */
+  name: LocalText;
   massKg: number;
   /** Radius of the circular orbit around `parent`, m (0 for the Sun). */
   orbitRadiusM: number;

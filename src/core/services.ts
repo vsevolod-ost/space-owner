@@ -4,6 +4,7 @@ import { CutsceneService } from '@/core/cutscene/CutsceneService';
 import { EventBus } from '@/core/events/EventBus';
 import type { GameEvents } from '@/core/events/events';
 import { FlowService } from '@/core/flow/FlowService';
+import { LocaleService } from '@/core/locale/LocaleService';
 import { SettingsService } from '@/core/settings/SettingsService';
 import { SimulationService } from '@/core/simulation/SimulationService';
 import { GameState } from '@/core/state/GameState';
@@ -20,6 +21,14 @@ export function createServices() {
   const state = new GameState(events);
   const save = new SaveService(storage);
   const settings = new SettingsService(storage);
+  // Before anything shows text: the language comes from the settings or the browser (plan
+  // uk-localization D4); main.ts applies `?lang=` on top.
+  const locale = new LocaleService(
+    settings,
+    events,
+    navigator.languages ?? [navigator.language],
+    document.documentElement,
+  );
   const voyage = new VoyageService(state);
   const simulation = new SimulationService(events, state, voyage);
   const cutscenes = new CutsceneService(events);
@@ -43,6 +52,11 @@ export function createServices() {
      * `audio.setMusicVolume` / `setSfxVolume`, which also apply them.
      */
     settings,
+    /**
+     * The game's language (src/core/locale): `locale.language`, `locale.setLanguage(lang)`;
+     * emits `languageChanged`. Visible text is a `LocalText` pair shown through `tr`.
+     */
+    locale,
     /** Music and sound effects; needs `audio.attach(game.sound)` in main.ts. */
     audio: new AudioService(settings),
     /**

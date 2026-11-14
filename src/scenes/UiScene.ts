@@ -5,6 +5,7 @@ import type { DialogueId } from '@/content/dialogues';
 import { DialogueRunner } from '@/core/dialogue/DialogueRunner';
 import { defineDialogue } from '@/core/dialogue/types';
 import type { Dialogue, Speaker } from '@/core/dialogue/types';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import type { StateText } from '@/core/text/format';
 import type { Controls } from '@/core/input/controls';
@@ -27,6 +28,11 @@ const HINT_GAP = 4;
 /** Width of the debug choice list, px. */
 const DEBUG_CHOICES_WIDTH = 160;
 
+/**
+ * The hint over a focused object: the interact key's name (keep it the key on the keyboard).
+ * OWNER: script
+ */
+const INTERACT_HINT: LocalText = { en: 'E', uk: TODO, max: 3 };
 /** Lock reason `openDialogue` puts on the world's controls. */
 const DIALOGUE_LOCK = 'dialogue';
 /** Dialogue id reported (events, debugInfo) for a single line shown by `say`. */
@@ -100,7 +106,7 @@ export class UiScene extends Phaser.Scene {
 
   create(): void {
     this.keyboard = new KeyboardControls(this);
-    this.hint = new Label(this, 0, 0, 'E', { originX: 0.5, originY: 1 })
+    this.hint = new Label(this, 0, 0, tr(INTERACT_HINT), { originX: 0.5, originY: 1 })
       .setDepth(UiDepth.hint)
       .setVisible(false);
     this.toastView = new Toast(
@@ -116,8 +122,12 @@ export class UiScene extends Phaser.Scene {
       this.hintTarget = name;
       if (!name) this.hint?.setVisible(false);
     });
+    const offLanguage = services.events.on('languageChanged', () => {
+      this.hint?.setText(tr(INTERACT_HINT));
+    });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       off();
+      offLanguage();
       this.hint = undefined;
       this.toastView = undefined;
       this.faderView = undefined;
@@ -174,6 +184,12 @@ export class UiScene extends Phaser.Scene {
     this.toastView.show(text);
   }
 
+  /** Hides the toast on screen (and one waiting for `create`), if any. */
+  clearToast(): void {
+    this.pendingToast = null;
+    this.toastView?.hide();
+  }
+
   /**
    * Runs dialogue `id` in the window at the bottom of the screen and resolves when it ends.
    * While it runs, `host.controls` is locked (reason `dialogue`: the hero cannot walk, and E
@@ -197,7 +213,11 @@ export class UiScene extends Phaser.Scene {
    * what events and `debugInfo` report; default `CODE_DIALOGUE_ID`.
    *
    * ```ts
-   * run: (ctx) => ctx.ui.openDialogueDef(defineDialogue({ start: 'a', nodes: { a: { text: 'Hi' } } }), ctx),
+   * run: (ctx) =>
+   *   ctx.ui.openDialogueDef(
+   *     defineDialogue({ start: 'a', nodes: { a: { text: { en: 'Hi', uk: TODO } } } }),
+   *     ctx,
+   *   ),
    * ```
    */
   openDialogueDef(dialogue: Dialogue, host: DialogueHost, id = CODE_DIALOGUE_ID): Promise<void> {

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
 import type { SolarSystem } from '@/core/simulation/SolarSystem';
 import type { Body, GateDef, ShipState, Vec2 } from '@/core/simulation/types';
 import type { Point } from '@/world/Actor';
@@ -44,6 +45,9 @@ const BLEND_TO = 10;
 const SUN_DOT = 4;
 const PLANET_DOT = 2;
 const MOON_DOT = 1;
+/** The map's note in its bottom-left corner. OWNER: script */
+// budget: two lines of about 9 chars (the corner is free of orbits only that far)
+const SCALE_NOTE: LocalText = { en: 'Map not\nto scale', uk: TODO };
 /** Radius of the ring around a gate's body, px. */
 const GATE_RING = 4;
 /** Half size of the forecast's mark (an x), px. */
@@ -113,10 +117,9 @@ export class SystemMap {
     for (const body of system.bodies) {
       // Names of the gates' bodies and of the home planet; the rest stay unnamed (crowded).
       if (!this.gateOf.has(body.id) && body.role !== 'home') continue;
-      this.labels.set(body.id, createText(scene, 0, 0, body.name, 'small'));
+      this.labels.set(body.id, createText(scene, 0, 0, tr(body.name), 'small'));
     }
-    // OWNER: script - the map's note.
-    createText(scene, area.x, area.bottom, 'Map not\nto scale', 'small', {
+    createText(scene, area.x, area.bottom, tr(SCALE_NOTE), 'small', {
       lineSpacing: theme.lineSpacing,
     }).setOrigin(0, 1);
   }

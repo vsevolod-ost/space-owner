@@ -19,7 +19,6 @@ This project aligns its mission design and engineering principles with [NASA Dat
 
 ## Run
 
-
 Play online: after the release, on GitHub Pages. Until then run it locally:
 
 Needs [Node.js](https://nodejs.org/) 22 or newer.

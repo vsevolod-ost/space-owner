@@ -1,3 +1,4 @@
+import type { LocalText } from '@/core/locale/text';
 import { DAY_S } from '@/core/simulation/constants';
 import type { Resources } from '@/core/simulation/types';
 import { rollFor } from '@/core/voyage/random';
@@ -47,11 +48,11 @@ export interface EventChoiceDef {
   /** Unique within the event; flag `event.<eventId>` stores the chosen one. */
   id: string;
   /** Text of the choice (OWNER: script). */
-  text: string;
+  text: LocalText;
   /** Offered only when this holds; otherwise shown disabled with `needs`. */
   when?: (ctx: EventContext) => boolean;
   /** Why it is disabled, shown as "Needs: ..." (`when` false). */
-  needs?: string;
+  needs?: LocalText;
   /** What it always does (the price of the choice). */
   effect?: EventEffect;
   /**
@@ -62,8 +63,8 @@ export interface EventChoiceDef {
   /** What it does when it goes wrong (on top of `effect`). */
   onHit?: EventEffect;
   /** Line shown after it went fine, and after it went wrong (OWNER: script). */
-  result?: string;
-  hitResult?: string;
+  result?: LocalText;
+  hitResult?: LocalText;
 }
 
 /**
@@ -79,8 +80,8 @@ export interface VoyageEventDef {
   /** Character id of the portrait on the card (`computer` by default). */
   speaker?: string;
   /** Card title and text (OWNER: script). */
-  title: string;
-  text: string;
+  title: LocalText;
+  text: LocalText;
   /** Chance, 0..1, that it happens on this voyage, from the cargo aboard. */
   chance: (ctx: EventContext) => number;
   /** Answers; the first is the default one of the tools (`voyage-check --seed`). */
@@ -134,10 +135,11 @@ export function checkEventCatalog(events: VoyageEventCatalog, cargoIds: readonly
 /** A choice as the card shows it: enabled or not. */
 export interface OpenChoice {
   id: string;
-  text: string;
+  /** `tr` it when shown (plan uk-localization D16). */
+  text: LocalText;
   enabled: boolean;
-  /** "Needs: ..." text of a disabled choice (empty when enabled or not given). */
-  needs: string;
+  /** "Needs: ..." text of a disabled choice (null when enabled or not given). */
+  needs: LocalText | null;
 }
 
 /** The event whose card is open (`Voyage.openEvent`). */
@@ -145,8 +147,9 @@ export interface OpenEvent {
   id: string;
   leg: number;
   speaker: string;
-  title: string;
-  text: string;
+  /** `tr` them when shown (plan uk-localization D16). */
+  title: LocalText;
+  text: LocalText;
   choices: OpenChoice[];
 }
 
@@ -156,8 +159,8 @@ export interface EventResolution {
   choiceId: string;
   /** Whether its risk struck (false for a choice without risk). */
   hit: boolean;
-  /** Line to show afterwards (may be empty). */
-  text: string;
+  /** Line to show afterwards (`tr` it when shown), or null when there is none. */
+  text: LocalText | null;
 }
 
 /** One line of a voyage's event log: every roll, for tools and the debug surface. */

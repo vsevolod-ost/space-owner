@@ -24,8 +24,8 @@ export type DialogueEffect = (state: GameState) => void;
 /** One option the player can pick at a node with `choices`. */
 export interface Choice<N extends string = string> {
   /**
-   * What the option says: a string, or a function of the state (read when the node is entered,
-   * `formatText` fills placeholders).
+   * What the option says: a pair `{ en: 'Who are you?', uk: TODO }`, or a function of the
+   * state (read when the node is entered, `formatText` fills placeholders of a `tr(...)` template).
    */
   text: StateText;
   /** Node to go to; default: the node's own `next`, and without one the dialogue ends. */
@@ -43,9 +43,9 @@ export interface DialogueNode<N extends string = string> {
   /** Portrait to show; default: the speaker's portrait from src/content/characters.ts. */
   portrait?: ImageKey;
   /**
-   * The line itself, in English like every string in the game: a string, or a function of the
-   * state read when the node is entered, after its `effect`
-   * (`text: (s) => formatText('Cargo {n}/7', { n: countOf(s) })`).
+   * The line itself: a pair `{ en: 'Hi!', uk: TODO }`, or a function of the state read when
+   * the node is entered, after its `effect`
+   * (`text: (s) => formatText(tr({ en: 'Cargo {n}/7', uk: TODO }), { n: countOf(s) })`).
    */
   text: StateText;
   /**
@@ -83,7 +83,7 @@ export interface Dialogue<N extends string = string> {
  * ```ts
  * export const engineerAdvice = defineDialogue({
  *   start: 'hello',
- *   nodes: { hello: { speaker: 'engineer', text: 'Hi!' } },
+ *   nodes: { hello: { speaker: 'engineer', text: { en: 'Hi!', uk: TODO } } },
  * });
  * ```
  */

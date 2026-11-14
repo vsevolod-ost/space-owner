@@ -1,3 +1,4 @@
+import { TODO } from '@/core/locale/text';
 import type { CargoDef } from '@/core/voyage/types';
 
 /**
@@ -7,8 +8,8 @@ import type { CargoDef } from '@/core/voyage/types';
  */
 export const base: CargoDef = {
   // OWNER: script - the name and the line.
-  label: 'Ship base',
-  line: 'Built-in tank, stocks and shelter.',
+  label: { en: 'Ship base', uk: TODO, max: 14 },
+  line: { en: 'Built-in tank, stocks and shelter.', uk: TODO, max: 60 },
   // OWNER: physics - the ship itself: the cabin and the shelter, the 2 kN electric engine with
   // its own reactor and radiators, the empty tank (plan variable-mass D2). With its fuel and
   // stocks the base alone is 104 t; with cargo up to 166 t.

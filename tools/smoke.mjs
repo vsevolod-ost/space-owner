@@ -18,7 +18,9 @@
  * page: they cannot see scenario variables, only `window` (`window.nasa.game`,
  * `window.nasa.services`). Pass values through the `arg` parameter of `h.eval`.
  *
- *   h.goto(path)                       open a game URL; adds debug=1
+ *   h.goto(path, { lang })             open a game URL; adds debug=1, and lang=en unless the path
+ *                                      has its own lang or the call passes { lang: false } (then
+ *                                      the saved setting or the browser's languages decide)
  *   h.waitReady(sceneKey, timeoutMs)   wait until that scene signals ready (after the last wait)
  *   h.mark()                           start counting events for waitEvent from now
  *   h.waitEvent(name, timeoutMs)       wait for an EventBus event emitted after mark()/goto()
@@ -133,9 +135,11 @@ function createHelpers(page, baseUrl) {
   let eventMark = 0;
 
   const h = {
-    async goto(path = '/') {
+    async goto(path = '/', { lang = true } = {}) {
       const url = new URL(path.replace(/^\//, ''), baseUrl);
       url.searchParams.set('debug', '1');
+      // Scenarios assert English text; the browser's own language must not decide it.
+      if (lang && !url.searchParams.has('lang')) url.searchParams.set('lang', 'en');
       readySeen = 0;
       eventMark = 0;
       await page.goto(url.href);

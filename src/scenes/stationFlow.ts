@@ -1,20 +1,25 @@
 import Phaser from 'phaser';
 import { stationName } from '@/content/locations/ship-deck';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
+import { formatText } from '@/core/text/format';
 import type { EventStationScene } from '@/scenes/EventStationScene';
 import { SceneKey } from '@/scenes/keys';
 import type { NavigationScene } from '@/scenes/NavigationScene';
 import type { UiScene } from '@/scenes/UiScene';
 
-/** Lines of the deck's toasts about the voyage. OWNER: script */
+/** Lines of the deck's toasts about the voyage (they wrap). OWNER: script */
 const LINES = {
-  /** Before an event's result when its alarm ran out. */
-  tooLate: 'Too late!',
+  /** An event's result (`{result}`) when its alarm ran out. */
+  tooLate: { en: 'Too late! {result}', uk: TODO },
   /** A gate was reached behind an answered event: the gate card waits on the panel. */
-  gate: 'Gate reached: back to the navigation station.',
-  /** A new alarm came on while the panel is closed (the next event of the queue). */
-  alarm: (title: string, station: string) => `ALARM: ${title} - go to the ${station}!`,
-} as const;
+  gate: { en: 'Gate reached: back to the navigation station.', uk: TODO },
+  /**
+   * A new alarm came on while the panel is closed (the next event of the queue): `{event}` the
+   * event's title, `{station}` the deck station's name in lower case.
+   */
+  alarm: { en: 'ALARM: {event} - go to the {station}!', uk: TODO },
+} as const satisfies Record<string, LocalText>;
 
 /**
  * Wires the act 2 voyage to the ship deck while the navigation panel is closed (plan
@@ -48,15 +53,22 @@ export function attachStationFlow(game: Phaser.Game): void {
     const late = timedOut === eventId;
     timedOut = null;
     if (panelOpen() || !text) return;
-    pending.push(late ? `${LINES.tooLate} ${text}` : text);
+    const line = tr(text);
+    pending.push(late ? formatText(tr(LINES.tooLate), { result: line }) : line);
   });
   events.on('gateReached', () => {
-    if (!panelOpen()) pending.push(LINES.gate);
+    if (!panelOpen()) pending.push(tr(LINES.gate));
   });
   events.on('stationAlarm', ({ eventId, station, active }) => {
     if (!active || panelOpen()) return;
-    const title = services.voyage.events[eventId]?.title ?? eventId;
-    pending.push(LINES.alarm(title, stationName(station).toLowerCase()));
+    const def = services.voyage.events[eventId];
+    const title = def ? tr(def.title) : eventId;
+    pending.push(
+      formatText(tr(LINES.alarm), {
+        event: title,
+        station: stationName(station).toLowerCase(),
+      }),
+    );
   });
   events.on('voyageEnded', ({ outcome }) => {
     if (outcome.kind === 'died' && !panelOpen()) void showLoss();

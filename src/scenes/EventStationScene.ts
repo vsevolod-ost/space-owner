@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { stationName } from '@/content/locations/ship-deck';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import { SceneKey } from '@/scenes/keys';
 import { PanelScene } from '@/ui/PanelScene';
@@ -21,8 +22,12 @@ export interface EventStationDebugInfo {
 /** Outer size of the panel, px: the content area is the navigation panel's column, 300x288. */
 const PANEL_WIDTH = 324;
 const PANEL_HEIGHT = 312;
-/** The key hint at the card's bottom right. OWNER: script */
-const LEAVE_HINT = 'Esc: leave';
+/**
+ * The key hint at the card's bottom right. Max 10: it shares the bottom line (37 characters)
+ * with the card's legend (src/ui/navigation/Card.ts, max 26); the two can trade room.
+ * OWNER: script
+ */
+const LEAVE_HINT: LocalText = { en: 'Esc: leave', uk: TODO, max: 10 };
 
 /**
  * The card of the open event at its deck station (plan act2-stations D1, D4): the same
@@ -56,7 +61,7 @@ export class EventStationScene extends PanelScene {
     createText(this, area.right, area.y, stationName(alarm.station).toUpperCase(), 'small')
       .setOrigin(1, 0)
       .setColor(theme.text.alarm);
-    createText(this, area.right, area.bottom, LEAVE_HINT, 'small').setOrigin(1, 1);
+    createText(this, area.right, area.bottom, tr(LEAVE_HINT), 'small').setOrigin(1, 1);
     this.card = new EventCard(this, area, this.controls, event, (choiceId) => {
       if (services.simulation.answerEvent(choiceId)) this.close();
     });

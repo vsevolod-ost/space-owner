@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH } from '@/config';
 import { stationName } from '@/content/locations/ship-deck';
+import { TODO, tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
+import { formatText } from '@/core/text/format';
 import type { StationAlarm } from '@/core/alarm/StationAlarmService';
 import type { DebugScene } from '@/scenes/DebugScene';
 import { SceneKey } from '@/scenes/keys';
@@ -12,8 +14,9 @@ import { createText } from '@/ui/kit/text';
 import { theme } from '@/ui/theme';
 
 /**
- * Narrowest box, px: clear of the HOLD strip on the deck (its right edge is at x 420) and of
- * the station card (x 158..482), so on both the box covers nothing.
+ * Narrowest box, px: clear of the HOLD strip on the deck (its right edge is at x 420 with the
+ * English caption and at most x 481 with the longest caption its budget allows, see
+ * src/ui/HoldStrip.ts) and of the station card (x 158..482), so on both the box covers nothing.
  */
 const MIN_WIDTH = 152;
 /** Distance of the box from the top and right edges of the screen, px. */
@@ -26,6 +29,9 @@ const GAP = 4;
 const BAR_HEIGHT = 4;
 /** The bar takes the alarm colour when this share of the timer or less is left (D4). */
 const ALARM_SHARE = 1 / 3;
+/** The seconds left: `{seconds}` a whole number. OWNER: script */
+// budget: 4 chars ("30s"); the box widens to fit, from MIN_WIDTH
+const SECONDS: LocalText = { en: '{seconds}s', uk: TODO };
 
 /** What `AlarmBarScene.debugInfo()` returns. */
 export interface AlarmBarInfo {
@@ -90,7 +96,12 @@ export class AlarmBarScene extends Phaser.Scene {
     this.box = this.add
       .container(0, MARGIN, [this.panel, this.title, this.station, this.seconds, this.bar])
       .setVisible(false);
+    // The next frame redraws the title and the station in the new language.
+    const offLanguage = services.events.on('languageChanged', () => {
+      this.shownKey = null;
+    });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      offLanguage();
       this.box = undefined;
       this.shownKey = null;
       this.shownSeconds = null;
@@ -157,15 +168,15 @@ export class AlarmBarScene extends Phaser.Scene {
     const newAlarm = key !== this.shownKey;
     if (newAlarm) {
       this.shownKey = key;
-      const title = services.voyage.events[alarm.eventId]?.title ?? alarm.eventId;
+      const def = services.voyage.events[alarm.eventId];
+      const title = def ? tr(def.title) : alarm.eventId;
       this.title?.setText(title.toUpperCase());
       this.station?.setText(stationName(alarm.station).toUpperCase());
     }
     if (newAlarm || seconds !== this.shownSeconds || alarmColor !== this.alarmColor) {
       this.shownSeconds = seconds;
-      // OWNER: script - the seconds left.
       this.seconds
-        ?.setText(`${seconds}s`)
+        ?.setText(formatText(tr(SECONDS), { seconds }))
         .setColor(alarmColor ? theme.text.alarm : theme.text.normal);
     }
     // Sized after the texts are set: a new alarm's own seconds, not the previous alarm's.

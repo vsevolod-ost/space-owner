@@ -18,7 +18,8 @@ is scaled up by a whole factor.
 src/
   core/      model and services: state, flags, save, flow, dialogue runner, cutscene service,
              audio, simulation, voyage (cargo, flows, gates, forecast, events, colony tiers),
-             text formatting, input actions. No Phaser (one `import type`, see below).
+             text formatting, locale (text pairs, `tr`, the language service, body names),
+             input actions. No Phaser (one `import type`, see below).
   content/   the game itself as typed data and scripts: locations, characters, dialogues,
              cutscenes, story acts, endings, the solar system and the ship, and the voyage
              (content/voyage: gates, legs, cargo, events, colony sites).
@@ -37,14 +38,14 @@ src/
 
 ### The dependency rule
 
-| Layer                   | May import at run time                                                                               | May import as `import type` |
-| ----------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------- |
-| `core`                  | other `core` modules, `config`, `debug/globals` (the event recorder)                                 | `content`, `assets`, Phaser |
-| `content`               | other `content` modules (registries import their entries), pure helpers from `core`                  | anything                    |
-| `scenes`, `ui`, `world` | `core`, `content`, `assets`, each other, Phaser                                                      | anything                    |
-| `assets`                | nothing                                                                                              | -                           |
-| `devtools`              | `core`, `content`, Node; never `config`, `core/services`, the event bus (they read `window` on load) | anything                    |
-| `main.ts`               | everything: it is the one place that hands content to core                                           | -                           |
+| Layer                   | May import at run time                                                                                                                 | May import as `import type` |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `core`                  | other `core` modules, `config`, `debug/globals` (the event recorder)                                                                   | `content`, `assets`, Phaser |
+| `content`               | other `content` modules (registries import their entries), pure helpers from `core` (`core/locale/text`, `core/locale/names` included) | anything                    |
+| `scenes`, `ui`, `world` | `core`, `content`, `assets`, each other, Phaser                                                                                        | anything                    |
+| `assets`                | nothing                                                                                                                                | -                           |
+| `devtools`              | `core`, `content`, Node; never `config`, `core/services`, the event bus (they read `window` on load)                                   | anything                    |
+| `main.ts`               | everything: it is the one place that hands content to core                                                                             | -                           |
 
 - **Core never imports Phaser.** The single exception is `import type Phaser from 'phaser'` in
   `src/core/audio/AudioService.ts`; it is erased at build time. Anything core needs from the
@@ -71,7 +72,9 @@ src/
   registry file (`content/*/index.ts`) imports its entries as values.
 - **Content may use pure core helpers**: `defineDialogue` (`core/dialogue/types.ts`), `DAY_S`
   (`core/simulation/constants.ts`), `formatText` (`core/text/format.ts`), `cargoFlag`
-  (`core/voyage/loadout.ts`). A location whose objects follow a registry that content may only
+  (`core/voyage/loadout.ts`), and at run time `TODO` / `tr` from `core/locale/text.ts` and
+  `bodyName` from `core/locale/names.ts` (both import nothing but types, so they load in the
+  devtools' Node too; never import `core/locale/LocaleService.ts` from content). A location whose objects follow a registry that content may only
   import as a type (the warehouse's crates follow the cargo registry) gives `bindings` (or
   `background`) as a function of `{ voyage }`, which the world calls with `services.voyage`
   (`src/world/bindings.ts`). One location script opens a panel scene by its key
@@ -136,18 +139,19 @@ the panel closes; panels stack. See [HOWTO-ui.md](HOWTO-ui.md).
 Created once in `src/core/services.ts` before Phaser starts; every scene imports the `services`
 object. No DI container, no Phaser registry.
 
-| `services.`    | Class                                   | One line                                                                                 |
-| -------------- | --------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `events`       | `EventBus<GameEvents>` (`core/events`)  | Typed event bus; all events and payloads are listed in `core/events/events.ts`.          |
-| `state`        | `GameState` (`core/state`)              | Story flags (`state.flags`), the current act/location/spawn (`state.current`), the save. |
-| `flow`         | `FlowService` (`core/flow`)             | New game, continue, acts, `goTo`, checkpoints, the death loop, endings, main menu.       |
-| `cutscenes`    | `CutsceneService` (`core/cutscene`)     | Plays cutscene scripts one at a time (`play(id)`, queued), cancels them on leaving.      |
-| `save`         | `SaveService` (`core/state`)            | The single save slot in `localStorage` (`space-owner.save`).                               |
-| `settings`     | `SettingsService` (`core/settings`)     | Music and SFX volume in `localStorage` (`space-owner.settings`), apart from the save.      |
-| `audio`        | `AudioService` (`core/audio`)           | Music with crossfade, sound effects, volumes; over Phaser's sound manager.               |
-| `simulation`   | `SimulationService` (`core/simulation`) | Runs the act 2 ship simulation: start, hold/release, stop, tick, snapshot, clone.        |
-| `voyage`       | `VoyageService` (`core/voyage`)         | Cargo, event and colony registries; what `cargo.<id>` puts aboard; colony tiers.         |
-| `stationAlarm` | `StationAlarmService` (`core/alarm`)    | Act 2's alarm: the open event's deck station and real-time countdown; the timeout.       |
+| `services.`    | Class                                   | One line                                                                                             |
+| -------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `events`       | `EventBus<GameEvents>` (`core/events`)  | Typed event bus; all events and payloads are listed in `core/events/events.ts`.                      |
+| `state`        | `GameState` (`core/state`)              | Story flags (`state.flags`), the current act/location/spawn (`state.current`), the save.             |
+| `flow`         | `FlowService` (`core/flow`)             | New game, continue, acts, `goTo`, checkpoints, the death loop, endings, main menu.                   |
+| `cutscenes`    | `CutsceneService` (`core/cutscene`)     | Plays cutscene scripts one at a time (`play(id)`, queued), cancels them on leaving.                  |
+| `save`         | `SaveService` (`core/state`)            | The single save slot in `localStorage` (`space-owner.save`).                                           |
+| `settings`     | `SettingsService` (`core/settings`)     | Music and SFX volume and the language in `localStorage` (`space-owner.settings`), apart from the save. |
+| `locale`       | `LocaleService` (`core/locale`)         | The language `tr` shows; `setLanguage` stores it and emits `languageChanged`.                        |
+| `audio`        | `AudioService` (`core/audio`)           | Music with crossfade, sound effects, volumes; over Phaser's sound manager.                           |
+| `simulation`   | `SimulationService` (`core/simulation`) | Runs the act 2 ship simulation: start, hold/release, stop, tick, snapshot, clone.                    |
+| `voyage`       | `VoyageService` (`core/voyage`)         | Cargo, event and colony registries; what `cargo.<id>` puts aboard; colony tiers.                     |
+| `stationAlarm` | `StationAlarmService` (`core/alarm`)    | Act 2's alarm: the open event's deck station and real-time countdown; the timeout.                   |
 
 Not a service but core too: `DialogueRunner` (`core/dialogue`, one per open dialogue, created by
 `UiScene.openDialogue`) and the `Controls` interface (`core/input/controls.ts`: actions
@@ -284,6 +288,25 @@ How the voyage ends is `FlowService`'s (it listens to `voyageEnded`):
 
 Both are guarded by the session: leaving for the menu during the beat cancels them.
 
+## Text and languages
+
+Every visible string is a `LocalText` pair `{ en: '...', uk: TODO, max? }` written where it is
+used (`src/core/locale/text.ts`); `tr(pair)` returns the current language's string (English
+while `uk` is `TODO`) and is called when the text is built or drawn, never at module level.
+Pairs travel as pairs through content and core (event texts, the voyage's results, body names
+by id through `bodyName` in `core/locale/names.ts`, which `main.ts` fills from the solar
+system); the view calls `tr`. The UI kit and `SceneDriver` take finished strings. Core itself
+calls `tr` only in `resolveText` (`core/text/format.ts`) and for the checkpoint toast
+(`FlowService`).
+
+`LocaleService` (`services.locale`) picks the language at start: `?lang=` (applied in `main.ts`,
+not stored) over the language saved in the settings over the browser's languages (the first of
+`navigator.languages` that is Ukrainian or English decides) over `en`. `setLanguage` stores
+`en`/`uk`, sets `document.documentElement.lang` and emits `languageChanged`; the settings panel
+and the scenes visible under it rebuild their text on it (`PanelScene.rebuildOnLanguageChange`).
+`pseudo` (only `?lang=pseudo` or `nasa.services.locale.setLanguage('pseudo')`) is a test
+language. Details: [HOWTO-localization.md](HOWTO-localization.md).
+
 ## Content and engine
 
 **Content** is what the team adds without changing how the game works: everything in
@@ -323,13 +346,15 @@ locations`). No `id` or `key` fields: a typo in an id is a compile error.
   `location`); `?overlay=1` turns on the overlay at start; `?debug=1` exposes `window.nasa` in a
   production build (it is always there in `npm run dev`). Read in `src/debug/startParams.ts` and
   `src/config.ts` (`DEBUG`). `?seed=<n>` fixes the seed of the voyage's events
-  (`readSeedParam`; the smoke scenarios use 1).
+  (`readSeedParam`; the smoke scenarios use 1). `?lang=en|uk|pseudo` shows that language for
+  the page load without storing it (`readLangParam`; `h.goto` in the smoke tool adds `lang=en`).
 - **`window.nasa`** = `{ services, game }` (`src/debug/hooks.ts`). From the browser console:
   `nasa.services.state.flags.toRecord()`, `nasa.services.flow.die('abort')`,
   `nasa.services.save.load()`, `nasa.services.audio.debugInfo()`,
   `nasa.services.simulation.snapshot()`, `nasa.services.simulation.voyage`,
   `nasa.services.simulation.setDebugWarp(20)` (the flight 20 times faster),
-  `nasa.services.stationAlarm.debugInfo()` / `.setDebugTimer(ms)` (the alarm's timer), and every scene's
+  `nasa.services.stationAlarm.debugInfo()` / `.setDebugTimer(ms)` (the alarm's timer),
+  `nasa.services.locale.debugInfo()` / `.setLanguage('pseudo')`, and every scene's
   `debugInfo()`:
   `nasa.game.scene.getScene('World').debugInfo()` (also `MainMenu`, `Ui`, `Pause`, `Settings`,
   `Navigation`, `EventStation`, `AlarmBar`, `Ending`, `Debug`). Debug mode also records every event in

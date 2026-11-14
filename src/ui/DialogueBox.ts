@@ -4,6 +4,7 @@ import { characters } from '@/content/characters';
 import type { DialogueRunner, DialogueStep } from '@/core/dialogue/DialogueRunner';
 import type { Speaker } from '@/core/dialogue/types';
 import type { Controls } from '@/core/input/controls';
+import { tr } from '@/core/locale/text';
 import { ChoiceList } from '@/ui/kit/ChoiceList';
 import { Panel } from '@/ui/kit/Panel';
 import { createText } from '@/ui/kit/text';
@@ -29,8 +30,12 @@ export interface DialogueBoxInfo {
   speaker: Speaker;
   /** The whole line, typed out or not. */
   text: string;
-  /** Whether the typewriter is still running. */
+  /** Whether the typewriter is still running on the page on screen. */
   typing: boolean;
+  /** Index of the page on screen (a line too long for the window is split into pages). */
+  page: number;
+  /** Number of pages of the line. */
+  pages: number;
   /** The choice list, once it is shown (after the line is typed out), or null. */
   choices: { items: string[]; selected: number } | null;
 }
@@ -39,7 +44,9 @@ export interface DialogueBoxInfo {
  * The dialogue window: a panel across the bottom of the screen with the speaker's portrait
  * (48x48, left), name and the line typed out at `TEXT_SPEED_CPS`. `confirm` (Enter, Space) or
  * a click first finishes the typing, then moves on; at a node with choices a `ChoiceList`
- * opens above the window once the line is typed out. The narrator has no portrait and no name.
+ * opens above the window once the line is typed out. A line taller than the window is split
+ * into pages that are typed one after another (the "more" marker blinks under each page but
+ * the last of a choice node). The narrator has no portrait and no name.
  *
  * Drives a started `DialogueRunner` until its end, then `finished` resolves (it rejects if
  * a node's `when`, `effect` or `next` throws). UiScene creates it in `openDialogue`; other
@@ -58,7 +65,10 @@ export class DialogueBox {
   private choiceList?: ChoiceList;
 
   private step: DialogueStep = { kind: 'end' };
-  /** The current line, already wrapped into lines joined by `\n`. */
+  /** The current line, wrapped and split into pages; each page's lines joined by `\n`. */
+  private pages: string[] = [''];
+  private pageIndex = 0;
+  /** The page on screen (`pages[pageIndex]`). */
   private fullText = '';
   private shownChars = 0;
   private typingMs = 0;
@@ -119,6 +129,8 @@ export class DialogueBox {
       speaker: step.speaker,
       text: step.text,
       typing: this.isTyping(),
+      page: this.pageIndex,
+      pages: this.pages.length,
       choices: list ? { items: list.items, selected: list.selectedIndex } : null,
     };
   }
@@ -157,17 +169,18 @@ export class DialogueBox {
     if (this.isTyping()) {
       this.typingMs += delta;
       this.reveal(Math.floor((this.typingMs * TEXT_SPEED_CPS) / 1000));
-    } else if (this.step.kind === 'line') {
+    } else if (this.step.kind === 'line' || this.hasNextPage()) {
       this.blinkMs = (this.blinkMs + delta) % (MARKER_BLINK_MS * 2);
       this.marker.setVisible(this.blinkMs < MARKER_BLINK_MS);
     }
     if (this.controls.justPressed('confirm')) this.confirm();
   }
 
-  /** Enter, Space or a click: finish the typing, else move past a line. */
+  /** Enter, Space or a click: finish the typing, else turn the page, else move past a line. */
   private confirm(): void {
     if (this.closed || this.scene.game.loop.frame === this.shownFrame) return;
     if (this.isTyping()) this.reveal(this.fullText.length);
+    else if (this.hasNextPage()) this.showPage(this.pageIndex + 1);
     else if (this.step.kind === 'line') this.run(() => this.runner.advance());
   }
 
@@ -202,14 +215,29 @@ export class DialogueBox {
     }
     this.portrait.setVisible(portrait !== undefined);
     const left = portrait ? pad + PORTRAIT_SIZE + pad : pad;
-    this.name.setText(character?.name ?? '').setPosition(left, top);
+    this.name.setText(character ? tr(character.name) : '').setPosition(left, top);
     const textTop = character ? top + theme.fontSize.title + NAME_GAP : top;
 
     // Wrap the whole line once, then type it out: wrapping a growing text would make words
     // jump to the next line halfway through.
     this.body.setPosition(left, textTop).setWordWrapWidth(GAME_WIDTH - left - pad);
-    this.fullText = this.body.getWrappedText(step.text).join('\n');
-    this.body.setWordWrapWidth(null).setText('');
+    const lines = this.body.getWrappedText(step.text);
+    this.body.setWordWrapWidth(null);
+    const perPage = this.linesThatFit(GAME_HEIGHT - pad - textTop);
+    this.pages = [];
+    for (let i = 0; i < lines.length; i += perPage) {
+      this.pages.push(lines.slice(i, i + perPage).join('\n'));
+    }
+    if (this.pages.length === 0) this.pages.push('');
+    this.showPage(0);
+  }
+
+  /** Starts typing page `index` of the current line. */
+  private showPage(index: number): void {
+    this.pageIndex = index;
+    this.fullText = this.pages[index] ?? '';
+    this.body.setText('');
+    this.marker.setVisible(false);
     this.shownChars = 0;
     this.typingMs = 0;
     this.blinkMs = 0;
@@ -217,11 +245,37 @@ export class DialogueBox {
     this.reveal(0);
   }
 
+  /** How many lines of body text fit into `height` px (at least one), measured on the text. */
+  private linesThatFit(height: number): number {
+    let count = 1;
+    while (
+      this.body.setText(
+        Array<string>(count + 1)
+          .fill('M')
+          .join('\n'),
+      ).height <= height
+    ) {
+      count++;
+    }
+    this.body.setText('');
+    return count;
+  }
+
+  /** Whether the line has a page after the one on screen. */
+  private hasNextPage(): boolean {
+    return this.pageIndex < this.pages.length - 1;
+  }
+
   /** Shows the first `count` characters; at the end of the line opens the choices, if any. */
   private reveal(count: number): void {
     this.shownChars = Math.min(count, this.fullText.length);
     this.body.setText(this.fullText.slice(0, this.shownChars));
-    if (!this.isTyping() && this.step.kind === 'choices' && !this.choiceList) {
+    if (
+      !this.isTyping() &&
+      !this.hasNextPage() &&
+      this.step.kind === 'choices' &&
+      !this.choiceList
+    ) {
       this.openChoices(this.step.choices);
     }
   }

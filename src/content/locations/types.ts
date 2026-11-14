@@ -3,6 +3,7 @@ import type { ActorCharacterId, Direction } from '@/content/characters';
 import type { DialogueId } from '@/content/dialogues';
 import type { LocationId } from '@/content/locations';
 import type { ActId } from '@/content/story';
+import type { LocalText } from '@/core/locale/text';
 import type { GameState } from '@/core/state/GameState';
 import type { VoyageService } from '@/core/voyage/VoyageService';
 import type { WorldContext } from '@/world/WorldContext';
@@ -180,7 +181,7 @@ export interface BackgroundLayer {
  */
 export interface LocationDef {
   /** Name shown to the player. */
-  title: string;
+  title: LocalText;
   /**
    * Background image, or layers drawn back to front (`[{ image: 'location-colony-sky', tint },
    * { image: 'location-colony-ground' }]`), or a function that builds the layers from the

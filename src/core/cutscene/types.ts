@@ -55,8 +55,9 @@ export interface CutsceneApi {
   face(actor: ActorId, to: Direction | Place): void;
   /**
    * Shows one line in the dialogue window and resolves when the player closes it (Enter,
-   * Space or a click). `speaker` is a character id or `'narrator'`; `text` may be a function of
-   * the state (`(s) => formatText('Lost at {gate}.', { gate: ... })`).
+   * Space or a click). `speaker` is a character id or `'narrator'`; `text` is a pair
+   * `{ en: 'Welcome aboard.', uk: TODO }` or a function of the state
+   * (`(s) => formatText(tr({ en: 'Lost at {gate}.', uk: TODO }), { gate: ... })`).
    */
   say(speaker: Speaker, text: StateText): Promise<void>;
   /** Runs a whole dialogue from src/content/dialogues and resolves when it ends. */
@@ -103,7 +104,7 @@ export interface CutsceneApi {
  * export const warehouseArrival: Cutscene = {
  *   async run(api) {
  *     await api.walk('npc-engineer', 'player');
- *     await api.say('engineer', 'Welcome aboard.');
+ *     await api.say('engineer', { en: 'Welcome aboard.', uk: TODO });
  *   },
  * };
  * ```

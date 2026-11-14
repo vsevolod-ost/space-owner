@@ -68,6 +68,21 @@ export default defineConfig(
     },
   },
   {
+    // A LocalText pair (src/core/locale/text.ts) in a template literal compiles and shows
+    // `[object Object]`: only strings, numbers and booleans go into templates; a pair goes
+    // through `tr(...)` first. Needs type information, so it is on for src/ only.
+    files: ['src/**/*.ts'],
+    languageOptions: { parserOptions: { projectService: true } },
+    rules: {
+      '@typescript-eslint/restrict-template-expressions': [
+        'error',
+        { allowNumber: true, allowBoolean: true },
+      ],
+      '@typescript-eslint/no-base-to-string': 'error',
+      '@typescript-eslint/restrict-plus-operands': 'error',
+    },
+  },
+  {
     // Node scripts, config files and src/devtools (`npm run voyage-check`) run outside the
     // browser.
     files: ['*.{js,mjs,ts}', 'tools/**/*.{js,mjs}', 'src/devtools/**/*.ts'],

@@ -153,8 +153,8 @@ export class SimulationService {
 
   /**
    * "Stop here" at a gate: the voyage ends landed there (`voyageEnded`, flags `voyage.stopGate`,
-   * `voyage.stopBody`, `voyage.stopName` (the body's name), `voyage.day`, `voyage.o2Days`). Returns the outcome, or null when not
-   * parked at a gate. What follows (the colony, act 3) is the listener's (plan S11).
+   * `voyage.stopBody` (the body's id: texts name it with `bodyName`), `voyage.day`,
+   * `voyage.o2Days`). Returns the outcome, or null when not parked at a gate. What follows (the colony, act 3) is the listener's (plan S11).
    */
   stopHere(): VoyageOutcome | null {
     const voyage = this.running;
@@ -355,7 +355,6 @@ export class SimulationService {
         if (outcome.kind === 'landed') {
           flags.set('voyage.stopGate', outcome.gate);
           flags.set('voyage.stopBody', outcome.body);
-          flags.set('voyage.stopName', this.solarSystem?.get(outcome.body).name ?? outcome.body);
           flags.set('voyage.o2Days', Math.floor(oxygen ?? 0));
         } else {
           flags.set('voyage.cause', outcome.cause);

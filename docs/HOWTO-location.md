@@ -110,15 +110,20 @@ like the warehouse, with one binding of each kind; the real `warehouse.ts` build
 from the cargo registry, see below):
 
 ```ts
+import { TODO, tr } from '@/core/locale/text';
+import type { LocationDef } from '@/content/locations/types';
+
+const EMPTY_SHELVES = { en: 'Empty shelves.', uk: TODO }; // OWNER: script
+
 export const storeroom: LocationDef = {
-  title: 'Storeroom',
+  title: { en: 'Storeroom', uk: TODO }, // OWNER: script
   background: 'location-storeroom',
   map: 'storeroom',
   music: 'music-demo',
   bindings: {
     'door-warehouse': { kind: 'door', to: 'warehouse', spawn: 'spawn-from-storeroom' },
     'npc-engineer': { kind: 'npc', character: 'engineer', dialogue: 'engineer-advice' },
-    shelf: { kind: 'interactable', run: (ctx) => ctx.ui.toast('Empty shelves.') },
+    shelf: { kind: 'interactable', run: (ctx) => ctx.ui.toast(tr(EMPTY_SHELVES)) },
     arrival: {
       kind: 'trigger',
       once: true,
@@ -141,7 +146,9 @@ built from the cargo registry, advisers, the hatch: a dialogue built by code, th
 - `npc`: `character` is a key of `src/content/characters.ts`; `facing` is optional;
   `dialogue` (a key of `src/content/dialogues/index.ts`) is what E starts - see
   [HOWTO-dialogue.md](HOWTO-dialogue.md).
-- `interactable` and `trigger`: `run(ctx)` gets the world context - `ctx.ui.toast(text)`,
+- `interactable` and `trigger`: `run(ctx)` gets the world context - `ctx.ui.toast(text)` (a
+  finished string: `tr` the pair when the toast shows, see
+  [HOWTO-localization.md](HOWTO-localization.md)),
   `ctx.state.flags`, `ctx.controls.lock(reason)` / `unlock(reason)`, `ctx.cutscenes.play(id)`
   (see [HOWTO-cutscene.md](HOWTO-cutscene.md)), `ctx.flow` (story: `ctx.flow.startAct('act2')`,
   `ctx.flow.checkpoint()`, see [HOWTO-story.md](HOWTO-story.md)), `ctx.voyage` (the cargo

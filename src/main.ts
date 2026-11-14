@@ -10,9 +10,10 @@ import { cargo } from '@/content/voyage/cargo';
 import { colony } from '@/content/voyage/colony';
 import { voyageEvents } from '@/content/voyage/events';
 import { legs } from '@/content/voyage/legs';
+import { registerBodyNames } from '@/core/locale/names';
 import { services } from '@/core/services';
 import { installDebugHooks } from '@/debug/hooks';
-import { readSeedParam } from '@/debug/startParams';
+import { readLangParam, readSeedParam } from '@/debug/startParams';
 import { AlarmBarScene } from '@/scenes/AlarmBarScene';
 import { BootScene } from '@/scenes/BootScene';
 import { DebugScene } from '@/scenes/DebugScene';
@@ -29,6 +30,11 @@ import { StubScene } from '@/scenes/StubScene';
 import { UiScene } from '@/scenes/UiScene';
 import { WorldScene } from '@/scenes/WorldScene';
 import { WorldCutsceneStage } from '@/world/WorldCutsceneApi';
+
+// `?lang=en|uk|pseudo` shows that language for this page load, not stored (plan uk-localization
+// D4); before the game exists, so no scene builds text in another language first.
+const startLanguage = readLangParam();
+if (startLanguage) services.locale.setLanguage(startLanguage, { persist: false });
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -88,6 +94,9 @@ services.audio.attach(game.sound);
 // The ship simulation gets the solar system, the ship and the voyage's gates and legs from
 // content, same reason.
 services.simulation.attach({ bodies: solarSystem, ship, gates, legs });
+// Body names by id for content and views that only hold an id (`bodyName`, plan
+// uk-localization D15); content never imports the solar system as a value.
+registerBodyNames(solarSystem.map((body) => [body.id, body.name] as const));
 // The cargo registry (the warehouse's crates, the ship's base), the events on the way and the
 // colony sites (needs, colours, buildings), same reason.
 services.voyage.attach(cargo, voyageEvents, colony);
