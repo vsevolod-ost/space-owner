@@ -4,9 +4,10 @@
  * is drawn by code (see docs/HOWTO-location.md).
  */
 export const maps = {
-  'demo-corridor': { path: 'assets/maps/demo-corridor.tmj' },
-  'demo-room': { path: 'assets/maps/demo-room.tmj' },
+  home: { path: 'assets/maps/home.tmj' },
+  warehouse: { path: 'assets/maps/warehouse.tmj' },
   'ship-deck': { path: 'assets/maps/ship-deck.tmj' },
+  colony: { path: 'assets/maps/colony.tmj' },
 } as const satisfies Record<string, MapEntry>;
 
 /** One entry of the map registry. */

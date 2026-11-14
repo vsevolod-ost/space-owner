@@ -29,6 +29,19 @@ export class Flags {
     this.events.emit('flagChanged', { key, value, previous });
   }
 
+  /**
+   * Deletes every flag whose key starts with `prefix` (`voyage.`, plan D17), emitting
+   * `flagChanged` with `value` undefined for each.
+   */
+  deletePrefix(prefix: string): void {
+    for (const key of Object.keys(this.values)) {
+      if (!key.startsWith(prefix)) continue;
+      const previous = this.values[key];
+      delete this.values[key];
+      this.events.emit('flagChanged', { key, value: undefined, previous });
+    }
+  }
+
   /** Copy of all flags (for the save and the debug overlay). */
   toRecord(): Record<string, FlagValue> {
     return { ...this.values };

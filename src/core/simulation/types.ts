@@ -1,3 +1,5 @@
+import type { LegConditions, LifeState } from '@/core/voyage/types';
+
 /**
  * Data model of the ship simulation. Plain data, no Phaser: the save stores a
  * `SimulationSnapshot` as JSON, the navigation panel draws it. Units are SI - metres, seconds,
@@ -10,6 +12,16 @@ export interface Vec2 {
   x: number;
   y: number;
 }
+
+/**
+ * What a body is for in the voyage:
+ * - `home` - where the voyage starts (the Earth);
+ * - `gate` - the body of one of the voyage's gates (`GateDef.body`);
+ * - `parent` - a planet a gate body orbits (none on the route now; Jupiter would be one for Europa);
+ * - `scenery` - drawn and pulling, but not a place of the voyage (the Sun, Mercury, Venus).
+ * The time scale slows down near `home`, `gate` and `parent` bodies only (`timeScaleAt`).
+ */
+export type BodyRole = 'home' | 'gate' | 'parent' | 'scenery';
 
 /**
  * A body of the solar system on a fixed circular orbit around its `parent` (static orbits, no
@@ -31,6 +43,103 @@ export interface Body {
   color: number;
   /** Angle on the orbit at time 0, radians; default 0. */
   phaseRad?: number;
+  /** What the body is for in the voyage (`BodyRole`). */
+  role: BodyRole;
+  /** Radius of the body itself, m (the mean radius). */
+  radiusM: number;
+}
+
+/**
+ * One gate of the voyage (src/content/voyage/gates.ts): the ship flies to `body`, and there the
+ * player chooses to stop or go on. Gates are flown in the order of the list.
+ */
+export interface GateDef {
+  /** Id of the gate's body (a `Body` with role `gate`). */
+  body: string;
+  /** The last gate of the voyage: only "Stop" there. */
+  last?: boolean;
+}
+
+/** How the ship flies a leg: by the autopilot on the integrator, or on a scripted rail. */
+export type LegMode = 'physics' | 'rail';
+
+/**
+ * One leg of the voyage (src/content/voyage/legs.ts): leg `i` ends at gate `i`, leg 0 starts at
+ * the ship's start (`ShipConfig.start`), leg `i` > 0 at gate `i - 1`.
+ */
+export interface LegDef extends LegConditions {
+  /**
+   * Delta-v budget of this leg, m/s: the autopilot plans to spend `AUTOPILOT.planFraction` of
+   * it (`chargeDv` in `Simulation.ts`) and keeps the rest as a reserve; one fuel charge is that
+   * planned delta-v, so a leg flown as planned burns one charge (D13).
+   */
+  dvBudget: number;
+  /**
+   * How long the docking at the end of this leg lasts (the pull from the capture radius onto
+   * the parking orbit), simulated s. Simulated, not real, time, so the flight does not depend
+   * on the time-scale constants; the real duration follows from the time scale at the gate.
+   */
+  dockS: number;
+  /** `physics` - the autopilot flies the integrator; `rail` - the ship follows a scripted path. */
+  mode: LegMode;
+}
+
+/**
+ * What the autopilot does now:
+ * - `flying` - on the leg to gate `legIndex` (thrusting or coasting, see `thrusting`);
+ * - `docking` - inside the gate's capture radius, pulled smoothly onto its parking orbit;
+ * - `arrived` - parked at gate `legIndex`, waiting for `Simulation.departToNextGate`;
+ * - `drifting` - out of fuel charges on the leg: the engine is off for good;
+ * - `finished` - parked at the last gate.
+ */
+export type AutopilotPhase = 'flying' | 'docking' | 'arrived' | 'drifting' | 'finished';
+
+/** State of the autopilot, part of the snapshot (plain data). */
+export interface AutopilotState {
+  phase: AutopilotPhase;
+  /** Index of the gate the ship flies to (or is parked at). */
+  legIndex: number;
+  /**
+   * Guidance stage on the leg: -1 - climbing out of the gravity of `climbBody`, which pulls
+   * harder than the engine where the leg begins (full thrust along the velocity relative to
+   * it); 0 - towards the gate
+   * body (or, for a moon deep in its planet's gravity, towards a standoff point by the planet);
+   * 1 - from the standoff point, aiming the fall at the moon.
+   */
+  stage: number;
+  /** Stage -1: index of the body the ship climbs away from (in `SimulationContent.bodies`). */
+  climbBody: number;
+  /** Stage 0 of a moon leg: direction from the planet to the standoff point (unit vector). */
+  wayX: number;
+  wayY: number;
+  /** Simulated time the leg began, s. */
+  legStartS: number;
+  /** Planned time of arrival at the gate body, s (re-planned when missed). */
+  arrivalS: number;
+  /** Simulated time of the next guidance update, s. */
+  nextReplanS: number;
+  /** Whether the engine pushes now, and the unit direction it pushes in. */
+  thrusting: boolean;
+  dirX: number;
+  dirY: number;
+  /** Delta-v spent on this leg so far, m/s. */
+  dvSpent: number;
+  /** Closest distance to the gate body's centre on this leg so far, m. */
+  closestM: number;
+  /**
+   * Rail legs: where the ship started the leg (position and velocity, m and m/s); docking:
+   * where it was captured, relative to the gate body.
+   */
+  fromX: number;
+  fromY: number;
+  fromVx: number;
+  fromVy: number;
+  /** Docking: when it began and how long it takes, simulated s. */
+  dockStartS: number;
+  dockDurationS: number;
+  /** Parking (docking, arrived): the ship's offset from the gate body, m. */
+  parkX: number;
+  parkY: number;
 }
 
 /** State of the ship: position and velocity relative to the Sun, mass, engine, direction. */
@@ -49,9 +158,14 @@ export interface ShipState {
 }
 
 /**
- * Every ship resource, in the order the navigation panel lists them. To add one, add its id
- * here and its start values in src/content/simulation/ship.ts (the compiler asks for them);
- * the panel shows a bar for it by itself.
+ * Every ship resource, in the order the navigation panel lists them (D14, GDD `res-list`):
+ * - `fuel` - fuel charges (D13);
+ * - `oxygen`, `water`, `food` - days of stock for the one person aboard;
+ * - `power` - days of stock at the ship's base load;
+ * - `heat` - days the cabin stays warm without power (`frozen` at 0);
+ * - `comms` - link to the Earth: 2 OK, 1 Weak, 0 Lost (from the leg, `LegConditions.comms`).
+ * Start amounts come from the cargo aboard (src/content/voyage/cargo, `startResources`), the
+ * flows per day from `evaluateFlows` (src/core/voyage/flows.ts).
  */
 export const RESOURCE_IDS = ['oxygen', 'fuel', 'heat', 'power', 'water', 'food', 'comms'] as const;
 
@@ -60,7 +174,7 @@ export type ResourceId = (typeof RESOURCE_IDS)[number];
 
 /** One resource: amount now, the most it holds, and its change per simulated second. */
 export interface Resource {
-  /** Amount now, 0..max (any unit; the panel shows value / max). */
+  /** Amount now, 0..max (charges, days or a level, see `RESOURCE_IDS`). */
   value: number;
   max: number;
   /** Change per simulated second: negative drains it, positive fills it (heat grows). */
@@ -72,15 +186,26 @@ export type Resources = Record<ResourceId, Resource>;
 
 /**
  * Everything the simulation is at one moment: what `Simulation.step` returns, what the
- * navigation panel draws and what a checkpoint saves (`GameSave.simulation`).
+ * navigation panel draws, what a copy is built from (`Simulation.clone`). Not saved: a save
+ * taken during the voyage starts it again (plan D17).
  */
 export interface SimulationSnapshot {
   /** Simulated time since the start of the voyage, s. Body positions follow from it. */
   timeS: number;
   /** Simulated seconds per real second in the last step (the "T x" in the panel). */
   timeScale: number;
+  /**
+   * Simulated time already granted by the time scale but not yet integrated, s: the
+   * integrator advances in whole substeps, so the trajectory does not depend on frame times.
+   */
+  pendingS: number;
   ship: ShipState;
   resources: Resources;
+  autopilot: AutopilotState;
+  /** Copies of each kind of cargo aboard (`Loadout.counts`): the loadout is rebuilt from it. */
+  cargo: Record<string, number>;
+  /** Offline items, the death if any, the drift clock (`LifeState`). */
+  life: LifeState;
 }
 
 /** Where the ship starts: on a circular orbit around a body (`Simulation` computes the state). */
@@ -96,11 +221,9 @@ export interface ShipStart {
 /** The ship as content describes it (src/content/simulation/ship.ts). */
 export interface ShipConfig {
   massKg: number;
-  /** Thrust while the engine is on ("Thrust on" in the panel), N. */
+  /** Thrust of the engine when the autopilot fires it (always full or off), N. */
   thrustN: number;
   start: ShipStart;
-  /** Resources at the start of the voyage. */
-  resources: Resources;
 }
 
 /** What `SimulationService.attach` gets from content (main.ts). */
@@ -108,33 +231,8 @@ export interface SimulationContent {
   /** Bodies of the solar system; a parent must come before its moons. */
   bodies: readonly Body[];
   ship: ShipConfig;
-}
-
-/** Whether `data` (e.g. `GameSave.simulation` from localStorage) looks like a snapshot. */
-export function isSimulationSnapshot(data: unknown): data is SimulationSnapshot {
-  if (typeof data !== 'object' || data === null) return false;
-  const snapshot = data as Partial<Record<keyof SimulationSnapshot, unknown>>;
-  const ship = snapshot.ship as Partial<Record<keyof ShipState, unknown>> | undefined;
-  return (
-    typeof snapshot.timeS === 'number' &&
-    typeof snapshot.timeScale === 'number' &&
-    typeof ship === 'object' &&
-    ship !== null &&
-    ['x', 'y', 'vx', 'vy', 'massKg', 'thrustN', 'heading'].every(
-      (key) => typeof ship[key as keyof ShipState] === 'number',
-    ) &&
-    typeof snapshot.resources === 'object' &&
-    snapshot.resources !== null &&
-    RESOURCE_IDS.every((id) => isResource((snapshot.resources as Record<string, unknown>)[id]))
-  );
-}
-
-function isResource(data: unknown): boolean {
-  if (typeof data !== 'object' || data === null) return false;
-  const resource = data as Partial<Record<keyof Resource, unknown>>;
-  return (
-    typeof resource.value === 'number' &&
-    typeof resource.max === 'number' &&
-    typeof resource.ratePerS === 'number'
-  );
+  /** The gates in flight order (src/content/voyage/gates.ts). */
+  gates: readonly GateDef[];
+  /** One leg per gate, same order (src/content/voyage/legs.ts). */
+  legs: readonly LegDef[];
 }

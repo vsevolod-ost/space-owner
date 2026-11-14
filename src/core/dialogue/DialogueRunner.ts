@@ -1,6 +1,7 @@
 import type { ImageKey } from '@/assets';
 import type { Choice, Dialogue, DialogueNode, Speaker } from '@/core/dialogue/types';
 import type { GameState } from '@/core/state/GameState';
+import { resolveText } from '@/core/text/format';
 
 /** A line to show; `advance()` moves on. */
 export interface DialogueLine {
@@ -32,10 +33,11 @@ export type DialogueStep = DialogueLine | DialogueChoices | DialogueEnd;
  * Walks a dialogue (plain TS, no Phaser; the window is src/ui/DialogueBox.ts). Entering a node
  * checks its `when`: false skips it along `next`, true runs its `effect` once. Choices whose
  * `when` is false are hidden; a node whose choices are all hidden is shown as a plain line.
+ * Texts that are functions of the state are read once on entering the node, after its `effect`.
  *
  * ```ts
  * const runner = new DialogueRunner(services.state);
- * runner.start(dialogues['demo-engineer']);
+ * runner.start(dialogues['engineer-advice']);
  * runner.current(); // { kind: 'line', nodeId: 'greeting', speaker: 'engineer', text: ... }
  * runner.advance(); // or runner.choose(1) at a 'choices' step
  * ```
@@ -45,6 +47,8 @@ export class DialogueRunner {
   private nodeId: string | null = null;
   /** Choices of the current node that passed their `when`, fixed when the node was entered. */
   private visible: Choice[] = [];
+  /** Text of the current node and of its visible choices, read when the node was entered. */
+  private texts: { line: string; choices: string[] } = { line: '', choices: [] };
 
   constructor(private readonly state: GameState) {}
 
@@ -62,11 +66,11 @@ export class DialogueRunner {
     const line = {
       nodeId: this.nodeId,
       speaker: node.speaker ?? 'narrator',
-      text: node.text,
+      text: this.texts.line,
       ...(node.portrait ? { portrait: node.portrait } : {}),
     };
     if (this.visible.length === 0) return { kind: 'line', ...line };
-    return { kind: 'choices', ...line, choices: this.visible.map((choice) => choice.text) };
+    return { kind: 'choices', ...line, choices: this.texts.choices };
   }
 
   /** Moves past a line to the node's `next` (or to the end). Throws at a `choices` step. */
@@ -120,6 +124,10 @@ export class DialogueRunner {
         this.nodeId = nextId;
         node.effect?.(this.state);
         this.visible = (node.choices ?? []).filter((c) => !c.when || c.when(this.state));
+        this.texts = {
+          line: resolveText(node.text, this.state),
+          choices: this.visible.map((choice) => resolveText(choice.text, this.state)),
+        };
         return;
       }
       budget -= 1;

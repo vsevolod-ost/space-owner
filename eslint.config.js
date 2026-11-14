@@ -68,8 +68,9 @@ export default defineConfig(
     },
   },
   {
-    // Node scripts and config files run outside the browser.
-    files: ['*.{js,mjs,ts}', 'tools/**/*.{js,mjs}'],
+    // Node scripts, config files and src/devtools (`npm run voyage-check`) run outside the
+    // browser.
+    files: ['*.{js,mjs,ts}', 'tools/**/*.{js,mjs}', 'src/devtools/**/*.ts'],
     languageOptions: { globals: { ...globals.node } },
   },
   prettier,

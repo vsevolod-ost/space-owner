@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import type { Controls } from '@/core/input/controls';
-import type { CharacterId } from '@/content/characters';
+import type { ActorCharacterId } from '@/content/characters';
 import { Actor } from '@/world/Actor';
 
 /**
@@ -14,7 +14,7 @@ export class Player extends Actor {
     x: number,
     y: number,
     private readonly controls: Controls,
-    characterId: CharacterId = 'hero',
+    characterId: ActorCharacterId = 'hero',
   ) {
     super(scene, x, y, characterId);
   }

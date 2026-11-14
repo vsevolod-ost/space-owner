@@ -1,0 +1,271 @@
+{
+ "type": "map",
+ "version": "1.10",
+ "tiledversion": "1.11.0",
+ "orientation": "orthogonal",
+ "renderorder": "right-down",
+ "width": 40,
+ "height": 23,
+ "tilewidth": 16,
+ "tileheight": 16,
+ "infinite": false,
+ "compressionlevel": -1,
+ "nextlayerid": 6,
+ "nextobjectid": 19,
+ "tilesets": [],
+ "layers": [
+  {
+   "type": "imagelayer",
+   "name": "background-colony-sky",
+   "image": "../images/locations/colony-sky.png",
+   "x": 0,
+   "y": 0,
+   "opacity": 1,
+   "visible": true,
+   "id": 1
+  },
+  {
+   "type": "imagelayer",
+   "name": "background-colony-ground",
+   "image": "../images/locations/colony-ground.png",
+   "x": 0,
+   "y": 0,
+   "opacity": 1,
+   "visible": true,
+   "id": 2
+  },
+  {
+   "type": "imagelayer",
+   "name": "background-colony-base",
+   "image": "../images/locations/colony-base.png",
+   "x": 0,
+   "y": 0,
+   "opacity": 1,
+   "visible": true,
+   "id": 3
+  },
+  {
+   "type": "objectgroup",
+   "name": "collisions",
+   "draworder": "topdown",
+   "objects": [
+    {
+     "id": 1,
+     "name": "",
+     "type": "",
+     "x": 0,
+     "y": 0,
+     "width": 640,
+     "height": 16,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 2,
+     "name": "",
+     "type": "",
+     "x": 0,
+     "y": 344,
+     "width": 640,
+     "height": 16,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 3,
+     "name": "",
+     "type": "",
+     "x": 0,
+     "y": 16,
+     "width": 16,
+     "height": 328,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 4,
+     "name": "",
+     "type": "",
+     "x": 624,
+     "y": 16,
+     "width": 16,
+     "height": 328,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 5,
+     "name": "",
+     "type": "",
+     "x": 16,
+     "y": 16,
+     "width": 608,
+     "height": 112,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 6,
+     "name": "",
+     "type": "",
+     "x": 48,
+     "y": 96,
+     "width": 96,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 7,
+     "name": "",
+     "type": "",
+     "x": 208,
+     "y": 96,
+     "width": 80,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    }
+   ],
+   "x": 0,
+   "y": 0,
+   "opacity": 1,
+   "visible": true,
+   "id": 4
+  },
+  {
+   "type": "objectgroup",
+   "name": "objects",
+   "draworder": "topdown",
+   "objects": [
+    {
+     "id": 8,
+     "name": "spawn-default",
+     "type": "spawn",
+     "x": 48,
+     "y": 180,
+     "width": 0,
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "point": true
+    },
+    {
+     "id": 9,
+     "name": "shelter",
+     "type": "interactable",
+     "x": 232,
+     "y": 152,
+     "width": 32,
+     "height": 16,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 10,
+     "name": "systems",
+     "type": "interactable",
+     "x": 336,
+     "y": 152,
+     "width": 24,
+     "height": 16,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 11,
+     "name": "overlook",
+     "type": "interactable",
+     "x": 576,
+     "y": 148,
+     "width": 32,
+     "height": 32,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 12,
+     "name": "build-1",
+     "type": "prop",
+     "x": 112,
+     "y": 208,
+     "width": 64,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 13,
+     "name": "build-2",
+     "type": "prop",
+     "x": 208,
+     "y": 208,
+     "width": 64,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 14,
+     "name": "build-3",
+     "type": "prop",
+     "x": 304,
+     "y": 208,
+     "width": 64,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 15,
+     "name": "build-4",
+     "type": "prop",
+     "x": 400,
+     "y": 208,
+     "width": 64,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 16,
+     "name": "build-5",
+     "type": "prop",
+     "x": 160,
+     "y": 280,
+     "width": 64,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 17,
+     "name": "build-6",
+     "type": "prop",
+     "x": 256,
+     "y": 280,
+     "width": 64,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 18,
+     "name": "build-7",
+     "type": "prop",
+     "x": 352,
+     "y": 280,
+     "width": 64,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    }
+   ],
+   "x": 0,
+   "y": 0,
+   "opacity": 1,
+   "visible": true,
+   "id": 5
+  }
+ ]
+}

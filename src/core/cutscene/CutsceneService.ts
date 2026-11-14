@@ -71,7 +71,7 @@ export class CutsceneService {
    * Rejects if the id is unknown or the script throws; the input is unlocked either way.
    *
    * ```ts
-   * 'trigger-center': { kind: 'trigger', once: true, run: (ctx) => ctx.cutscenes.play('demo-arrival') },
+   * arrival: { kind: 'trigger', once: true, run: (ctx) => ctx.cutscenes.play('warehouse-arrival') },
    * ```
    */
   play(id: CutsceneId): Promise<void> {

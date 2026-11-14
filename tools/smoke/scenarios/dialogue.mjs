@@ -1,8 +1,8 @@
 /**
- * Smoke scenario: dialogue. In the corridor the hero stands next to the engineer and
+ * Smoke scenario: dialogue. In the warehouse the hero stands next to the engineer and
  * presses E: the dialogue opens at `greeting`, the NPC turns to the hero, the world is locked
  * (E does not reopen it). Enter moves to the choices; ArrowDown + Enter picks option 2, which
- * sets `engineer.toldAboutShip`; Enter to the end. A second E starts at another node
+ * sets `advice.engineer.cargo`; Enter to the end. A second E starts at another node
  * (`question`, since `greeting` is skipped by its `when`), and the NPC turns back afterwards.
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/dialogue.mjs
  *
@@ -39,12 +39,12 @@ export default async function dialogue(page, h) {
     throw new Error('dialogue did not end after 20 presses');
   }
 
-  await h.goto('/?location=demo-corridor&spawn=spawn-default');
+  await h.goto('/?location=warehouse&spawn=spawn-default');
   await h.waitReady('World');
   await h.waitFor(() => !window.nasa.services.flow.isTransitioning);
 
-  // Left of the engineer (feet at 480,310), within INTERACT_RADIUS of its feet body.
-  await h.teleport(454, 310);
+  // Left of the engineer (feet at 288,168), within INTERACT_RADIUS of its feet body.
+  await h.teleport(262, 168);
   await h.waitFor(
     () => window.nasa.game.scene.getScene('World').debugInfo().focused === 'npc-engineer',
   );
@@ -58,8 +58,8 @@ export default async function dialogue(page, h) {
   await h.waitFor(() => window.nasa.game.scene.getScene('Ui').debugInfo().dialogue !== null);
   const first = await h.eval(dialogueInfo);
   h.log(`opened: ${JSON.stringify(first)}`);
-  if (first.id !== 'demo-engineer' || first.nodeId !== 'greeting') {
-    throw new Error(`first talk opened ${first.id}/${first.nodeId}, want demo-engineer/greeting`);
+  if (first.id !== 'engineer-advice' || first.nodeId !== 'greeting') {
+    throw new Error(`first talk opened ${first.id}/${first.nodeId}, want engineer-advice/greeting`);
   }
   if (!first.typing) throw new Error('typewriter did not run');
   const during = await h.eval(worldInfo);
@@ -75,7 +75,7 @@ export default async function dialogue(page, h) {
   const started = await h.eval(eventCount, 'dialogueStarted');
   if (started !== 1) throw new Error(`dialogueStarted ${started} times, want 1`);
 
-  // Let the typewriter finish on its own (the line is ~80 characters at 40 per second).
+  // Let the typewriter finish on its own (the line is ~75 characters at 40 per second).
   await h.waitFor(() => !window.nasa.game.scene.getScene('Ui').debugInfo().dialogue.typing, 5000);
   await h.shot('dialogue-line');
 
@@ -94,10 +94,11 @@ export default async function dialogue(page, h) {
   );
   await h.shot('dialogue-choices');
 
-  // Option 2: "Tell me about the ship." sets the flag.
+  // Option 2: the cargo question sets the advice flag.
+  const cargoOption = shown.choices.items[1];
   await confirm();
-  const told = await h.eval(() => window.nasa.services.state.flags.get('engineer.toldAboutShip'));
-  if (told !== true) throw new Error(`engineer.toldAboutShip is ${told}, want true`);
+  const told = await h.eval(() => window.nasa.services.state.flags.get('advice.engineer.cargo'));
+  if (told !== true) throw new Error(`advice.engineer.cargo is ${told}, want true`);
   const rest = await confirmToEnd();
   h.log(`after choice 2: ${rest.join(' -> ')}`);
   await h.waitFor(() => !window.nasa.game.scene.getScene('World').controls.isLocked());
@@ -117,10 +118,10 @@ export default async function dialogue(page, h) {
   await h.waitFor(() => window.nasa.game.scene.getScene('Ui').debugInfo().dialogue.choices, 5000);
   const again = await h.eval(dialogueInfo);
   h.log(`second choices: ${JSON.stringify(again.choices.items)}`);
-  if (again.choices.items.includes('Tell me about the ship.')) {
-    throw new Error('the ship option should be hidden once told');
+  if (again.choices.items.includes(cargoOption)) {
+    throw new Error('the cargo option should be hidden once asked');
   }
-  // The last option ("Nothing. See you later."): ArrowUp wraps to it.
+  // The last option (goodbye): ArrowUp wraps to it.
   await h.press('ArrowUp');
   await h.waitFor(
     () => window.nasa.game.scene.getScene('Ui').debugInfo().dialogue.choices.selected === 2,

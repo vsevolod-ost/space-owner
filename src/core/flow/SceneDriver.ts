@@ -2,15 +2,19 @@
  * What the story flow needs from the scenes. src/core does not import Phaser, so
  * `FlowService` moves scenes only through this interface; `PhaserSceneDriver`
  * (src/scenes/PhaserSceneDriver.ts) implements it and main.ts attaches it with
- * `services.flow.attach(new PhaserSceneDriver(game), { acts, actOrder, endings })`. Ids are
- * plain strings here; the driver checks them.
+ * `services.flow.attach(new PhaserSceneDriver(game), { acts, actOrder, endings, debrief,
+ * landingAct })`. Ids are plain strings here; the driver checks them.
  */
 export interface SceneDriver {
   /**
    * Shows location `location` with the hero at spawn `spawn`: fades the current screen out,
-   * loads the location and fades it in. Resolves when the fade-in is over.
+   * loads the location and fades it in. Resolves when the fade-in is over; with `dark`, the
+   * screen stays black and it resolves once the location is loaded (`reveal` or a cutscene's
+   * `fadeIn` shows it).
    */
-  goTo(location: string, spawn: string): Promise<void>;
+  goTo(location: string, spawn: string, options?: { dark?: boolean }): Promise<void>;
+  /** Fades the screen in if it is black or fading; resolves at once if it is clear. */
+  reveal(): Promise<void>;
   /**
    * Fades the screen to black and shows an act title card on it; resolves when the title is
    * gone. The screen stays black, so the act's following `goTo` fades in on its location.

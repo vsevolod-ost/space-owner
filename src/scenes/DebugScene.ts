@@ -103,8 +103,8 @@ export class DebugScene extends Phaser.Scene {
     return { enabled: this.enabled, text: this.enabled ? (this.text?.text ?? '') : '' };
   }
 
-  private rememberFlag(key: string, value: FlagValue): void {
-    let shown = JSON.stringify(value);
+  private rememberFlag(key: string, value: FlagValue | undefined): void {
+    let shown = value === undefined ? '(deleted)' : JSON.stringify(value);
     if (shown.length > MAX_VALUE_CHARS) shown = `${shown.slice(0, MAX_VALUE_CHARS - 1)}~`;
     this.recentFlags.push(`${key}=${shown}`);
     if (this.recentFlags.length > RECENT_FLAGS) this.recentFlags.shift();
@@ -136,10 +136,13 @@ export class DebugScene extends Phaser.Scene {
 
     lines.push(`act ${current?.actId ?? '-'}`);
     lines.push(`music ${audio.debugInfo().music ?? '-'}`);
-    const snapshot = simulation.isRunning ? simulation.snapshot() : null;
+    const snapshot = simulation.snapshot();
     if (snapshot) {
       const day = Math.floor(snapshot.timeS / DAY_S) + 1;
       lines.push(`T×${Math.round(snapshot.timeScale)} Day ${day}`);
+      const holds = simulation.heldReasons;
+      const warp = simulation.debugWarpFactor === 1 ? '' : ` warp×${simulation.debugWarpFactor}`;
+      lines.push((holds.length > 0 ? `sim hold ${holds.join(',')}` : 'sim run') + warp);
     }
 
     const count = Object.keys(state.flags.toRecord()).length;

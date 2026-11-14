@@ -1,4 +1,6 @@
 import type { FlagValue, GameSave } from '@/core/state/GameState';
+import type { FlightSummary } from '@/core/voyage/flightSummary';
+import type { VoyageOutcome } from '@/core/voyage/Voyage';
 
 /**
  * Every game event and its payload. To add an event, add a line here: `services.events.emit`
@@ -8,8 +10,11 @@ import type { FlagValue, GameSave } from '@/core/state/GameState';
  * narrow them (`LocationId`, `DialogueId`, ...) live in src/content.
  */
 export interface GameEvents {
-  /** A flag got a new value (`GameState.flags.set`); `previous` is undefined for a new flag. */
-  flagChanged: { key: string; value: FlagValue; previous: FlagValue | undefined };
+  /**
+   * A flag got a new value (`GameState.flags.set`; `previous` is undefined for a new flag), or
+   * was deleted (`value` undefined, `Flags.deletePrefix`).
+   */
+  flagChanged: { key: string; value: FlagValue | undefined; previous: FlagValue | undefined };
   /** The hero appeared in a location (WorldScene, after loading it). */
   locationEntered: { locationId: string; spawn: string };
   /**
@@ -27,12 +32,43 @@ export interface GameEvents {
   cutsceneEnded: { cutsceneId: string };
   /** The game was saved at a checkpoint. */
   checkpointSaved: { save: GameSave };
-  /** The hero died or the mission failed; `reason` is an ending id. */
-  gameOver: { reason: string };
+  /**
+   * The voyage was lost - the crew died, or the player gave up (`abort`) - and the death loop
+   * begins (`FlowService.die`): the `run.*` flags are set, the scientists' debrief follows.
+   */
+  flightLost: { summary: FlightSummary };
   /**
    * The ship simulation advanced (about four times per real second, not every frame); `dt` is
    * the simulated time since the previous `simulationTick`, seconds. Not recorded in
    * `window.__nasaEvents`.
    */
   simulationTick: { dt: number };
+  /**
+   * The ship reached gate `gateIndex` (src/content/voyage/gates.ts) of body `body`: it is parked
+   * there, simulated time is held (`gate`) until Stop or Go on (`services.simulation.stopHere`,
+   * `goOn`); `last`: the last gate, only Stop. Not emitted when the crew died in the same
+   * moment (death wins) or while an event's card is open (it comes after the answer).
+   */
+  gateReached: { gateIndex: number; body: string; last: boolean };
+  /**
+   * An event on the way happened (src/content/voyage/events): its card waits for an answer,
+   * time is held (`event`); `services.simulation.voyage.openEvent` has the card.
+   */
+  voyageEvent: { eventId: string };
+  /** The open event was answered with `choiceId`; `hit`: its risk struck; `text` to show. */
+  voyageEventResolved: { eventId: string; choiceId: string; hit: boolean; text: string };
+  /**
+   * The voyage ended (`endVoyage`): `landed` at a gate (Stop) or `died` (after `shipDied`).
+   * `FlowService` listens: `died` starts the death loop (`die`); `landed` - the colony (S11).
+   */
+  voyageEnded: { outcome: VoyageOutcome };
+  /**
+   * A death came near (D14): under 10 simulated days or 3 real seconds away at the current
+   * pace, or the ship drifts out of fuel. `cause` is a `DeathCause` (`hypoxia`, `frozen`,
+   * `drift`, ...), `days` simulated days to it at the current flows. Emitted once when the
+   * alarm comes on (again if it went off in between).
+   */
+  shipAlarm: { cause: string; days: number };
+  /** The crew died (`cause`: a `DeathCause`) on simulated day `day`; the simulation stands. */
+  shipDied: { cause: string; day: number };
 }

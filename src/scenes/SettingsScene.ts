@@ -21,7 +21,7 @@ export interface SettingsDebugInfo {
   buttons: { musicDown: Point; musicUp: Point; sfxDown: Point; sfxUp: Point; back: Point };
 }
 
-/** Rows of the panel, top to bottom; Up/Down moves between them. */
+/** Rows of the panel, top to bottom; Up/Down moves between them. OWNER: script - the labels. */
 const ROWS = [
   { setting: 'music', label: 'Music' },
   { setting: 'sfx', label: 'SFX' },
@@ -65,6 +65,7 @@ export class SettingsScene extends PanelScene {
   }
 
   protected build(): void {
+    // OWNER: script - the panel's title and the Back button.
     const area = this.addPanel({ title: 'Settings', width: PANEL_WIDTH, height: PANEL_HEIGHT });
     const right = area.right;
     const upX = right - SMALL_BUTTON.width / 2;

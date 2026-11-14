@@ -1,6 +1,7 @@
 /**
- * Smoke scenario: the UI kit. 1) Fade probe: during a door transition every rendered frame
- * records the fader's opacity; the new location must never show unfaded before its fade in.
+ * Smoke scenario: the UI kit. 1) Fade probe: during a location transition (`flow.goTo`, what a
+ * location door calls) every rendered frame records the fader's opacity; the new location must
+ * never show unfaded before its fade in.
  * 2) ChoiceList: opened through `UiScene.debugShowChoices`, ArrowDown + Enter chooses index 1,
  * a mouse click on the third row chooses index 2.
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/ui.mjs
@@ -12,7 +13,7 @@ export default async function ui(_page, h) {
   const settled = () => !window.nasa.services.flow.isTransitioning;
   const uiInfo = () => window.nasa.game.scene.getScene('Ui').debugInfo();
 
-  await h.goto('/?location=demo-room&spawn=spawn-default');
+  await h.goto('/?location=warehouse&spawn=spawn-default');
   await h.waitReady('World');
   await h.waitFor(settled);
 
@@ -36,9 +37,13 @@ export default async function ui(_page, h) {
     };
     game.events.once('postrender', record);
   });
-  await h.holdUntil(
-    'ArrowLeft',
-    () => window.nasa.game.scene.getScene('World').debugInfo().locationId === 'demo-corridor',
+  // No location door is left in the game (home's door starts an act, with a title card
+  // between the fades): the transition is started the way a location door starts it.
+  await h.eval(() => {
+    void window.nasa.services.flow.goTo('home', 'spawn-default');
+  });
+  await h.waitFor(
+    () => window.nasa.game.scene.getScene('World').debugInfo().locationId === 'home',
     20000,
   );
   await h.waitFor(settled);

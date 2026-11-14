@@ -1,7 +1,7 @@
 /**
  * Smoke scenario: the main menu renders, "About" opens the stub panel over the paused menu,
  * Esc closes it, "About" again and Back closes it, "New Game" shows the prologue title and
- * opens the corridor.
+ * opens the hero's home.
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/menu.mjs
  *
  * @param {import('playwright-core').Page} _page
@@ -49,6 +49,6 @@ export default async function menu(_page, h) {
   await h.waitReady('World', 10000);
   const world = await h.eval(() => window.nasa.game.scene.getScene('World').debugInfo());
   h.log(`New Game -> ${world.locationId} / ${world.spawn}`);
-  if (world.locationId !== 'demo-corridor') throw new Error('New Game did not open the corridor');
+  if (world.locationId !== 'home') throw new Error('New Game did not open home');
   await h.waitFor(() => window.nasa.game.scene.getScene('Ui').debugInfo().fader === 0);
 }

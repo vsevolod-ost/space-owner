@@ -6,6 +6,7 @@
 export const audio = {
   'ui-click': { paths: ['assets/audio/ui-click.wav'] },
   'sfx-door': { paths: ['assets/audio/sfx-door.wav'] },
+  'sfx-alarm': { paths: ['assets/audio/sfx-alarm.wav'] },
   'music-demo': { paths: ['assets/audio/music-demo.wav'] },
 } as const satisfies Record<string, AudioEntry>;
 

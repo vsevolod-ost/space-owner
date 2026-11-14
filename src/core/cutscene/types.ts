@@ -14,10 +14,11 @@ import type { DialogueId } from '@/content/dialogues';
 import type { LocationId } from '@/content/locations';
 import type { Speaker } from '@/core/dialogue/types';
 import type { FlagValue } from '@/core/state/GameState';
+import type { StateText } from '@/core/text/format';
 
 /**
  * Who a cutscene moves: `'player'` (the hero) or the name of an `npc` object of the current
- * location's map (`'npc-captain'`).
+ * location's map (`'npc-engineer'`).
  */
 // `string & {}` keeps 'player' in editor completion while still allowing any NPC name.
 export type ActorId = 'player' | (string & {});
@@ -30,7 +31,7 @@ export interface MapPoint {
 
 /**
  * A place in the current location: the name of a `spawn` or `point` object of its map
- * (`'point-terminal'`), an actor id (`'player'`, `'npc-captain'`: where that actor stands
+ * (`'spawn-hatch'`), an actor id (`'player'`, `'npc-engineer'`: where that actor stands
  * now) or map pixels (`{ x: 320, y: 180 }`). Object names are unique in a map, so one string
  * names one thing.
  */
@@ -50,13 +51,14 @@ export interface CutsceneApi {
    * the hero does not.
    */
   walk(actor: ActorId, to: Place): Promise<void>;
-  /** Turns an actor to a direction, or towards a place (`face('player', 'npc-captain')`). */
+  /** Turns an actor to a direction, or towards a place (`face('player', 'npc-engineer')`). */
   face(actor: ActorId, to: Direction | Place): void;
   /**
    * Shows one line in the dialogue window and resolves when the player closes it (Enter,
-   * Space or a click). `speaker` is a character id or `'narrator'`.
+   * Space or a click). `speaker` is a character id or `'narrator'`; `text` may be a function of
+   * the state (`(s) => formatText('Lost at {gate}.', { gate: ... })`).
    */
-  say(speaker: Speaker, text: string): Promise<void>;
+  say(speaker: Speaker, text: StateText): Promise<void>;
   /** Runs a whole dialogue from src/content/dialogues and resolves when it ends. */
   dialogue(id: DialogueId): Promise<void>;
   /** Waits `ms` of game time (stops while the game is paused). */
@@ -79,6 +81,12 @@ export interface CutsceneApi {
   /** Puts an actor at a place at once (no walking). */
   teleport(actor: ActorId, to: Place): void;
   /**
+   * An NPC's home: the position of its `npc` object in the current location's map (not where
+   * it stands now), for walking or teleporting it back (`api.teleport(id, api.homeOf(id))`).
+   * Unknown names warn and return the actor's current place (the step then does nothing).
+   */
+  homeOf(actor: ActorId): Place;
+  /**
    * Moves the hero to spawn `spawn` of location `location` (fade out, load, fade in). Resolves
    * in the new location; later steps of the cutscene act there.
    */
@@ -92,10 +100,10 @@ export interface CutsceneApi {
  * src/content/cutscenes/index.ts (`CutsceneId`).
  *
  * ```ts
- * export const demoArrival: Cutscene = {
+ * export const warehouseArrival: Cutscene = {
  *   async run(api) {
- *     await api.walk('npc-captain', 'player');
- *     await api.say('captain', 'Welcome aboard.');
+ *     await api.walk('npc-engineer', 'player');
+ *     await api.say('engineer', 'Welcome aboard.');
  *   },
  * };
  * ```

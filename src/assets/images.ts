@@ -4,6 +4,8 @@
  *
  * To replace a placeholder, overwrite the file with real art of the same size - no code
  * changes. To add an image, put the file into `public/assets/` and add a line here.
+ * OWNER: art - every file listed here is a placeholder to draw (sizes and the art order in
+ * docs/HOWTO-art.md).
  */
 export const images = {
   'menu-background': { path: 'assets/menu/background.png' },
@@ -14,11 +16,35 @@ export const images = {
   'ui-panel': { path: 'assets/ui/panel.png' },
   'cursor-interact': { path: 'assets/ui/cursor-interact.png' },
   'portrait-hero': { path: 'assets/portraits/hero.png' },
+  'portrait-hero-resolute': { path: 'assets/portraits/hero-resolute.png' },
+  'portrait-hero-tired': { path: 'assets/portraits/hero-tired.png' },
   'portrait-engineer': { path: 'assets/portraits/engineer.png' },
-  'portrait-captain': { path: 'assets/portraits/captain.png' },
-  'location-demo-corridor': { path: 'assets/images/locations/demo-corridor.png' },
-  'location-demo-room': { path: 'assets/images/locations/demo-room.png' },
+  'portrait-engineer-worried': { path: 'assets/portraits/engineer-worried.png' },
+  'portrait-astronomer': { path: 'assets/portraits/astronomer.png' },
+  'portrait-astronomer-worried': { path: 'assets/portraits/astronomer-worried.png' },
+  'portrait-computer': { path: 'assets/portraits/computer.png' },
+  'location-home': { path: 'assets/images/locations/home.png' },
+  'location-warehouse': { path: 'assets/images/locations/warehouse.png' },
   'location-ship-deck': { path: 'assets/images/locations/ship-deck.png' },
+  // The colony is drawn in three layers, back to front (sky and ground are tinted per body).
+  'location-colony-sky': { path: 'assets/images/locations/colony-sky.png' },
+  'location-colony-ground': { path: 'assets/images/locations/colony-ground.png' },
+  'location-colony-base': { path: 'assets/images/locations/colony-base.png' },
+  /** Empty cargo crate (32x32); the item icon from `items` is drawn on it. */
+  crate: { path: 'assets/sprites/crate.png' },
+  /** Generic colony module (64x48), used for colony items without their own building. */
+  'colony-module': { path: 'assets/sprites/colony/module.png' },
+  // Colony buildings of single items (up to 64x64).
+  'colony-greenhouse': { path: 'assets/sprites/colony/greenhouse.png' },
+  'colony-solar': { path: 'assets/sprites/colony/solar.png' },
+  'colony-reactor': { path: 'assets/sprites/colony/reactor.png' },
+  'colony-battery': { path: 'assets/sprites/colony/battery.png' },
+  'colony-regolith': { path: 'assets/sprites/colony/regolith.png' },
+  'colony-ice': { path: 'assets/sprites/colony/ice.png' },
+  'colony-thermal': { path: 'assets/sprites/colony/thermal.png' },
+  // Objects in the colony sky per body (up to 64x64).
+  'colony-sky-moon': { path: 'assets/sprites/colony/sky-moon.png' },
+  'colony-sky-mars': { path: 'assets/sprites/colony/sky-mars.png' },
 } as const satisfies Record<string, ImageEntry>;
 
 /** One entry of the image registry. */

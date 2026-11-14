@@ -10,6 +10,7 @@ import type { ActorId, CutsceneApi, Place } from '@/core/cutscene/types';
 import type { Speaker } from '@/core/dialogue/types';
 import { services } from '@/core/services';
 import type { FlagValue } from '@/core/state/GameState';
+import type { StateText } from '@/core/text/format';
 import { SceneKey } from '@/scenes/keys';
 import type { UiScene } from '@/scenes/UiScene';
 import type { WorldScene } from '@/scenes/WorldScene';
@@ -99,7 +100,7 @@ export class WorldCutsceneApi implements CutsceneApi {
     if (point) turner.faceTowards(point);
   }
 
-  say(speaker: Speaker, text: string): Promise<void> {
+  say(speaker: Speaker, text: StateText): Promise<void> {
     return this.step(() => this.ui.say(speaker, text, { controls: this.world.controls }));
   }
 
@@ -192,6 +193,14 @@ export class WorldCutsceneApi implements CutsceneApi {
     if (!moved || !point) return;
     moved.stopMoving();
     moved.placeAt(point);
+  }
+
+  homeOf(actor: ActorId): Place {
+    this.token.throwIfCancelled();
+    const home = this.world.npcHomeOf(actor);
+    if (home) return rounded(home);
+    console.warn(`cutscene homeOf: no npc object "${actor}" in this location`);
+    return actor;
   }
 
   goTo(location: LocationId, spawn: string): Promise<void> {

@@ -1,13 +1,15 @@
 import type { Dialogue } from '@/core/dialogue/types';
-import { demoEngineer } from '@/content/dialogues/demo-engineer';
+import { astronomerAdvice } from '@/content/dialogues/astronomer-advice';
+import { engineerAdvice } from '@/content/dialogues/engineer-advice';
 
 /**
  * Registry of dialogues. The object key is the dialogue id (`DialogueId`), used in NPC
- * bindings (`dialogue: 'demo-engineer'`) and cutscenes. To add a dialogue, create `<id>.ts`
+ * bindings (`dialogue: 'engineer-advice'`) and cutscenes. To add a dialogue, create `<id>.ts`
  * next to this file and list it here; see docs/HOWTO-dialogue.md.
  */
 export const dialogues = {
-  'demo-engineer': demoEngineer,
+  'astronomer-advice': astronomerAdvice,
+  'engineer-advice': engineerAdvice,
 } as const satisfies Record<string, Dialogue>;
 
 /** Id of a registered dialogue. */

@@ -1,9 +1,9 @@
 /**
  * Smoke scenario: audio and settings. The menu's Settings button opens the settings panel;
- * "+" on Music (mouse) and Right on SFX (keyboard) change and store the volumes. In the corridor
+ * "+" on Music (mouse) and Right on SFX (keyboard) change and store the volumes. At home
  * exactly one track (`music-demo`) plays after a click (the smoke browser starts unlocked, so the
- * queued-until-unlock path is not exercised here); walking through
- * the door into the room keeps the same sound instance playing (not restarted). Pause ->
+ * queued-until-unlock path is not exercised here); walking through the door (act 1's title
+ * card) into the warehouse keeps the same sound instance playing (not restarted). Pause ->
  * Settings stacks the panels and they close top-down. A sound effect plays without errors, and
  * going to the main menu fades the music out.
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/audio.mjs
@@ -17,8 +17,8 @@ export default async function audio(page, h) {
   const playing = () =>
     window.nasa.game.sound.getAllPlaying().map((sound) => ({ key: sound.key, seek: sound.seek }));
   const settled = () => !window.nasa.services.flow.isTransitioning;
-  const inRoom = () =>
-    window.nasa.game.scene.getScene('World').debugInfo().locationId === 'demo-room';
+  const inWarehouse = () =>
+    window.nasa.game.scene.getScene('World').debugInfo().locationId === 'warehouse';
   const stored = () => JSON.parse(localStorage.getItem('space-owner.settings') ?? '{}');
   const frames = (count) =>
     h.eval(
@@ -80,19 +80,17 @@ export default async function audio(page, h) {
       !window.nasa.game.scene.isActive('Settings') && window.nasa.game.scene.isActive('MainMenu'),
   );
 
-  // --- Corridor: the first click unlocks WebAudio, one track plays -----------------------
-  await h.goto('/?location=demo-corridor&spawn=spawn-default');
+  // --- Home: the first click unlocks WebAudio, one track plays --------------------------
+  await h.goto('/?location=home&spawn=spawn-default');
   await h.waitReady('World');
   await h.waitFor(settled);
   const lockedBefore = await h.eval(() => window.nasa.game.sound.locked);
   await h.click();
   await page.waitForTimeout(500);
-  const corridor = await h.eval(playing);
-  h.log(
-    `corridor (sound locked before click: ${lockedBefore}): playing ${JSON.stringify(corridor)}`,
-  );
-  if (corridor.length !== 1 || corridor[0].key !== 'music-demo') {
-    throw new Error(`expected exactly music-demo playing, got ${JSON.stringify(corridor)}`);
+  const home = await h.eval(playing);
+  h.log(`home (sound locked before click: ${lockedBefore}): playing ${JSON.stringify(home)}`);
+  if (home.length !== 1 || home[0].key !== 'music-demo') {
+    throw new Error(`expected exactly music-demo playing, got ${JSON.stringify(home)}`);
   }
   // Keep the instance to compare after the door.
   await h.eval(() => {
@@ -101,16 +99,14 @@ export default async function audio(page, h) {
   const volume = await h.eval(() => window.nasa.services.audio.debugInfo());
   h.log(`audio: ${JSON.stringify(volume)}`);
 
-  // --- Through the door: the same track keeps playing -----------------------------------
-  // The room's arrival cutscene counts as seen, so the walk is not interrupted.
-  await h.eval(() =>
-    window.nasa.services.state.flags.set('trigger:demo-room:trigger-center', true),
-  );
-  await h.teleport(900, 270);
-  await h.holdUntil('ArrowRight', inRoom, 10000);
+  // --- Through the door: the same track keeps playing across the act title ---------------
+  // The warehouse's arrival cutscene counts as seen, so nothing interrupts.
+  await h.eval(() => window.nasa.services.state.flags.set('trigger:warehouse:arrival', true));
+  await h.teleport(590, 180);
+  await h.holdUntil('ArrowRight', inWarehouse, 10000);
   await h.waitReady('World');
   await h.waitFor(settled);
-  const room = await h.eval(() => {
+  const warehouse = await h.eval(() => {
     const sounds = window.nasa.game.sound.getAllPlaying();
     return {
       count: sounds.length,
@@ -120,20 +116,20 @@ export default async function audio(page, h) {
       seek: window.__smokeMusic.seek,
     };
   });
-  h.log(`room: ${JSON.stringify(room)}`);
+  h.log(`warehouse: ${JSON.stringify(warehouse)}`);
   // sfx-door may still be sounding; exactly one music track, the same instance, never restarted.
-  if (room.music !== 1 || !room.same) {
-    throw new Error(`the music did not continue across the door: ${JSON.stringify(room)}`);
+  if (warehouse.music !== 1 || !warehouse.same) {
+    throw new Error(`the music did not continue across the door: ${JSON.stringify(warehouse)}`);
   }
-  if (!room.keys.every((key) => key === 'music-demo' || key === 'sfx-door')) {
-    throw new Error(`unexpected sounds after the door: ${JSON.stringify(room.keys)}`);
+  if (!warehouse.keys.every((key) => key === 'music-demo' || key === 'sfx-door')) {
+    throw new Error(`unexpected sounds after the door: ${JSON.stringify(warehouse.keys)}`);
   }
-  if (!(room.seek > 0)) throw new Error(`music seek ${room.seek}, expected > 0`);
+  if (!(warehouse.seek > 0)) throw new Error(`music seek ${warehouse.seek}, expected > 0`);
   await page.waitForTimeout(600);
-  const roomLater = await h.eval(playing);
-  h.log(`room after 600 ms: playing ${JSON.stringify(roomLater)}`);
-  if (roomLater.length !== 1 || roomLater[0].key !== 'music-demo') {
-    throw new Error(`expected exactly music-demo playing, got ${JSON.stringify(roomLater)}`);
+  const warehouseLater = await h.eval(playing);
+  h.log(`warehouse after 600 ms: playing ${JSON.stringify(warehouseLater)}`);
+  if (warehouseLater.length !== 1 || warehouseLater[0].key !== 'music-demo') {
+    throw new Error(`expected exactly music-demo playing, got ${JSON.stringify(warehouseLater)}`);
   }
 
   // --- Pause -> Settings: panels stack and close top-down --------------------------------

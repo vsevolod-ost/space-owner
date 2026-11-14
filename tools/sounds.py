@@ -72,6 +72,17 @@ def sfx_door() -> np.ndarray:
     return out * 0.6 * envelope(len(t), attack=0.02, release=0.15)
 
 
+def sfx_alarm() -> np.ndarray:
+    """0.6 s alarm: two short two-tone beeps (navigation panel, a death is near)."""
+    beep = seconds(0.12)
+    gap = np.zeros(int(RATE * 0.03))
+    parts = []
+    for freq in (988.0, 740.0, 988.0, 740.0):
+        tone = np.sign(np.sin(2 * np.pi * freq * beep)) * 0.22
+        parts += [tone * envelope(len(beep), release=0.02), gap]
+    return np.concatenate(parts)
+
+
 def music_demo() -> np.ndarray:
     """4 s quiet loop: a soft chord whose partials complete whole cycles, so it loops cleanly."""
     duration = 4.0
@@ -87,6 +98,7 @@ def main() -> None:
     print(f'Writing placeholder sounds into {AUDIO}')
     write_wav('ui-click.wav', ui_click())
     write_wav('sfx-door.wav', sfx_door())
+    write_wav('sfx-alarm.wav', sfx_alarm())
     write_wav('music-demo.wav', music_demo())
 
 

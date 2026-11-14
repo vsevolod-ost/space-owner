@@ -8,10 +8,15 @@ Usage (from the repository root or anywhere):
 Real art replaces a placeholder by overwriting the file with the same name and size.
 To add a placeholder, add an entry to the matching list below and run the script again.
 
-LOCATIONS is the single source of the demo location geometry: the walls and obstacles drawn
-on each background are the collision rectangles of the matching Tiled map
-(public/assets/maps/<id>.tmj), which tools/make_maps.py writes from it. After changing
-LOCATIONS run both scripts. Needs Pillow (pip install pillow).
+The files and sizes follow the art order (P0 and P1 rows); a real file must keep the name and
+the size of its placeholder.
+
+LOCATIONS is the single source of the geometry of the generated locations: the walls and
+obstacles drawn on each background are the collision rectangles of the matching Tiled map
+(public/assets/maps/<id>.tmj), which tools/make_maps.py writes from it. Backgrounds of locations
+with `markup` also show the map objects of tools/make_maps.py (outlines and names): the grey
+layout draft the artist paints over. After changing LOCATIONS or MAPS run both scripts. Needs
+Pillow (pip install pillow).
 """
 
 from __future__ import annotations
@@ -34,28 +39,71 @@ TILE = 16
 # --- Location geometry (map pixels) -------------------------------------------------------
 # size:      background size, px
 # wall:      thickness of the wall along every edge, px
+# floor:     floor colour of the placeholder background
 # doorways:  gaps in an edge wall, (side, start, end) along that side, px
-# obstacles: impassable rectangles inside the room, (x, y, width, height), px
-# Rule for every demo map: the straight line from the spawn along the middle (y = height/2)
-# to every door, NPC, trigger and station stays free of collisions - the smoke tests walk it.
+# obstacles: impassable rectangles inside the room, (x, y, width, height[, label]), px;
+#            label '' draws none
+# markup:    draw the map objects of tools/make_maps.py on the background (layout draft)
+# layers:    a layered background (colony): image names, back to front; replaces `floor`
+# horizon:   layered background only: y of the horizon, px (the ground is transparent above)
+# Rule for every generated map: the straight line from `spawn-default` along the middle
+# (y = height/2) to every door, NPC, trigger and station stays free of collisions - the smoke
+# tests walk it.
 LOCATIONS: dict[str, dict] = {
-    'demo-corridor': {
-        'size': (960, 540),
-        'wall': 16,
-        'doorways': [('right', 238, 302)],  # door-room, centred on y = 270
-        'obstacles': [(320, 96, 192, 64), (576, 400, 192, 64)],  # upper third, lower third
-    },
-    'demo-room': {
+    # Prologue: the hero's flat, one screen; the door on the right starts act 1.
+    'home': {
         'size': (640, 360),
         'wall': 16,
-        'doorways': [('left', 148, 212)],  # door-corridor, centred on y = 180
-        'obstacles': [(448, 48, 128, 48), (96, 256, 128, 48), (400, 264, 144, 48)],
+        'floor': (104, 84, 64),
+        'doorways': [('right', 148, 212)],  # door-warehouse, centred on y = 180
+        'obstacles': [(32, 32, 96, 48, 'bed'), (464, 16, 96, 32, 'wardrobe'), (256, 248, 96, 48, 'table')],
+        'markup': True,
     },
-    'ship-deck': {
-        'size': (1280, 720),
+    # Act 1: one screen 640x368 (the camera scrolls 8 px). The scientists' glass booth top left,
+    # shelves along the top wall, 3 islands of 4 crate places below the middle line, the hatch
+    # to the ship on the right wall.
+    'warehouse': {
+        'size': (640, 368),
         'wall': 16,
+        'floor': (64, 72, 80),
         'doorways': [],
-        'obstacles': [(256, 96, 256, 128), (768, 128, 192, 96), (320, 512, 192, 96), (832, 528, 256, 80)],
+        'obstacles': [
+            (16, 16, 160, 96, 'booth'),
+            (192, 16, 432, 32, 'shelves'),
+            (208, 232, 64, 64, ''),  # island 1: the crates name it
+            (336, 232, 64, 64, ''),  # island 2
+            (464, 232, 64, 64, ''),  # island 3
+        ],
+        'markup': True,
+    },
+    # Act 2: the deck as a diorama, one screen. The navigation console above the middle line,
+    # the radio at the top wall, the airlock on the right wall, the hold with 7 bays at the
+    # bottom (the hero cannot walk into the hold).
+    'ship-deck': {
+        'size': (640, 360),
+        'wall': 16,
+        'floor': (52, 64, 80),
+        'doorways': [],
+        'obstacles': [
+            (160, 112, 64, 48, 'nav console'),
+            (384, 16, 48, 32, 'radio desk'),
+            (144, 264, 352, 80, ''),  # the hold: the bays name it
+        ],
+        'markup': True,
+    },
+    # Act 3: one map for every body; sky and ground are recoloured per body, the base is not.
+    'colony': {
+        'size': (640, 360),
+        'wall': 16,
+        'layers': ['colony-sky', 'colony-ground', 'colony-base'],
+        'horizon': 128,
+        'doorways': [],
+        'obstacles': [
+            (16, 16, 608, 112, 'sky'),
+            (48, 96, 96, 48, 'lander'),
+            (208, 96, 80, 48, 'shelter'),
+        ],
+        'markup': True,
     },
 }
 
@@ -89,7 +137,7 @@ def wall_rects(location: dict) -> list[tuple[int, int, int, int]]:
 
 def collision_rects(location: dict) -> list[tuple[int, int, int, int]]:
     """Every impassable rectangle of a location: walls first, then obstacles."""
-    return wall_rects(location) + [tuple(o) for o in location['obstacles']]
+    return wall_rects(location) + [tuple(o[:4]) for o in location['obstacles']]
 
 
 # --- Drawing helpers ------------------------------------------------------------------------
@@ -182,26 +230,61 @@ def cursor() -> None:
     save(image, 'ui/cursor-interact.png')
 
 
+# Cargo items in the order of ui/items.png: (id, two-letter code, colour).
+ITEMS: list[tuple[str, str, tuple[int, int, int]]] = [
+    ('fuel', 'FU', (220, 120, 40)),
+    ('oxygen', 'O2', (80, 160, 230)),
+    ('supplies', 'SU', (170, 130, 80)),
+    ('battery', 'BA', (230, 210, 60)),
+    ('solar', 'SO', (60, 90, 200)),
+    ('reactor', 'RE', (200, 60, 60)),
+    ('greenhouse', 'GR', (70, 170, 80)),
+    ('regolith-kit', 'RG', (150, 110, 90)),
+    ('ice-kit', 'IC', (170, 220, 240)),
+    ('thermal-kit', 'TH', (240, 90, 140)),
+]
+ITEM_COLOUR = {item: colour for item, _, colour in ITEMS}
+
+
+def lighter(colour: tuple[int, ...], by: int = 60) -> tuple[int, ...]:
+    return tuple(min(c + by, 255) for c in colour[:3])
+
+
+def darker(colour: tuple[int, ...], by: int = 60) -> tuple[int, ...]:
+    return tuple(max(c - by, 0) for c in colour[:3])
+
+
 def portraits() -> None:
-    for name, colour in (
-        ('hero', (60, 140, 230)),
-        ('engineer', (230, 140, 40)),
-        ('captain', (170, 60, 190)),
+    # (file name, label, colour, face): face 'head' draws a head, 'screen' a display.
+    for name, text, colour, face in (
+        ('hero', 'hero', (60, 140, 230), 'head'),
+        ('hero-resolute', 'hero-R', (60, 140, 230), 'head'),
+        ('hero-tired', 'hero-T', (60, 140, 230), 'head'),
+        ('engineer', 'engin', (230, 140, 40), 'head'),
+        ('engineer-worried', 'eng-W', (230, 140, 40), 'head'),
+        ('astronomer', 'astro', (90, 180, 170), 'head'),
+        ('astronomer-worried', 'ast-W', (90, 180, 170), 'head'),
+        ('computer', 'CPU', (70, 90, 110), 'screen'),
     ):
         image = Image.new('RGB', (48, 48), colour)
         d = new_draw(image)
-        d.ellipse((12, 6, 35, 29), fill=tuple(min(c + 60, 255) for c in colour), outline=(0, 0, 0))
+        if face == 'head':
+            d.ellipse((12, 6, 35, 29), fill=lighter(colour), outline=(0, 0, 0))
+        else:
+            d.rectangle((8, 6, 39, 29), fill=(20, 40, 30), outline=(0, 0, 0))
+            d.line((12, 18, 35, 18), fill=(80, 230, 120))
         frame(d, (0, 0, 48, 48), (0, 0, 0))
-        label(d, (24, 41), name[:5], (0, 0, 0), anchor='mm')
+        label(d, (24, 41), text, (0, 0, 0), anchor='mm')
         save(image, f'portraits/{name}.png')
 
 
-def character(name: str, colour: tuple[int, int, int]) -> None:
-    """4x4 sheet of 32x48 frames: rows down, left, right, up; column 0 idle, 1-3 walk."""
+def character(name: str, colour: tuple[int, int, int], columns: int = 4) -> None:
+    """Sheet of 32x48 frames, rows down, left, right, up. With 4 columns (the hero): column 0
+    idle, 1-3 walk. With 1 column (a standing NPC): one standing frame per direction."""
     fw, fh = 32, 48
-    image = Image.new('RGBA', (fw * 4, fh * 4), (0, 0, 0, 0))
+    image = Image.new('RGBA', (fw * columns, fh * 4), (0, 0, 0, 0))
     d = new_draw(image)
-    light = tuple(min(c + 70, 255) for c in colour) + (255,)
+    light = lighter(colour, 70) + (255,)
     # Arrow tip and two base points per direction, relative to the body centre.
     arrows = {
         'down': ((0, 7), (-5, -3), (5, -3)),
@@ -210,7 +293,7 @@ def character(name: str, colour: tuple[int, int, int]) -> None:
         'up': ((0, -7), (-5, 3), (5, 3)),
     }
     for row, direction in enumerate(('down', 'left', 'right', 'up')):
-        for col in range(4):
+        for col in range(columns):
             x0, y0 = col * fw, row * fh
             bob = 0 if col == 0 else (-1 if col % 2 else 1)  # walk frames bob a pixel
             body = (x0 + 6, y0 + 10 + bob, x0 + 26, y0 + 44 + bob)
@@ -223,24 +306,158 @@ def character(name: str, colour: tuple[int, int, int]) -> None:
     save(image, f'sprites/{name}.png')
 
 
-def location(name: str, geometry: dict) -> None:
-    width, height = geometry['size']
-    floor = {'demo-corridor': (70, 80, 92), 'demo-room': (86, 72, 64), 'ship-deck': (52, 64, 80)}[name]
-    image = Image.new('RGB', (width, height), floor)
+def items() -> None:
+    """ui/items.png: one 16x16 icon per cargo item in a row, in ITEMS order."""
+    image = Image.new('RGBA', (16 * len(ITEMS), 16), (0, 0, 0, 0))
     d = new_draw(image)
-    grid = tuple(c + 10 for c in floor)
-    for x in range(0, width, TILE):
-        d.line((x, 0, x, height), fill=grid)
-    for y in range(0, height, TILE):
-        d.line((0, y, width, y), fill=grid)
-    # The middle line the smoke tests walk along.
-    d.line((0, height // 2, width, height // 2), fill=tuple(c + 30 for c in floor))
+    for i, (_, code, colour) in enumerate(ITEMS):
+        x = i * 16
+        d.rectangle((x, 0, x + 15, 15), fill=colour + (255,), outline=darker(colour, 90) + (255,))
+        text = (0, 0, 0, 255) if sum(colour) > 380 else (255, 255, 255, 255)
+        label(d, (x + 8, 8), code, text, anchor='mm')
+    save(image, 'ui/items.png')
 
+
+def panel_icons() -> None:
+    """ui/panel-icons.png: 8x8 icons for the navigation panel rows."""
+    icons = (
+        ('O', (80, 160, 230)),  # oxygen
+        ('S', (170, 130, 80)),  # supplies
+        ('P', (230, 210, 60)),  # power
+        ('F', (220, 120, 40)),  # fuel
+        ('H', (240, 90, 140)),  # heat
+        ('C', (150, 150, 170)),  # comms
+    )
+    image = Image.new('RGBA', (8 * len(icons), 8), (0, 0, 0, 0))
+    d = new_draw(image)
+    for i, (letter, colour) in enumerate(icons):
+        d.rectangle((i * 8, 0, i * 8 + 7, 7), fill=colour + (255,))
+        label(d, (i * 8 + 4, 4), letter, (0, 0, 0, 255), anchor='mm')
+    save(image, 'ui/panel-icons.png')
+
+
+def crate() -> None:
+    """sprites/crate.png: an empty cargo crate with a flat 16x16 place for the item icon."""
+    image = Image.new('RGBA', (32, 32), (0, 0, 0, 0))
+    d = new_draw(image)
+    d.rectangle((1, 3, 30, 31), fill=(120, 110, 90, 255), outline=(40, 36, 30, 255))
+    d.rectangle((1, 3, 30, 6), fill=(150, 140, 115, 255), outline=(40, 36, 30, 255))
+    d.rectangle((8, 11, 23, 26), fill=(200, 196, 180, 255))  # the icon goes here
+    frame(d, (0, 0, 32, 32), (255, 0, 255, 90))
+    save(image, 'sprites/crate.png')
+
+
+def colony_sprites() -> None:
+    """The universal colony module, the P1 buildings per item and the P1 sky objects."""
+    image = Image.new('RGBA', (64, 48), (0, 0, 0, 0))
+    d = new_draw(image)
+    d.rectangle((4, 16, 59, 47), fill=(170, 175, 180, 255), outline=(50, 55, 60, 255))
+    d.pieslice((12, 2, 51, 31), 180, 360, fill=(190, 195, 200, 255), outline=(50, 55, 60, 255))
+    d.rectangle((24, 24, 39, 39), fill=(230, 230, 225, 255))  # plate for the item icon
+    label(d, (32, 46), 'module', (30, 30, 30, 255), anchor='ms')
+    save(image, 'sprites/colony/module.png')
+
+    # P1: own buildings instead of the module (names as in the art order).
+    for name, item in (
+        ('greenhouse', 'greenhouse'),
+        ('solar', 'solar'),
+        ('reactor', 'reactor'),
+        ('battery', 'battery'),
+        ('regolith', 'regolith-kit'),
+        ('ice', 'ice-kit'),
+        ('thermal', 'thermal-kit'),
+    ):
+        colour = ITEM_COLOUR[item]
+        image = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
+        d = new_draw(image)
+        d.rectangle((4, 16, 59, 63), fill=colour + (255,), outline=darker(colour, 90) + (255,))
+        label(d, (32, 40), name[:6], (0, 0, 0, 255), anchor='mm')
+        frame(d, (0, 0, 64, 64), (255, 0, 255, 90))
+        save(image, f'sprites/colony/{name}.png')
+
+    # P1: what hangs in the colony sky, per body.
+    for body, what, colour, radius in (
+        ('moon', 'Earth', (70, 120, 220), 28),
+        ('mars', 'Sun', (255, 230, 120), 8),
+    ):
+        image = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
+        d = new_draw(image)
+        d.ellipse((32 - radius, 32 - radius, 31 + radius, 31 + radius), fill=colour + (255,))
+        label(d, (32, 63), what[:8], (255, 255, 255, 255), anchor='ms')
+        frame(d, (0, 0, 64, 64), (255, 0, 255, 90))
+        save(image, f'sprites/colony/sky-{body}.png')
+
+
+# Outline colour of map objects per class on backgrounds with `markup`.
+KIND_COLOUR = {
+    'spawn': (120, 255, 120),
+    'door': (60, 220, 90),
+    'npc': (255, 200, 60),
+    'interactable': (90, 200, 255),
+    'trigger': (255, 120, 255),
+    'point': (255, 255, 255),
+    'prop': (200, 170, 255),
+}
+
+
+def short_name(name: str, width: int) -> str:
+    """A label that fits `width` px of the 8 px font: crates by item code (`FU1`, `O2`)."""
+    if len(name) * 8 <= width:
+        return name
+    if name.startswith('crate-'):
+        item, _, number = name.removeprefix('crate-').partition('-')
+        codes = {i: code for i, code, _ in ITEMS}
+        if item not in codes:  # an id with a dash: regolith-kit
+            item, number = name.removeprefix('crate-'), ''
+        if item in codes:
+            return codes[item] + (number if number.isdigit() else '')
+    compact = name.replace('-', '')  # bay-1 -> bay1
+    return compact if len(compact) * 8 <= width else name
+
+
+def shadowed(d: ImageDraw.ImageDraw, xy: tuple[int, int], text: str, colour, anchor='la') -> None:
+    """A label with a 1 px dark shadow, readable on light and dark floors."""
+    label(d, (xy[0] + 1, xy[1] + 1), text, (16, 16, 20), anchor=anchor)
+    label(d, xy, text, colour, anchor=anchor)
+
+
+def draw_markup(d: ImageDraw.ImageDraw, name: str) -> None:
+    """Outlines and names of the map objects of tools/make_maps.py: the layout draft."""
+    sys.dont_write_bytecode = True  # importing make_maps must not leave tools/__pycache__/
+    from make_maps import MAPS  # noqa: PLC0415 - make_maps imports this module at its top
+
+    width = LOCATIONS[name]['size'][0]
+    labelled: dict[tuple[int, int], int] = {}  # points already labelled at a place
+    for obj_name, cls, x, y, w, h in MAPS.get(name, []):
+        colour = KIND_COLOUR[cls]
+        if w == 0 and h == 0:
+            d.line((x - 3, y, x + 3, y), fill=colour)
+            d.line((x, y - 3, x, y + 3), fill=colour)
+            below = labelled.get((x, y), 0)  # coincident points: next label one line lower
+            labelled[(x, y)] = below + 1
+            shadowed(d, (x + 5, y - 1 + below * 10), obj_name, colour, anchor='ls')
+        else:
+            d.rectangle((x, y, x + w - 1, y + h - 1), outline=colour)
+            text = short_name(obj_name, w - 2)
+            if x + 2 + len(text) * 8 > width:  # would run off the right edge
+                shadowed(d, (x + w - 2, y + 2), text, colour, anchor='ra')
+            else:
+                shadowed(d, (x + 2, y + 2), text, colour)
+
+
+def draw_geometry(d: ImageDraw.ImageDraw, geometry: dict, fill_obstacles: bool = True) -> None:
+    """Walls, obstacles (filled, with their labels) and doorways of a location."""
+    width, height = geometry['size']
     for x, y, w, h in wall_rects(geometry):
         d.rectangle((x, y, x + w - 1, y + h - 1), fill=(28, 30, 36), outline=(110, 115, 130))
-    for i, (x, y, w, h) in enumerate(geometry['obstacles'], 1):
-        d.rectangle((x, y, x + w - 1, y + h - 1), fill=(150, 70, 60), outline=(240, 160, 140))
-        label(d, (x + w // 2, y + h // 2), f'obstacle {i}', (255, 230, 220), anchor='mm')
+    for i, (x, y, w, h, *name) in enumerate(geometry['obstacles'], 1):
+        text = name[0] if name else f'obstacle {i}'
+        if fill_obstacles:
+            d.rectangle((x, y, x + w - 1, y + h - 1), fill=(150, 70, 60), outline=(240, 160, 140))
+        else:
+            d.rectangle((x, y, x + w - 1, y + h - 1), outline=(240, 160, 140))
+        if text:  # an empty label draws none
+            label(d, (x + w // 2, y + h // 2), text, (255, 230, 220), anchor='mm')
     for side, a, b in geometry['doorways']:
         t = geometry['wall']
         box = {
@@ -251,8 +468,66 @@ def location(name: str, geometry: dict) -> None:
         }[side]
         d.rectangle(box, fill=(60, 170, 90))
 
+
+def draw_grid(d: ImageDraw.ImageDraw, size: tuple[int, int], floor: tuple[int, ...], top: int = 0) -> None:
+    width, height = size
+    grid = tuple(c + 10 for c in floor[:3])
+    for x in range(0, width, TILE):
+        d.line((x, top, x, height), fill=grid)
+    for y in range(top, height, TILE):
+        d.line((0, y, width, y), fill=grid)
+
+
+def location(name: str, geometry: dict) -> None:
+    if 'layers' in geometry:
+        layered_location(name, geometry)
+        return
+    width, height = geometry['size']
+    floor = geometry['floor']
+    image = Image.new('RGB', (width, height), floor)
+    d = new_draw(image)
+    draw_grid(d, (width, height), floor)
+    # The middle line the smoke tests walk along.
+    d.line((0, height // 2, width, height // 2), fill=tuple(c + 30 for c in floor))
+    draw_geometry(d, geometry)
+    if geometry.get('markup'):
+        draw_markup(d, name)
     label(d, (24, 22), f'{name}  {width}x{height}  PLACEHOLDER', (230, 230, 240))
     save(image, f'images/locations/{name}.png')
+
+
+def layered_location(name: str, geometry: dict) -> None:
+    """The colony: sky (opaque), ground (transparent above the horizon), base (transparent but
+    for the lander, the shelter and the layout draft). Sky and ground are light neutral greys
+    because the game tints them per body; the base is not tinted."""
+    width, height = geometry['size']
+    horizon = geometry['horizon']
+    sky_layer, ground_layer, base_layer = geometry['layers']
+
+    sky = Image.new('RGB', (width, height), (212, 214, 218))
+    d = new_draw(sky)
+    for y in range(0, horizon, 32):
+        d.line((0, y, width, y), fill=(200, 202, 206))
+    label(d, (24, 22), f'{sky_layer}  {width}x{height}  PLACEHOLDER', (120, 122, 128))
+    save(sky, f'images/locations/{sky_layer}.png')
+
+    ground_floor = (176, 176, 172)
+    ground = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    d = new_draw(ground)
+    d.rectangle((0, horizon, width - 1, height - 1), fill=ground_floor + (255,))
+    draw_grid(d, (width, height), ground_floor, top=horizon)
+    d.line((0, height // 2, width, height // 2), fill=lighter(ground_floor, 30))
+    label(d, (24, height - 16), f'{ground_layer}  {width}x{height}  PLACEHOLDER', (110, 110, 106))
+    save(ground, f'images/locations/{ground_layer}.png')
+
+    base = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    d = new_draw(base)
+    for x, y, w, h, *_ in geometry['obstacles'][1:]:  # lander and shelter, not the sky
+        d.rectangle((x, y, x + w - 1, y + h - 1), fill=(90, 96, 104, 255))
+    draw_geometry(d, geometry, fill_obstacles=False)
+    draw_markup(d, name)
+    label(d, (24, 40), f'{base_layer}  {width}x{height}  PLACEHOLDER', (40, 40, 48))
+    save(base, f'images/locations/{base_layer}.png')
 
 
 def print_geometry() -> None:
@@ -278,10 +553,14 @@ def main() -> None:
     buttons()
     panel()
     cursor()
+    panel_icons()
     portraits()
+    items()
+    crate()
+    colony_sprites()
     character('hero', (60, 140, 230))
-    character('npc-engineer', (230, 140, 40))
-    character('npc-captain', (170, 60, 190))
+    character('npc-engineer', (230, 140, 40), columns=1)
+    character('npc-astronomer', (90, 180, 170), columns=1)
     for name, geometry in LOCATIONS.items():
         location(name, geometry)
 

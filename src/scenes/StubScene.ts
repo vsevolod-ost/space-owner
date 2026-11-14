@@ -27,6 +27,7 @@ export class StubScene extends PanelScene<StubSceneData> {
     super(SceneKey.Stub);
   }
 
+  // OWNER: script - the default details line.
   protected build({ title, details = '(in development)' }: StubSceneData): void {
     const area = this.addPanel({ title, width: PANEL_WIDTH, height: PANEL_HEIGHT });
     // Up to five lines of details fit between the heading and the Back button.

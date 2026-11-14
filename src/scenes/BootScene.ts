@@ -87,9 +87,11 @@ export class BootScene extends Phaser.Scene {
     });
   }
 
-  /** Creates `<id>-idle-<dir>` and `<id>-walk-<dir>` for every character. */
+  /** Creates `<id>-idle-<dir>` and `<id>-walk-<dir>` for every character with a sprite sheet. */
   private createCharacterAnimations(): void {
     for (const [id, def] of Object.entries(characters) as [CharacterId, CharacterDef][]) {
+      // A character without a sheet (the ship's computer) only speaks: no animations.
+      if (def.spritesheet === undefined) continue;
       for (const [direction, row] of Object.entries(def.rows) as [Direction, number][]) {
         const first = row * def.framesPerRow;
         this.anims.create({

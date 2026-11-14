@@ -1,0 +1,258 @@
+import { DAY_S } from '@/core/simulation/constants';
+import type { Resources } from '@/core/simulation/types';
+import { rollFor } from '@/core/voyage/random';
+import type { CommsLevel, DeathCause, LifeState, Loadout, StockId } from '@/core/voyage/types';
+
+/**
+ * Events on the way (plan D15, GDD `evt-catalog` A, `gate-uncertainty` D): cards that stop the
+ * voyage at a point of a leg and ask the player to choose. The registry lives in
+ * src/content/voyage/events; `Voyage` rolls and applies them. Plain data and pure functions.
+ */
+
+/** What an event's numbers may look at when they are rolled or applied (`EventContext`). */
+export interface EventContext {
+  /** Copies of cargo `id` aboard that still work (an offline item counts 0). */
+  count(id: string): number;
+  /** Whether at least one working copy of cargo `id` is aboard. */
+  has(id: string): boolean;
+  /** Amount of a stock now (days of a resource, or fuel charges). */
+  stock(id: StockId): number;
+  /** The link to the Earth on this leg. */
+  comms: CommsLevel;
+  /** Index of the leg (the gate it ends at). */
+  leg: number;
+}
+
+/**
+ * What a choice does to the ship. All parts are optional and applied in this order:
+ * `waitDays`, `stocks`, `offline`, `die` (`applyEventEffect`, the one place that reads them: a
+ * new part is a compile error there until it is applied).
+ */
+export interface EventEffect {
+  /**
+   * Days of the current flows pass for the stocks (waiting for a corridor): every resource
+   * changes by its daily rate times this. The ship and the voyage's clock stand.
+   */
+  waitDays?: number;
+  /** Added to stocks (negative: lost) - days of a resource, or fuel charges (a leak). */
+  stocks?: Partial<Record<StockId, number>>;
+  /** Cargo ids that stop working for good (the reactor). */
+  offline?: readonly string[];
+  /** The crew dies of this event (`event:<id>`). */
+  die?: boolean;
+}
+
+/** One answer on an event's card. */
+export interface EventChoiceDef {
+  /** Unique within the event; flag `event.<eventId>` stores the chosen one. */
+  id: string;
+  /** Text of the choice (OWNER: script). */
+  text: string;
+  /** Offered only when this holds; otherwise shown disabled with `needs`. */
+  when?: (ctx: EventContext) => boolean;
+  /** Why it is disabled, shown as "Needs: ..." (`when` false). */
+  needs?: string;
+  /** What it always does (the price of the choice). */
+  effect?: EventEffect;
+  /**
+   * Chance, 0..1, that it goes wrong (rolled once per voyage with the run's seed); none: it
+   * never does. Equipment may lower it.
+   */
+  risk?: (ctx: EventContext) => number;
+  /** What it does when it goes wrong (on top of `effect`). */
+  onHit?: EventEffect;
+  /** Line shown after it went fine, and after it went wrong (OWNER: script). */
+  result?: string;
+  hitResult?: string;
+}
+
+/**
+ * One event of the registry (src/content/voyage/events). The object key is its id. It is
+ * rolled once per voyage when the ship has flown `at` of leg `leg` (by the leg's planned
+ * duration); if the roll is under `chance`, the card opens.
+ */
+export interface VoyageEventDef {
+  /** Leg it can happen on: leg `i` ends at gate `i` (1 = the Moon to Mars). */
+  leg: number;
+  /** Where on the leg, 0..1 of its planned duration (keep it under 0.9: past arrival it is dropped). */
+  at: number;
+  /** Character id of the portrait on the card (`computer` by default). */
+  speaker?: string;
+  /** Card title and text (OWNER: script). */
+  title: string;
+  text: string;
+  /** Chance, 0..1, that it happens on this voyage, from the cargo aboard. */
+  chance: (ctx: EventContext) => number;
+  /** Answers; the first is the default one of the tools (`voyage-check --seed`). */
+  choices: readonly EventChoiceDef[];
+}
+
+/** The event registry as core gets it (`VoyageService.attach` in src/main.ts). */
+export type VoyageEventCatalog = Readonly<Record<string, VoyageEventDef>>;
+
+/** A choice as the card shows it: enabled or not. */
+export interface OpenChoice {
+  id: string;
+  text: string;
+  enabled: boolean;
+  /** "Needs: ..." text of a disabled choice (empty when enabled or not given). */
+  needs: string;
+}
+
+/** The event whose card is open (`Voyage.openEvent`). */
+export interface OpenEvent {
+  id: string;
+  leg: number;
+  speaker: string;
+  title: string;
+  text: string;
+  choices: OpenChoice[];
+}
+
+/** How an answered event went (`Voyage.choose`). */
+export interface EventResolution {
+  eventId: string;
+  choiceId: string;
+  /** Whether its risk struck (false for a choice without risk). */
+  hit: boolean;
+  /** Line to show afterwards (may be empty). */
+  text: string;
+}
+
+/** One line of a voyage's event log: every roll, for tools and the debug surface. */
+export interface EventLogEntry {
+  eventId: string;
+  leg: number;
+  /** Simulated day it was rolled. */
+  day: number;
+  /** The roll and the chance it was compared with: it happened when `roll < chance`. */
+  roll: number;
+  chance: number;
+  happened: boolean;
+  /** Filled once answered. */
+  choiceId?: string;
+  riskRoll?: number;
+  risk?: number;
+  hit?: boolean;
+  /**
+   * Dropped: the ship arrived, went adrift or the voyage ended before the event's point (never
+   * rolled), or it went adrift while the event that happened waited for its card (unanswered).
+   */
+  dropped?: boolean;
+}
+
+/** The context of `loadout` with `offline` items and `stock` amounts on leg `leg`. */
+export function eventContext(
+  loadout: Loadout,
+  offline: readonly string[],
+  stock: (id: StockId) => number,
+  comms: CommsLevel,
+  leg: number,
+): EventContext {
+  const count = (id: string) =>
+    offline.includes(id) ? 0 : (loadout.entries.find((entry) => entry.id === id)?.count ?? 0);
+  return { count, has: (id) => count(id) > 0, stock, comms, leg };
+}
+
+/** A chance clamped to 0..1 (NaN counts 0). */
+export function clampChance(value: number): number {
+  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
+}
+
+/** Whether event `eventId` happens on this voyage (`Voyage` rolls it once, where it is due). */
+export function rollEvent(
+  def: VoyageEventDef,
+  eventId: string,
+  seed: number,
+  ctx: EventContext,
+): { roll: number; chance: number; happened: boolean } {
+  const chance = clampChance(def.chance(ctx));
+  const roll = rollFor(seed, `happen:${eventId}`);
+  return { roll, chance, happened: roll < chance };
+}
+
+/** The choices of `def` offered now (`when` holds or is absent), in the card's order. */
+export function enabledChoices(def: VoyageEventDef, ctx: EventContext): EventChoiceDef[] {
+  return def.choices.filter((choice) => (choice.when ? choice.when(ctx) : true));
+}
+
+/** Rolls the risk of answering event `eventId` with `choice` (false for a choice without one). */
+export function rollRisk(
+  choice: EventChoiceDef,
+  eventId: string,
+  seed: number,
+  ctx: EventContext,
+): { risk: number; riskRoll: number; hit: boolean } {
+  const risk = choice.risk ? clampChance(choice.risk(ctx)) : 0;
+  const riskRoll = rollFor(seed, `risk:${eventId}:${choice.id}`);
+  return { risk, riskRoll, hit: choice.risk !== undefined && riskRoll < risk };
+}
+
+/**
+ * The ship's living state as an event's effect changes it (`applyEventEffect`): the game's
+ * `Simulation` and the balance tools' fast evaluator (src/devtools/voyageSweep.ts) each give
+ * one, so both apply effects the same way.
+ */
+export interface EffectTarget {
+  /** The stocks, changed in place (fuel charges too). */
+  readonly resources: Resources;
+  /** Offline items (added to) and the death (read). */
+  readonly life: LifeState;
+  /**
+   * `dtS` simulated seconds of the current flows for the stocks only (`stepLife`), then the
+   * death check of a resource at 0; with 0 only the rates, the items dying without power and
+   * the death check.
+   */
+  flow(dtS: number): void;
+  /** An effect emptied the fuel: on a leg, the ship drifts (D13). */
+  fuelOut(): void;
+  /** The crew dies of `cause` (a second death is ignored). */
+  die(cause: DeathCause): void;
+}
+
+/**
+ * Applies `effect` of event `eventId` to `target`, in `EventEffect` order:
+ * - `waitDays` - the flows pass in steps of at most a day (power running out mid-wait switches
+ *   to the unpowered flows; a stock at 0 kills on the day it runs out); the clock stands;
+ * - `stocks` - added within 0..max (fuel too: at 0 the ship drifts), then the zero-step update
+ *   (power at 0 takes the powered items offline; a resource at 0 kills);
+ * - `offline` - items stop working for good, then the zero-step update;
+ * - `die` - the crew dies of `event:<eventId>`.
+ * Nothing happens to a dead crew.
+ */
+export function applyEventEffect(
+  target: EffectTarget,
+  eventId: string,
+  effect: EventEffect | undefined,
+): void {
+  if (!effect) return;
+  const { waitDays, stocks, offline, die, ...unapplied } = effect;
+  everyPartApplied(unapplied);
+  const dead = () => target.life.cause !== null;
+  if (waitDays) {
+    let leftS = waitDays * DAY_S;
+    while (leftS > 0 && !dead()) {
+      const stepS = Math.min(DAY_S, leftS);
+      target.flow(stepS);
+      leftS -= stepS;
+    }
+  }
+  if (dead()) return;
+  if (stocks) {
+    for (const [id, delta] of Object.entries(stocks) as [StockId, number | undefined][]) {
+      if (!delta) continue;
+      const resource = target.resources[id];
+      resource.value = Math.min(resource.max, Math.max(0, resource.value + delta));
+      if (id === 'fuel' && resource.value <= 0) target.fuelOut();
+    }
+    target.flow(0);
+  }
+  if (offline && offline.length > 0) {
+    for (const id of offline) if (!target.life.offline.includes(id)) target.life.offline.push(id);
+    target.flow(0);
+  }
+  if (die && !dead()) target.die(`event:${eventId}`);
+}
+
+/** Compile-time guard of `applyEventEffect`: every part of `EventEffect` is taken apart there. */
+function everyPartApplied(_rest: Record<string, never>): void {}

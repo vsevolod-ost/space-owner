@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config';
-import { endings, isEndingId } from '@/content/endings';
+import { endings, isEndingId, tierLine } from '@/content/endings';
 import type { Ending } from '@/content/endings';
 import { services } from '@/core/services';
+import type { ColonyTier } from '@/core/voyage/colony';
 import { SceneKey } from '@/scenes/keys';
 import type { Point } from '@/world/Actor';
 import { KeyboardControls } from '@/world/KeyboardControls';
@@ -22,12 +23,20 @@ export interface EndingDebugInfo {
   endingId: string;
   title: string;
   text: string;
+  /** The colony's tier (`colonyFit` of the cargo on the landing body), null off a colony. */
+  tier: ColonyTier | null;
+  /** The tier line under the text ('' without a tier). */
+  tierLine: string;
   /** The buttons, top to bottom, and the selected one. */
   choices: { items: string[]; selected: number };
 }
 
-/** Options under the text, in this order. */
-const CHOICES = ['Retry from checkpoint', 'Main menu'] as const;
+/** Options under the text, in this order. OWNER: script - the words (also matched below). */
+const CHOICES = ['Fly again', 'Main menu'] as const;
+/** Prefix of a colony ending's id before the body id: `colony-mars`. */
+const COLONY_PREFIX = 'colony-';
+/** Gap between the ending's text and its tier line: one empty line. */
+const TIER_SEPARATOR = '\n\n';
 /** Top of the heading, px. */
 const TITLE_Y = 72;
 /** Gap between the heading and the text, and between the text and the options, px. */
@@ -38,14 +47,17 @@ const TEXT_WIDTH = 480;
 const CHOICES_WIDTH = 200;
 
 /**
- * End screen of the game: the heading and text of an ending from
- * src/content/endings.ts and two options, "Retry from checkpoint" (`flow.retry()`) and "Main
- * menu" (`flow.toMainMenu()`), by keyboard (arrows, Enter) or mouse. A full scene, not a
- * panel: the world is stopped behind it. Started by `services.flow.finish` and `gameOver`.
+ * End screen of the game: the heading and text of an ending from src/content/endings.ts and
+ * the colony's tier line under it, and the options - "Fly again" (`flow.flyAgain()`: back to
+ * the warehouse with the cargo) and "Main menu" (`flow.toMainMenu()`) - by keyboard (arrows,
+ * Enter) or mouse. A full scene, not a panel: the world is stopped behind it. Started by
+ * `services.flow.finish`; deaths do not come here (`flow.die`, the scientists' debrief).
  */
 export class EndingScene extends Phaser.Scene {
   private endingId = '';
   private ending: Ending = { title: '', text: '' };
+  private tier: ColonyTier | null = null;
+  private tierText = '';
   private choices?: ChoiceList;
 
   constructor() {
@@ -57,6 +69,13 @@ export class EndingScene extends Phaser.Scene {
     this.ending = isEndingId(data.endingId)
       ? endings[data.endingId]
       : { title: data.endingId, text: '' };
+    // Every ending is a colony's (`colony-<body>`): the tier of the cargo aboard on that body.
+    this.tier = null;
+    this.tierText = '';
+    if (isEndingId(data.endingId)) {
+      this.tier = services.voyage.colonyTier(data.endingId.slice(COLONY_PREFIX.length));
+      this.tierText = tierLine(data.endingId, this.tier);
+    }
   }
 
   create(): void {
@@ -70,7 +89,9 @@ export class EndingScene extends Phaser.Scene {
       wordWrap: { width: TEXT_WIDTH },
     })
       .setOrigin(0.5, 0)
-      .setText(this.ending.text);
+      .setText(
+        this.tierText ? this.ending.text + TIER_SEPARATOR + this.tierText : this.ending.text,
+      );
 
     const list = new ChoiceList(this, 0, 0, new KeyboardControls(this), { width: CHOICES_WIDTH });
     list.setChoices(CHOICES);
@@ -94,6 +115,8 @@ export class EndingScene extends Phaser.Scene {
       endingId: this.endingId,
       title: this.ending.title,
       text: this.ending.text,
+      tier: this.tier,
+      tierLine: this.tierText,
       choices: {
         items: this.choices?.items ?? [],
         selected: this.choices?.selectedIndex ?? -1,
@@ -107,7 +130,8 @@ export class EndingScene extends Phaser.Scene {
   }
 
   private choose(index: number): void {
-    if (CHOICES[index] === 'Retry from checkpoint') void services.flow.retry();
-    else services.flow.toMainMenu();
+    const choice = CHOICES[index];
+    if (choice === 'Fly again') void services.flow.flyAgain();
+    else if (choice === 'Main menu') services.flow.toMainMenu();
   }
 }

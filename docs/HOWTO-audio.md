@@ -19,6 +19,7 @@ real music.
 | ------------ | ---------------------- | ------------------------------------------- |
 | `ui-click`   | `audio/ui-click.wav`   | Any button click or menu choice (60 ms bip) |
 | `sfx-door`   | `audio/sfx-door.wav`   | The hero walks through a door               |
+| `sfx-alarm`  | `audio/sfx-alarm.wav`  | Navigation panel alarm: a death is near     |
 | `music-demo` | `audio/music-demo.wav` | Quiet 4 s loop of the demo locations        |
 
 ## Add a sound to the registry
@@ -53,19 +54,19 @@ A location plays its track when the hero enters it: the `music` field of its def
 `src/content/locations/<id>.ts`.
 
 ```ts
-export const demoRoom: LocationDef = {
-  title: 'Room',
+export const warehouse: LocationDef = {
+  title: 'Warehouse',
   // ...
   music: 'music-demo',
 };
 ```
 
 - Two locations with the **same** track: walking between them does not restart it, the music
-  just continues (the corridor and the room both use `music-demo`).
+  just continues (home and the warehouse both use `music-demo`).
 - A **different** track crossfades over 0.5 s.
 - A location **without** `music` keeps whatever plays now. To silence a location, give it a
   quiet track or call `services.audio.stopMusic()` from its script. The ship deck (act 2) has
-  no `music` yet, so `music-demo` from the room continues there; give it its own track.
+  no `music` yet, so `music-demo` from the warehouse continues there; give it its own track.
 - The main menu and the end screens have no music: going there fades the track out (0.25 s).
   Menu music is not done yet; see "Not done yet" below.
 

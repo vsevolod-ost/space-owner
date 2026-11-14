@@ -7,7 +7,6 @@ import type {
   Binding,
   DoorBinding,
   InteractableBinding,
-  LocationDef,
   NpcBinding,
   TriggerBinding,
   WorldScript,
@@ -15,6 +14,7 @@ import type {
 import type { Actor, Point } from '@/world/Actor';
 import type { MapObject } from '@/world/LocationLoader';
 import type { Player } from '@/world/Player';
+import { isPresent } from '@/world/presence';
 import type { WorldContext } from '@/world/WorldContext';
 
 /**
@@ -34,9 +34,9 @@ interface Bound<B extends Binding> {
 export interface InteractablesOptions {
   locationId: LocationId;
   objects: readonly MapObject[];
-  bindings: LocationDef['bindings'];
+  bindings: Readonly<Record<string, Binding>>;
   player: Player;
-  /** NPC actors by the name of their map object. */
+  /** NPC actors by the name of their map object (only those standing there now). */
   npcs: ReadonlyMap<string, Actor>;
   /** Context handed to interactable and trigger scripts. */
   context: WorldContext;
@@ -46,12 +46,16 @@ export interface InteractablesOptions {
  * Everything in a location the hero can use or walk into: interactables and NPCs (focus by
  * distance, E runs them), doors (walking in changes the location), triggers (walking in runs a
  * script). Built from the map objects and the location's bindings; `update()` runs every frame.
+ * Objects whose `when` is false are left out; `refresh()` re-reads them after flags change.
  * Emits `interactableFocused` when the focused object changes.
  */
 export class Interactables {
-  private readonly usable: Bound<InteractableBinding | NpcBinding>[] = [];
-  private readonly doors: Bound<DoorBinding>[] = [];
-  private readonly triggers: Bound<TriggerBinding>[] = [];
+  /** Every bound object this class handles, present or not. */
+  private readonly all: Bound<InteractableBinding | NpcBinding | DoorBinding | TriggerBinding>[] =
+    [];
+  private usable: Bound<InteractableBinding | NpcBinding>[] = [];
+  private doors: Bound<DoorBinding>[] = [];
+  private triggers: Bound<TriggerBinding>[] = [];
   /** Doors and triggers the hero's feet overlap now; they act on entering, not on staying. */
   private readonly inside = new Set<string>();
   private focusedName: string | null = null;
@@ -60,14 +64,39 @@ export class Interactables {
     for (const object of options.objects) {
       const binding = options.bindings[object.name];
       if (!binding || binding.kind !== object.kind) continue; // reported by loadLocation
-      if (binding.kind === 'door') this.doors.push({ object, binding });
-      else if (binding.kind === 'trigger') this.triggers.push({ object, binding });
-      else this.usable.push({ object, binding });
+      if (binding.kind === 'prop') continue; // drawn by Props
+      this.all.push({ object, binding });
     }
-    // Arriving on a spawn inside a door must not send the hero straight back. Triggers are
-    // not pre-filled: one under a spawn fires on arrival.
-    for (const { object } of this.doors) {
-      if (this.touches(object)) this.inside.add(object.name);
+    this.refresh();
+  }
+
+  /**
+   * Re-reads which objects are there (`when`); call after flags change and the NPC actors are
+   * in step. A door that appears under the hero's feet does not fire until he walks out and
+   * back in. Triggers are not pre-filled on arrival: one under a spawn fires.
+   */
+  refresh(): void {
+    const { state } = this.options.context;
+    const doors = new Set(this.doors.map(({ object }) => object.name));
+    this.usable = [];
+    this.doors = [];
+    this.triggers = [];
+    for (const bound of this.all) {
+      const { object, binding } = bound;
+      if (!isPresent(binding, state)) {
+        this.inside.delete(object.name);
+        continue;
+      }
+      if (binding.kind === 'door') {
+        this.doors.push({ object, binding });
+        // Arriving on a spawn inside a door must not send the hero straight back.
+        if (!doors.has(object.name) && this.touches(object)) this.inside.add(object.name);
+      } else if (binding.kind === 'trigger') this.triggers.push({ object, binding });
+      else if (binding.kind === 'interactable') this.usable.push({ object, binding });
+      else if (this.options.npcs.has(object.name)) this.usable.push({ object, binding });
+    }
+    if (this.focusedName && !this.usable.some(({ object }) => object.name === this.focusedName)) {
+      this.setFocus(null);
     }
   }
 
@@ -156,7 +185,7 @@ export class Interactables {
     else this.talkTo(name, binding);
   }
 
-  /** E next to an NPC: its dialogue, or a placeholder toast when it has none. */
+  /** E next to an NPC: its dialogue, or a placeholder toast when it has none. OWNER: script */
   private talkTo(name: string, binding: NpcBinding): void {
     const { dialogue } = binding;
     if (!dialogue) {

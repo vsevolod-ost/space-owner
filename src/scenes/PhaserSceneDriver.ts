@@ -25,12 +25,15 @@ interface ReplaceOptions {
    * `goTo` goes on in the new location.
    */
   endGame: boolean;
+  /** Leave the screen black after the switch (no fade-in). */
+  dark?: boolean;
 }
 
 /**
  * `SceneDriver` on Phaser scenes: `FlowService` calls it to move between locations.
  * Attached in main.ts with
- * `services.flow.attach(new PhaserSceneDriver(game), { acts, actOrder, endings })`.
+ * `services.flow.attach(new PhaserSceneDriver(game), { acts, actOrder, endings, debrief,
+ * landingAct })`.
  *
  * Every switch of the main scene (location change, end screen, menu) goes through one path,
  * `replaceGame`: panels close, the screen fades to black, every scene but the overlays (UiScene,
@@ -48,12 +51,20 @@ export class PhaserSceneDriver implements SceneDriver {
    * Shows location `location` at spawn `spawn`: the hero stops, the screen fades to black
    * (UiScene's fader, so toasts and the hint fade too), whatever runs - the old location, the
    * menu, Boot, an open panel - is replaced by the World scene with the new location, and the
-   * screen fades back in. From Boot the screen is already black, so it skips the fade out.
+   * screen fades back in (`dark`: it stays black). From Boot the screen is already black, so it
+   * skips the fade out.
    */
-  async goTo(location: string, spawn: string): Promise<void> {
+  async goTo(location: string, spawn: string, options: { dark?: boolean } = {}): Promise<void> {
     if (!isLocationId(location)) throw new Error(`goTo: unknown location "${location}"`);
     const data: WorldSceneData = { locationId: location, spawn };
-    await this.replaceGame(SceneKey.World, data, { endGame: false });
+    await this.replaceGame(SceneKey.World, data, { endGame: false, dark: options.dark });
+  }
+
+  /** Fades the screen in (UiScene's fader); at once if it is already clear. */
+  async reveal(): Promise<void> {
+    const ui = this.ui;
+    await ui.whenReady();
+    await ui.fader.fadeIn(FADE_MS);
   }
 
   /**
@@ -157,7 +168,7 @@ export class PhaserSceneDriver implements SceneDriver {
     manager.start(key, data);
     manager.bringToTop(SceneKey.Ui);
     await created;
-    if (call !== this.replaceCalls) return;
+    if (call !== this.replaceCalls || options.dark) return;
     await ui.fader.fadeIn(FADE_MS);
   }
 }

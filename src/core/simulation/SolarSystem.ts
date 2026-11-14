@@ -1,3 +1,4 @@
+import { G } from '@/core/simulation/constants';
 import type { Body, Vec2 } from '@/core/simulation/types';
 
 /**
@@ -8,15 +9,51 @@ import type { Body, Vec2 } from '@/core/simulation/types';
 export class SolarSystem {
   /** All bodies, in the order given. */
   readonly bodies: readonly Body[];
+  /** G M of every body, m^3/s^2, in the order of `bodies` (for the integrator). */
+  readonly gm: Float64Array;
+  /** Radius of every body, m, in the order of `bodies`. */
+  readonly radii: Float64Array;
   private readonly byId: ReadonlyMap<string, Body>;
+  private readonly parentIndex: Int32Array;
 
   constructor(bodies: readonly Body[]) {
     this.bodies = bodies;
     this.byId = new Map(bodies.map((body) => [body.id, body]));
-    for (const body of bodies) {
-      if (body.parent !== undefined && !this.byId.has(body.parent)) {
+    this.gm = Float64Array.from(bodies, (body) => G * body.massKg);
+    this.radii = Float64Array.from(bodies, (body) => body.radiusM);
+    this.parentIndex = Int32Array.from(bodies, (body, index) => {
+      if (body.parent === undefined) return -1;
+      const parent = bodies.findIndex((other) => other.id === body.parent);
+      if (parent < 0) {
         throw new Error(`SolarSystem: body "${body.id}" orbits unknown body "${body.parent}"`);
       }
+      if (parent >= index) {
+        throw new Error(`SolarSystem: body "${body.id}" comes before its parent "${body.parent}"`);
+      }
+      return parent;
+    });
+  }
+
+  /** Index of the body with id `id` in `bodies`; throws if there is none. */
+  indexOf(id: string): number {
+    return this.bodies.indexOf(this.get(id));
+  }
+
+  /**
+   * Positions of all bodies at `timeS` into `out` (x, y pairs in the order of `bodies`, length
+   * 2 n): the same as `positionOf` for each body, without allocating (the integrator calls it
+   * on every substep).
+   */
+  fillPositions(timeS: number, out: Float64Array): void {
+    const bodies = this.bodies;
+    for (let i = 0; i < bodies.length; i++) {
+      const body = bodies[i];
+      const angle = angleAt(body, timeS);
+      const parent = this.parentIndex[i];
+      const cx = parent < 0 ? 0 : out[parent * 2];
+      const cy = parent < 0 ? 0 : out[parent * 2 + 1];
+      out[i * 2] = cx + body.orbitRadiusM * Math.cos(angle);
+      out[i * 2 + 1] = cy + body.orbitRadiusM * Math.sin(angle);
     }
   }
 

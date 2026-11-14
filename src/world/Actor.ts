@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { spritesheets } from '@/assets';
 import { animationKey, characters } from '@/content/characters';
-import type { CharacterDef, CharacterId, Direction } from '@/content/characters';
+import type { ActorCharacterId, ActorDef, Direction } from '@/content/characters';
 
 /** Size of the physics body at the feet; the rest of the sprite overlaps walls freely. */
 const FEET_WIDTH = 20;
@@ -32,7 +32,7 @@ export class Actor extends Phaser.Physics.Arcade.Sprite {
   declare body: Phaser.Physics.Arcade.Body;
 
   /** Character registry entry. */
-  readonly def: CharacterDef;
+  readonly def: ActorDef;
   /** Direction the actor looks in; idle and walk animations use it. */
   facing: Direction = 'down';
 
@@ -43,9 +43,9 @@ export class Actor extends Phaser.Physics.Arcade.Sprite {
     scene: Phaser.Scene,
     x: number,
     y: number,
-    readonly characterId: CharacterId,
+    readonly characterId: ActorCharacterId,
   ) {
-    const def = characters[characterId];
+    const def: ActorDef = characters[characterId];
     super(scene, x, y, def.spritesheet);
     this.def = def;
     scene.add.existing(this);

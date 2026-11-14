@@ -5,8 +5,11 @@ pixel-art adventure in the spirit of RPG Maker, with a prologue and three acts, 
 characters, dialogues and cutscenes. In act 2 the map is a spaceship, and its navigation panel
 shows the ship moving through a simulated solar system.
 
-This is the **skeleton**: every system works on a short demo story with placeholder art, ready
-for the team to fill with content.
+The whole loop is playable on placeholder art and placeholder text: the flat (prologue), the
+warehouse where the cargo is chosen (act 1), the voyage through two gates (the Moon, Mars) on the navigation
+panel (act 2), the colony and its ending (act 3), and the death loop back to the warehouse. The
+team now fills in the art, the texts and the numbers: `grep -rn "OWNER:" src` lists every place,
+marked `physics`, `design`, `script` or `art`.
 
 ## Run
 
@@ -20,11 +23,12 @@ npm run dev        # open the printed address, http://localhost:5173/
 npm run check      # type check, lint, format check, docs links
 npm run build      # check, then the production build into dist/
 npm run smoke      # build, then a headless browser check of the menu
+npm run balance    # the balance invariants over every cargo loadout (about a minute)
 ```
 
 Controls: arrows or WASD to walk, E to interact, Enter or Space to confirm, Esc for the pause
 menu, F3 for the debug overlay. Open a location directly with
-`http://localhost:5173/?location=demo-room`, an act with `?act=act2`.
+`http://localhost:5173/?location=warehouse`, an act with `?act=act2`.
 
 ## Documentation
 
@@ -39,21 +43,27 @@ menu, F3 for the debug overlay. Open a location directly with
 - [Story](docs/HOWTO-story.md) - acts, checkpoints, deaths, endings, pause
 - [UI](docs/HOWTO-ui.md) - the UI kit, theme and panel scenes
 - [Audio](docs/HOWTO-audio.md) - music, sound effects, volumes
+- [Voyage](docs/HOWTO-voyage.md) - gates, legs, cargo, events, colonies; how to balance
 - [Simulation](docs/HOWTO-simulation.md) - the ship and solar system model of act 2
 
 ## Systems
 
-| System                    | Status      | Scope                                                                                     |
-| ------------------------- | ----------- | ----------------------------------------------------------------------------------------- |
-| Locations and doors       | done (demo) | Background + Tiled markup, collisions, spawns, doors between corridor, room and ship deck |
-| Dialogue                  | done (demo) | Typed dialogue nodes with choices, conditions and flags; the engineer's branching talk    |
-| Cutscenes                 | done (demo) | Async scripts over a small API (walk, say, pan, fade); the arrival scene in the room      |
-| Story flow and saving     | done (demo) | Acts with title cards, checkpoints in localStorage, Continue / Retry, deaths, an ending   |
-| UI kit                    | done (demo) | 9-slice panel, button, text, label, toast, choice list, fader, panel scenes, pause menu   |
-| Audio                     | done (demo) | Music per location with crossfade, UI and door sounds, volume settings panel              |
-| Simulation and navigation | done (demo) | Solar system and ship model without Phaser, resources, navigation panel on the ship deck  |
-| Debug overlay             | done (demo) | F3 or `?overlay=1`: FPS, location, hero coordinates, act, music, simulation, flags        |
-| Smoke test                | done (demo) | `npm run smoke`: headless Chromium scenarios over the production build                    |
+| System                    | Status | Scope                                                                                                    |
+| ------------------------- | ------ | -------------------------------------------------------------------------------------------------------- |
+| Locations and doors       | done   | Home, warehouse, ship deck, colony: generated maps, props, flag conditions, layered tinted backgrounds   |
+| Dialogue                  | done   | Typed nodes with choices, conditions, flags and state-function texts; the advisers, the crate stands     |
+| Cutscenes                 | done   | Async scripts over a small API (walk, say, pan, fade); the warehouse arrival, the scientists' debrief    |
+| Story flow and saving     | done   | Acts with title cards, checkpoints in localStorage, Continue, the death loop, landing, Fly again         |
+| Cargo (act 1)             | done   | 10 kinds of cargo, 7 bays, crate stands, advisers, the hatch check, the HOLD strip                       |
+| Voyage (act 2)            | done   | Autopilot on a live integrator through 2 gates, resources per item, alarms, drift, gate forecast, events |
+| Navigation panel          | done   | System map, gate ribbon, status column, gate and event cards, Run / Hold                                 |
+| Colony and endings        | done   | One colony per gate body, tiers by cargo against the body's needs, two endings                           |
+| Balance tools             | done   | `npm run voyage-check`, `npm run balance`: headless voyages, the loadout sweep, invariants I1-I8         |
+| UI kit                    | done   | 9-slice panel, button, text, label, toast, choice list, fader, panel scenes, pause menu                  |
+| Audio                     | done   | Music per location with crossfade, UI, door and alarm sounds, volume settings panel                      |
+| Debug overlay             | done   | F3 or `?overlay=1`: FPS, location, hero coordinates, act, music, simulation, flags                       |
+| Smoke test                | done   | 17 headless Chromium scenarios over the production build, the whole voyage included                      |
+| Art, texts, final numbers | to do  | Placeholders now; the team replaces them (`OWNER:` marks)                                                |
 
 All art and sound are generated placeholders (`tools/placeholders.py`, `tools/sounds.py`).
 

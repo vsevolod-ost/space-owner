@@ -1,5 +1,6 @@
 import type { Cutscene } from '@/core/cutscene/types';
-import { demoArrival } from '@/content/cutscenes/demo-arrival';
+import { debrief } from '@/content/cutscenes/debrief';
+import { warehouseArrival } from '@/content/cutscenes/warehouse-arrival';
 
 /**
  * Registry of cutscenes. The object key is the cutscene id (`CutsceneId`), used in
@@ -7,7 +8,8 @@ import { demoArrival } from '@/content/cutscenes/demo-arrival';
  * `<id>.ts` next to this file and list it here; see docs/HOWTO-cutscene.md.
  */
 export const cutscenes = {
-  'demo-arrival': demoArrival,
+  'warehouse-arrival': warehouseArrival,
+  debrief,
 } as const satisfies Record<string, Cutscene>;
 
 /** Id of a registered cutscene. */

@@ -54,6 +54,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     // To add a menu item, append it to this list.
     // Once the real scene exists, replace openStub with a transition to it.
+    // OWNER: script - the labels.
     const items = [
       { label: 'Continue', onClick: () => this.continueGame() },
       { label: 'New Game', onClick: () => this.newGame() },

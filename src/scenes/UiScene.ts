@@ -6,6 +6,7 @@ import { DialogueRunner } from '@/core/dialogue/DialogueRunner';
 import { defineDialogue } from '@/core/dialogue/types';
 import type { Dialogue, Speaker } from '@/core/dialogue/types';
 import { services } from '@/core/services';
+import type { StateText } from '@/core/text/format';
 import type { Controls } from '@/core/input/controls';
 import type { Point } from '@/world/Actor';
 import { KeyboardControls } from '@/world/KeyboardControls';
@@ -30,6 +31,8 @@ const DEBUG_CHOICES_WIDTH = 160;
 const DIALOGUE_LOCK = 'dialogue';
 /** Dialogue id reported (events, debugInfo) for a single line shown by `say`. */
 export const SAY_DIALOGUE_ID = 'say';
+/** Dialogue id reported (events, debugInfo) by `openDialogueDef` when the caller gives none. */
+export const CODE_DIALOGUE_ID = 'code';
 /** How long a title (`showTitle`) takes to appear and to disappear, ms. */
 const TITLE_FADE_MS = 300;
 
@@ -54,10 +57,10 @@ export interface UiDebugInfo {
   /** The debug choice list (`debugShowChoices`) on screen, or null. */
   choices: { items: string[]; selected: number } | null;
   /**
-   * The open dialogue (`openDialogue`, or `say` with id `SAY_DIALOGUE_ID`): its id and the
-   * node on screen, or null.
+   * The open dialogue: its id (a `DialogueId` for `openDialogue`, `SAY_DIALOGUE_ID` for `say`,
+   * the given id or `CODE_DIALOGUE_ID` for `openDialogueDef`) and the node on screen, or null.
    */
-  dialogue: ({ id: DialogueId | typeof SAY_DIALOGUE_ID } & DialogueBoxInfo) | null;
+  dialogue: ({ id: string } & DialogueBoxInfo) | null;
   /** Text of the title on screen (`showTitle`), or null. */
   title: string | null;
 }
@@ -83,7 +86,7 @@ export class UiScene extends Phaser.Scene {
   private keyboard?: KeyboardControls;
   private debugChoices?: ChoiceList;
   private debugChoicesPanel?: Panel;
-  private dialogue?: { id: DialogueId | typeof SAY_DIALOGUE_ID; box: DialogueBox };
+  private dialogue?: { id: string; box: DialogueBox };
   private title?: Label;
   /** A toast asked for before `create` ran. */
   private pendingToast: string | null = null;
@@ -170,7 +173,7 @@ export class UiScene extends Phaser.Scene {
    *
    * ```ts
    * run: async (ctx) => {
-   *   await ctx.ui.openDialogue('demo-engineer', ctx);
+   *   await ctx.ui.openDialogue('engineer-advice', ctx);
    * },
    * ```
    */
@@ -179,11 +182,30 @@ export class UiScene extends Phaser.Scene {
   }
 
   /**
+   * Runs a dialogue built by code (not in the registry; e.g. a cargo stand whose choices depend
+   * on the hold) exactly like `openDialogue`: same window, lock, events and queueing. `id` is
+   * what events and `debugInfo` report; default `CODE_DIALOGUE_ID`.
+   *
+   * ```ts
+   * run: (ctx) => ctx.ui.openDialogueDef(defineDialogue({ start: 'a', nodes: { a: { text: 'Hi' } } }), ctx),
+   * ```
+   */
+  openDialogueDef(dialogue: Dialogue, host: DialogueHost, id = CODE_DIALOGUE_ID): Promise<void> {
+    return this.runDialogue(id, dialogue, host);
+  }
+
+  /** Whether a dialogue (`openDialogue`, `openDialogueDef` or `say`) is on screen. */
+  get isDialogueOpen(): boolean {
+    return this.dialogue !== undefined;
+  }
+
+  /**
    * Shows one line by `speaker` (a character or `'narrator'`) in the dialogue window and
    * resolves when the player closes it: a one-node dialogue with id `SAY_DIALOGUE_ID`, locked
-   * and announced like `openDialogue`. Cutscenes use it for `api.say`.
+   * and announced like `openDialogue`. `text` may be a function of the state (read when the
+   * line shows). Cutscenes use it for `api.say`.
    */
-  say(speaker: Speaker, text: string, host: DialogueHost): Promise<void> {
+  say(speaker: Speaker, text: StateText, host: DialogueHost): Promise<void> {
     const line = defineDialogue({ start: 'line', nodes: { line: { speaker, text } } });
     return this.runDialogue(SAY_DIALOGUE_ID, line, host);
   }
@@ -240,11 +262,7 @@ export class UiScene extends Phaser.Scene {
     this.dialogue?.box.destroy();
   }
 
-  private async runDialogue(
-    id: DialogueId | typeof SAY_DIALOGUE_ID,
-    dialogue: Dialogue,
-    host: DialogueHost,
-  ): Promise<void> {
+  private async runDialogue(id: string, dialogue: Dialogue, host: DialogueHost): Promise<void> {
     await this.whenReady();
     while (this.dialogue) await this.dialogue.box.finished.catch(() => undefined);
     const runner = new DialogueRunner(services.state);

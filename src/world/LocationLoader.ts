@@ -1,6 +1,8 @@
 import type Phaser from 'phaser';
 import { MAP_OBJECT_KINDS } from '@/content/locations/types';
 import type { LocationDef, MapObjectKind } from '@/content/locations/types';
+import type { BuiltBackgroundLayer } from '@/world/Props';
+import { backgroundOf, bindingsOf } from '@/world/bindings';
 
 /** Layer of impassable rectangles. */
 const COLLISIONS_LAYER = 'collisions';
@@ -25,8 +27,11 @@ export interface LoadedLocation {
   /** World size in pixels: the background image size. */
   width: number;
   height: number;
-  /** Background image, at depth -1 under every actor. */
-  background: Phaser.GameObjects.Image;
+  /**
+   * Background layers back to front (one for a single-image background), at depth -1 under
+   * every actor and prop; their tints are set by `Props`.
+   */
+  background: BuiltBackgroundLayer[];
   /** Static bodies of the `collisions` layer; collide actors with this. */
   walls: Phaser.Physics.Arcade.StaticGroup;
   /** Valid objects of the `objects` layer, in map order. */
@@ -34,19 +39,34 @@ export interface LoadedLocation {
 }
 
 /**
- * Builds a location in a scene: the background, static walls from the `collisions` layer,
+ * Builds a location in a scene: the background (its layers), static walls from the `collisions` layer,
  * the object list from the `objects` layer, physics and main-camera bounds set to the
  * background size. Problems in the map (unknown class, missing or repeated name, a binding
  * without its object) are reported with `console.warn`; the bad object is skipped.
  */
 export function loadLocation(scene: Phaser.Scene, id: string, def: LocationDef): LoadedLocation {
-  const background = scene.add.image(0, 0, def.background).setOrigin(0).setDepth(-1);
-  const { width, height } = background;
+  const layers = backgroundOf(def);
+  // Same depth: the layers draw in the order they were added, back to front.
+  const background = layers.map((layer) => ({
+    layer,
+    image: scene.add.image(0, 0, layer.image).setOrigin(0).setDepth(-1),
+  }));
+  const first = background[0]?.image;
+  if (!first) throw new Error(`location "${id}": the background has no layers`);
+  const { width, height } = first;
   scene.physics.world.setBounds(0, 0, width, height);
   scene.cameras.main.setBounds(0, 0, width, height);
 
   const map = scene.make.tilemap({ key: def.map });
   const where = `location "${id}" (map "${def.map}")`;
+  for (const { layer, image } of background) {
+    if (image.width !== width || image.height !== height) {
+      console.warn(
+        `${where}: background layer "${layer.image}" is ${image.width}x${image.height}, ` +
+          `the first layer ${width}x${height}`,
+      );
+    }
+  }
 
   const walls = scene.physics.add.staticGroup();
   for (const rect of layerObjects(map, COLLISIONS_LAYER, where)) {
@@ -110,7 +130,10 @@ function parseObjects(raw: Phaser.Types.Tilemaps.TiledObject[], where: string): 
   return objects;
 }
 
-/** Object kinds that do nothing without a binding in the location's TS file. */
+/**
+ * Object kinds that do nothing without a binding in the location's TS file. Not `prop`: a prop
+ * place without a binding is a place nothing stands on yet.
+ */
 const KINDS_NEEDING_BINDING: ReadonlySet<MapObjectKind> = new Set([
   'door',
   'npc',
@@ -119,12 +142,13 @@ const KINDS_NEEDING_BINDING: ReadonlySet<MapObjectKind> = new Set([
 ]);
 
 function checkBindings(def: LocationDef, objects: MapObject[], where: string): void {
+  const bindings = bindingsOf(def);
   for (const object of objects) {
-    if (KINDS_NEEDING_BINDING.has(object.kind) && !(object.name in def.bindings)) {
+    if (KINDS_NEEDING_BINDING.has(object.kind) && !(object.name in bindings)) {
       console.warn(`${where}: ${object.kind} "${object.name}" has no binding and does nothing`);
     }
   }
-  for (const [name, binding] of Object.entries(def.bindings)) {
+  for (const [name, binding] of Object.entries(bindings)) {
     const object = objects.find((candidate) => candidate.name === name);
     if (!object) {
       console.warn(`${where}: binding "${name}" has no object with that name in the map`);

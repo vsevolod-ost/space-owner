@@ -10,6 +10,7 @@
 import type { ImageKey } from '@/assets';
 import type { CharacterId } from '@/content/characters';
 import type { GameState } from '@/core/state/GameState';
+import type { StateText } from '@/core/text/format';
 
 /** Who says a line: a registered character, or `'narrator'` (no name, no portrait). */
 export type Speaker = CharacterId | 'narrator';
@@ -22,8 +23,11 @@ export type DialogueEffect = (state: GameState) => void;
 
 /** One option the player can pick at a node with `choices`. */
 export interface Choice<N extends string = string> {
-  /** What the option says. */
-  text: string;
+  /**
+   * What the option says: a string, or a function of the state (read when the node is entered,
+   * `formatText` fills placeholders).
+   */
+  text: StateText;
   /** Node to go to; default: the node's own `next`, and without one the dialogue ends. */
   next?: N;
   /** The option is shown only while this is true; default: always shown. */
@@ -38,8 +42,12 @@ export interface DialogueNode<N extends string = string> {
   speaker?: Speaker;
   /** Portrait to show; default: the speaker's portrait from src/content/characters.ts. */
   portrait?: ImageKey;
-  /** The line itself, in English like every string in the game. */
-  text: string;
+  /**
+   * The line itself, in English like every string in the game: a string, or a function of the
+   * state read when the node is entered, after its `effect`
+   * (`text: (s) => formatText('Cargo {n}/7', { n: countOf(s) })`).
+   */
+  text: StateText;
   /**
    * Node after this one: an id, or a function of the state that returns one. No `next` (and
    * no choices) ends the dialogue.
@@ -73,7 +81,7 @@ export interface Dialogue<N extends string = string> {
  * and `start`, every `next` and every choice's `next` must be one of them.
  *
  * ```ts
- * export const demoEngineer = defineDialogue({
+ * export const engineerAdvice = defineDialogue({
  *   start: 'hello',
  *   nodes: { hello: { speaker: 'engineer', text: 'Hi!' } },
  * });

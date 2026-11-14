@@ -1,11 +1,13 @@
 # How to add a location
 
-A location is one background picture plus a Tiled map that marks up where you can walk and what
-is where. Behaviour (where a door leads, what a terminal says) lives in a TypeScript file next to
-the other locations, so the compiler checks it.
+A location is a background (one picture, or a few layers of the same size) plus a Tiled map
+that marks up where you can walk and what is where. Behaviour (where a door leads, what a
+terminal says) lives in a TypeScript file next to the other locations, so the compiler checks
+it.
 
 Rule: **one background = one location.** The picture is the whole world of that location; the
-camera follows the hero over it when it is larger than the screen (640×360).
+camera follows the hero over it when it is larger than the screen (640×360). The game has four:
+`home` (prologue), `warehouse` (act 1), `ship-deck` (act 2), `colony` (act 3).
 
 ## Install Tiled
 
@@ -15,17 +17,42 @@ are needed.
 
 ## Open an existing map
 
-Open `public/assets/maps/<id>.tmj` (for example `demo-room.tmj`) with _File → Open_. The map
+Open `public/assets/maps/<id>.tmj` (for example `warehouse.tmj`) with _File → Open_. The map
 shows the background picture as an image layer, so you see what you are marking up. Save with
 _Ctrl+S_; the format stays JSON (`.tmj`).
 
-**The three demo maps are generated.** `demo-corridor.tmj`, `demo-room.tmj` and `ship-deck.tmj`
-belong to the placeholder demo and are written by `python3 tools/make_maps.py`: their objects are
-listed in `MAPS` at the top of that script, their collision rectangles come from `LOCATIONS` in
-`tools/placeholders.py` (the walls and obstacles painted on the placeholder backgrounds). To move
-something in a demo map, edit those two lists and run both scripts; an edit made in Tiled is lost
-the next time the script runs. A real location is drawn in Tiled and never generated: when a demo
-location gets real art and a hand-made map, remove it from `MAPS`.
+**All four maps are generated now** (see [Generated maps](#generated-maps)): do not edit them
+in Tiled until they are taken out of the generator.
+
+## Generated maps
+
+While a location has placeholder art, its map is written by a script: `home`, `warehouse`,
+`ship-deck` and `colony` come from `python3 tools/make_maps.py`. Their objects (name, class,
+position, size) are listed in `MAPS` at the top of that script; their collision rectangles come
+from `LOCATIONS` in `tools/placeholders.py` - the walls and obstacles painted on the placeholder
+backgrounds, which also show every object's outline and name as a layout draft for the artists.
+
+To move something in a generated map, edit those two lists and run both scripts, in this order:
+
+```bash
+python3 tools/placeholders.py   # rewrites every placeholder image: check git status after
+python3 tools/make_maps.py
+```
+
+An edit made in Tiled is lost the next time the script runs.
+
+**Taking a map out of the generator** (when its real background arrives and the map is edited
+in Tiled from then on):
+
+1. Delete the location's entry from `MAPS` in `tools/make_maps.py` and from `LOCATIONS` in
+   `tools/placeholders.py`, so neither script writes its files again (the map, and the
+   background or, for the colony, its three layers).
+2. Put the real background in place under the same name and size (or a new size: then resize
+   the map in Tiled, _Map → Resize Map_).
+3. Open `public/assets/maps/<id>.tmj` in Tiled and move the objects onto the real art; keep
+   every object's name and class (the bindings find them by name).
+4. Update the list of generated maps in this section.
+5. Play the location (`?location=<id>&overlay=1`) and run its smoke scenarios.
 
 ## Layers
 
@@ -52,14 +79,15 @@ Every object in the `objects` layer needs:
 An object with an unknown class or no name is skipped with a warning in the browser console; a
 repeated name keeps the first object.
 
-| Class          | Shape                | What it does                                                            | Binding needed |
-| -------------- | -------------------- | ----------------------------------------------------------------------- | -------------- |
-| `spawn`        | Point                | Where the hero appears. Doors and the URL refer to it by name.          | no             |
-| `door`         | Rectangle            | Walking into it moves the hero to another location (fade out/in).       | yes            |
-| `npc`          | Point (the feet)     | A character stands here.                                                | yes            |
-| `interactable` | Rectangle (or point) | Shows the "E" hint when the hero is within 20 px; E runs its script.    | yes            |
-| `trigger`      | Rectangle            | Runs a script when the hero's feet walk in (optionally only once).      | yes            |
-| `point`        | Point                | A named place for scripts and cutscenes (camera targets, walk targets). | no             |
+| Class          | Shape                | What it does                                                             | Binding needed |
+| -------------- | -------------------- | ------------------------------------------------------------------------ | -------------- |
+| `spawn`        | Point                | Where the hero appears. Doors and the URL refer to it by name.           | no             |
+| `door`         | Rectangle            | Walking into it moves the hero to another location (fade out/in).        | yes            |
+| `npc`          | Point (the feet)     | A character stands here.                                                 | yes            |
+| `interactable` | Rectangle (or point) | Shows the "E" hint when the hero is within 20 px; E runs its script.     | yes            |
+| `trigger`      | Rectangle            | Runs a script when the hero's feet walk in (optionally only once).       | yes            |
+| `point`        | Point                | A named place for scripts and cutscenes (camera targets, walk targets).  | no             |
+| `prop`         | Rectangle            | Where a picture stands (a crate, a colony module), drawn by its binding. | no             |
 
 Conventions:
 
@@ -70,34 +98,40 @@ Conventions:
   touching the door. The game ignores a door the hero is already standing in on arrival, but a
   small step back would send him through again.
 - A door must be a rectangle the hero can walk into: usually a gap in the wall, but it need not
-  be in a wall at all (`door-ship` in demo-room is a rectangle inside the room at its right
-  edge).
+  be in a wall at all.
 - Names: `spawn-from-<location>`, `door-<location>`, `npc-<character>`, `point-<what>`,
   `trigger-<what>`.
 
 ## Bindings: what the objects do
 
 `src/content/locations/<id>.ts` gives each `door`, `npc`, `interactable` and `trigger` object its
-behaviour, by name. The binding's `kind` must equal the object's class. Example (`demo-room.ts`):
+behaviour, by name. The binding's `kind` must equal the object's class. Example (a location
+like the warehouse, with one binding of each kind; the real `warehouse.ts` builds its crates
+from the cargo registry, see below):
 
 ```ts
-export const demoRoom: LocationDef = {
-  title: 'Room',
-  background: 'location-demo-room',
-  map: 'demo-room',
+export const storeroom: LocationDef = {
+  title: 'Storeroom',
+  background: 'location-storeroom',
+  map: 'storeroom',
   music: 'music-demo',
   bindings: {
-    'door-corridor': { kind: 'door', to: 'demo-corridor', spawn: 'spawn-from-room' },
-    'npc-captain': { kind: 'npc', character: 'captain' },
-    terminal: { kind: 'interactable', run: (ctx) => ctx.ui.toast('A dusty terminal.') },
-    'trigger-center': {
+    'door-warehouse': { kind: 'door', to: 'warehouse', spawn: 'spawn-from-storeroom' },
+    'npc-engineer': { kind: 'npc', character: 'engineer', dialogue: 'engineer-advice' },
+    shelf: { kind: 'interactable', run: (ctx) => ctx.ui.toast('Empty shelves.') },
+    arrival: {
       kind: 'trigger',
       once: true,
-      run: (ctx) => ctx.cutscenes.play('demo-arrival'),
+      run: (ctx) => ctx.cutscenes.play('warehouse-arrival'),
     },
   },
 };
 ```
+
+The four locations of the game, to copy from: `home.ts` (one act door), `warehouse.ts` (crates
+built from the cargo registry, advisers, the hatch: a dialogue built by code, the HOLD strip),
+`ship-deck.ts` (the navigation station opens a panel; the hold's bays are props),
+`colony.ts` (a layered, tinted background built from the colony registry; building places).
 
 - `door`: `to` is a location id (checked by the compiler); `spawn` is a spawn name in that
   location's map. **The spawn name is not checked by the compiler**: a wrong one warns at run
@@ -109,12 +143,41 @@ export const demoRoom: LocationDef = {
   [HOWTO-dialogue.md](HOWTO-dialogue.md).
 - `interactable` and `trigger`: `run(ctx)` gets the world context - `ctx.ui.toast(text)`,
   `ctx.state.flags`, `ctx.controls.lock(reason)` / `unlock(reason)`, `ctx.cutscenes.play(id)`
-  (see [HOWTO-cutscene.md](HOWTO-cutscene.md)), `ctx.flow` (story: `ctx.flow.gameOver('death-generic')`,
-  `ctx.flow.checkpoint()`, see [HOWTO-story.md](HOWTO-story.md)), `ctx.scene`. It may be `async`.
+  (see [HOWTO-cutscene.md](HOWTO-cutscene.md)), `ctx.flow` (story: `ctx.flow.startAct('act2')`,
+  `ctx.flow.checkpoint()`, see [HOWTO-story.md](HOWTO-story.md)), `ctx.voyage` (the cargo
+  registry and what is aboard: `ctx.voyage.count('oxygen')`), `ctx.scene`. It may be `async`.
+- `bindings` may also be a function `({ voyage }) => ({ ... })`, built once when the location
+  first loads: for objects that follow a registry content may only import as a type
+  (`voyage` = `services.voyage`: the cargo and colony registries and what is aboard). The
+  warehouse's `crate-<id>` places, the deck's `bay-1..7` and the colony's `build-1..7` are made
+  this way, one binding per registry entry or place.
 - Doors and triggers do not fire while the hero's input is locked (cutscene, dialogue, location
   change): a scripted walk across a door stays in the location.
 - `trigger` with `once: true` fires once per game; it is remembered in the flag
   `trigger:<location>:<name>` (or the name given in `flag`).
+
+### Objects that follow the flags
+
+- `when: (s) => ...` on a `door`, `npc` or `interactable` binding: while it is false the object is
+  not there at all (not drawn, no "E", no collision, the door does not fire).
+- `prop: { layers: [{ image: 'crate' }, { spritesheet: 'items', frame: 1 }] }` on an
+  `interactable`, or a `{ kind: 'prop', prop, when? }` binding on a `prop` object: pictures
+  centred on the object, sorted with the actors by the object's bottom edge. `layers` may be a
+  function of the state (the ship's hold shows whatever was taken); `tint: (s) => 0xff8866`
+  colours them. A prop does not block: put it where a collision rectangle already stands.
+- `background` may be a list of layers drawn back to front, each with an optional
+  `tint: (s) => colour`, or a function `({ voyage }) => [layers]` built once like `bindings`
+  (`colony.ts`: the sky and the ground take the colours of the body in the colony registry, the
+  base keeps its own). The first layer's size is the world's size.
+- `showHold: true` shows the HOLD strip at the top of the screen: `HOLD n/7` and the icons of
+  the cargo aboard (the warehouse and the ship deck). It covers about the top 32 px in the
+  middle (x 220-420, y 4-28); keep doors, spawns and anything to read out of it.
+- When a flag changes the location rebuilds on the next frame (props, `when`, tints, the HOLD
+  strip), but not while a dialogue or a cutscene runs or a panel pauses the world: then it waits
+  for the end. The hero and the NPCs keep their places. `WorldScene.debugInfo().props` shows
+  what is drawn.
+- Never put `when` on an NPC or an object the hero could be standing on when it appears: the
+  collision would push him.
 
 A door, NPC, interactable or trigger **without a binding only warns** in the console and does
 nothing; a binding without its object warns too. Open the browser console (F12) after changing

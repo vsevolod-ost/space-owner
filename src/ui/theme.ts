@@ -12,6 +12,12 @@ export const theme = {
     dim: '#b8c4d6',
     /** The selected item of a choice list. */
     highlight: '#ffd34d',
+    /** An alarm: a death is near (navigation panel, D14). */
+    alarm: '#ff5a4d',
+    /** A warning: a stock is low, a forecast is tight (navigation panel). */
+    warn: '#ffa64d',
+    /** Good news: the navigation panel's RUN, a stock that lasts. */
+    good: '#6cc04a',
   },
   /**
    * Font sizes, px. Press Start 2P is drawn on an 8x8 grid: sizes must be multiples of 8 or
@@ -46,8 +52,26 @@ export const theme = {
   faderColor: 0x000000,
   /** Opacity of a disabled button. */
   disabledAlpha: 0.4,
-  /** Bars of amounts (resources in the navigation panel): empty part and filled part. */
-  bar: { back: 0x1c2333, fill: 0x6cc04a },
+  /**
+   * Bars of amounts (resources in the navigation panel): empty part, and the filled part when
+   * normal, low (warn) and critical (alarm).
+   */
+  bar: { back: 0x1c2333, fill: 0x6cc04a, warn: 0xe08a2c, alarm: 0xd8402f },
+  /**
+   * The navigation panel's map and gate ribbon: orbits, the ship's trail and triangle, gates
+   * passed / current / ahead, the forecast's mark where the first stock runs out.
+   */
+  map: {
+    orbit: 0x46546e,
+    trail: 0x8fd3ff,
+    ship: 0xffffff,
+    gatePassed: 0x6cc04a,
+    gateCurrent: 0xffd34d,
+    gateAhead: 0x5a6680,
+    mark: 0xff5a4d,
+  },
+  /** An empty slot of the HOLD strip (warehouse, ship deck). */
+  holdSlot: 0x1c2333,
   /** How long a toast stays on screen, ms. */
   toastMs: 2000,
 } as const;

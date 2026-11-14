@@ -5,9 +5,10 @@ import { SAVE_VERSION } from '@/core/state/GameState';
 export const SAVE_KEY = 'space-owner.save';
 
 /**
- * Keeps one saved game in localStorage (checkpoint autosave). A save that cannot be read
- * (broken JSON, other version, wrong shape) counts as no save and is reported with
- * `console.warn`; it stays in storage until the next `save` or `clear`.
+ * Keeps one saved game in localStorage (checkpoint autosave). A save that cannot be read counts
+ * as no save and stays in storage until the next `save` or `clear`: one of another version
+ * silently (an older build's save: "Continue" is just off, plan D17), broken JSON or a wrong
+ * shape with `console.warn`.
  */
 export class SaveService {
   constructor(private readonly storage: Storage = window.localStorage) {}
@@ -30,6 +31,7 @@ export class SaveService {
       console.warn(`SaveService: '${SAVE_KEY}' is not valid JSON, ignored`);
       return null;
     }
+    if (!isCurrentVersion(data)) return null;
     if (!isGameSave(data)) {
       console.warn(`SaveService: '${SAVE_KEY}' has an unknown version or shape, ignored`, data);
       return null;
@@ -48,6 +50,12 @@ export class SaveService {
   }
 }
 
+function isCurrentVersion(data: unknown): boolean {
+  return typeof data === 'object' && data !== null && 'version' in data
+    ? data.version === SAVE_VERSION
+    : false;
+}
+
 function isGameSave(data: unknown): data is GameSave {
   if (typeof data !== 'object' || data === null) return false;
   const save = data as Record<string, unknown>;
@@ -57,6 +65,7 @@ function isGameSave(data: unknown): data is GameSave {
     typeof save.locationId === 'string' &&
     typeof save.spawn === 'string' &&
     typeof save.savedAt === 'number' &&
+    (save.voyage === undefined || save.voyage === true) &&
     typeof save.flags === 'object' &&
     save.flags !== null &&
     Object.values(save.flags).every(isFlagValue)

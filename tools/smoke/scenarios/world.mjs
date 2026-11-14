@@ -1,6 +1,7 @@
 /**
- * Smoke scenario: the world scene. The corridor opens from the URL with the hero and the
- * engineer, the hero walks right at about 80 px/s, and the left wall stops him.
+ * Smoke scenario: the world scene. The warehouse opens from the URL with the hero, the
+ * engineer and the astronomer, the hero walks right at about 80 px/s, and the left wall stops
+ * him.
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/world.mjs
  *
  * @param {import('playwright-core').Page} page
@@ -9,15 +10,17 @@
 export default async function world(page, h) {
   const info = () => window.nasa.game.scene.getScene('World').debugInfo();
 
-  await h.goto('/?location=demo-corridor');
+  await h.goto('/?location=warehouse');
   await h.waitReady('World');
+  // The arrival cutscene counts as seen: the walk below crosses its trigger.
+  await h.eval(() => window.nasa.services.state.flags.set('trigger:warehouse:arrival', true));
   const start = await h.eval(info);
   h.log(`start ${JSON.stringify(start)}`);
-  if (start.locationId !== 'demo-corridor' || start.spawn !== 'spawn-default') {
+  if (start.locationId !== 'warehouse' || start.spawn !== 'spawn-default') {
     throw new Error(`unexpected start ${JSON.stringify(start)}`);
   }
-  if (start.player.x !== 48 || start.player.y !== 270) {
-    throw new Error(`hero not at spawn-default (48, 270): ${JSON.stringify(start.player)}`);
+  if (start.player.x !== 48 || start.player.y !== 184) {
+    throw new Error(`hero not at spawn-default (48, 184): ${JSON.stringify(start.player)}`);
   }
   const scene = await h.eval(() => {
     const world = window.nasa.game.scene.getScene('World');
@@ -28,24 +31,26 @@ export default async function world(page, h) {
     return {
       hero: visible('hero'),
       engineer: visible('npc-engineer'),
-      background: visible('location-demo-corridor'),
+      astronomer: visible('npc-astronomer'),
+      background: visible('location-warehouse'),
       current,
       entered: entered.map((e) => e.payload),
     };
   });
   h.log(`scene ${JSON.stringify(scene)}`);
-  if (scene.hero !== 1 || scene.engineer !== 1 || scene.background !== 1) {
-    throw new Error('expected one hero, one engineer and the corridor background');
+  if (scene.hero !== 1 || scene.engineer !== 1 || scene.astronomer !== 1) {
+    throw new Error('expected one hero, one engineer and one astronomer');
   }
-  if (scene.current?.locationId !== 'demo-corridor' || scene.entered.length !== 1) {
+  if (scene.background !== 1) throw new Error('expected the warehouse background');
+  if (scene.current?.locationId !== 'warehouse' || scene.entered.length !== 1) {
     throw new Error('state.current or locationEntered not set');
   }
   // The debug overlay stays off without ?overlay=1 (smoke always adds ?debug=1).
   const overlay = await h.eval(() => window.nasa.game.scene.getScene('Debug').debugInfo());
   if (overlay.enabled !== false) throw new Error('debug overlay is on without ?overlay=1');
-  await h.shot('world-corridor');
+  await h.shot('world-warehouse');
 
-  // About 80 px in one second; the spawn line y=270 is free of collisions up to the door.
+  // About 80 px in one second; the walking line y=184 is free of collisions up to the hatch.
   await h.hold('ArrowRight', 1000);
   const moved = await h.eval(info);
   const dx = moved.player.x - start.player.x;
@@ -55,7 +60,7 @@ export default async function world(page, h) {
   await h.shot('world-walked');
 
   // The left wall ends at x=16; the 20 px feet body stops the centre at 16 + 10.
-  await h.teleport(40, 270);
+  await h.teleport(40, 184);
   await h.hold('ArrowLeft', 2000);
   const blocked = await h.eval(info);
   h.log(`after ArrowLeft 2000 ms from x=40: x ${blocked.player.x}`);
@@ -65,7 +70,7 @@ export default async function world(page, h) {
     throw new Error(`hero stopped short of the wall: x ${blocked.player.x}`);
 
   // Diagonal speed is normalised: about 80 px/s along the diagonal, not 113.
-  await h.teleport(200, 270);
+  await h.teleport(140, 184);
   await h.eval(() => {
     window.__diag = window.nasa.game.scene.getScene('World').debugInfo().player;
   });

@@ -40,7 +40,7 @@ ui.toast('A dusty terminal.'); // message at the bottom for 2 s
 ui.placeHint({ x, y }); // WorldScene does this every frame
 await ui.fader.fadeOut(500); // black screen (cutscenes use it)
 await ui.fader.fadeIn(500);
-await ui.openDialogue('demo-engineer', ctx); // dialogue window, see docs/HOWTO-dialogue.md
+await ui.openDialogue('engineer-advice', ctx); // dialogue window, see docs/HOWTO-dialogue.md
 ui.controls.justPressed('confirm'); // UiScene's own keyboard, never locked by the world
 ```
 
@@ -48,20 +48,22 @@ ui.controls.justPressed('confirm'); // UiScene's own keyboard, never locked by t
 
 `src/ui/theme.ts`:
 
-| Field                                      | Meaning                                                        |
-| ------------------------------------------ | -------------------------------------------------------------- |
-| `text.normal`, `text.dim`                  | Text colours: normal and secondary (details, disabled).        |
-| `text.highlight`                           | Selected item of a choice list.                                |
-| `fontSize.body` (8), `fontSize.title` (16) | Text sizes; multiples of 8 only.                               |
-| `lineSpacing`                              | Extra space between lines of multi-line text.                  |
-| `panelTint`                                | Colour multiplied into the panel art (`0xffffff` = as drawn).  |
-| `panelBorder`                              | Corner size of `ui/panel.png` (8). Change it with the art.     |
-| `buttonBorder`                             | Corner size of `ui/button-*.png` (4), used by resized buttons. |
-| `panelPadding`, `labelPadding`             | Space between a panel's / label's edge and its content.        |
-| `rowGap`                                   | Gap between choice list rows.                                  |
-| `backdrop`                                 | Dark layer behind panel scenes.                                |
-| `faderColor`, `disabledAlpha`, `toastMs`   | Fade colour, disabled button opacity, toast duration.          |
-| `bar`                                      | `back` and `fill` colours of resource bars (navigation panel). |
+| Field                                      | Meaning                                                                 |
+| ------------------------------------------ | ----------------------------------------------------------------------- |
+| `text.normal`, `text.dim`                  | Text colours: normal and secondary (details, disabled).                 |
+| `text.highlight`                           | Selected item of a choice list.                                         |
+| `text.alarm`, `text.warn`, `text.good`     | Navigation panel: critical, low, good (RUN, LANDED).                    |
+| `fontSize.body` (8), `fontSize.title` (16) | Text sizes; multiples of 8 only.                                        |
+| `lineSpacing`                              | Extra space between lines of multi-line text.                           |
+| `panelTint`                                | Colour multiplied into the panel art (`0xffffff` = as drawn).           |
+| `panelBorder`                              | Corner size of `ui/panel.png` (8). Change it with the art.              |
+| `buttonBorder`                             | Corner size of `ui/button-*.png` (4), used by resized buttons.          |
+| `panelPadding`, `labelPadding`             | Space between a panel's / label's edge and its content.                 |
+| `rowGap`                                   | Gap between choice list rows.                                           |
+| `backdrop`                                 | Dark layer behind panel scenes.                                         |
+| `faderColor`, `disabledAlpha`, `toastMs`   | Fade colour, disabled button opacity, toast duration.                   |
+| `bar`                                      | Resource bars (navigation panel): `back`, `fill`, `warn`, `alarm`.      |
+| `map`                                      | Navigation map and gate ribbon: orbits, trail, ship, gate states, mark. |
 
 ## Kit components
 
@@ -123,7 +125,10 @@ toast.show('Saved');
 Vertical list of options. `(x, y)` is the top-left of the first row. Keys: up/down (arrows, W/S),
 `confirm` (Enter, Space) chooses, `cancel` (Esc) emits `ChoiceList.CANCELLED` if `cancelable`.
 Mouse: hover selects, click chooses. Emits `ChoiceList.CHOSEN` with the index.
-`setChoices(items, selected = 0)`, `select(i)`, `choose(i)`, `selectedIndex`, `items`,
+`setChoices(items, selected = 0, disabled = [])` (`disabled[i]` true: row `i` is dim and cannot
+be chosen; keys and the mouse skip it, but `selected` stays on it even when disabled: the cursor
+never jumps to another, maybe irreversible, row by itself), `select(i)`, `choose(i)`,
+`lockFor(ms)` / `locked` (ignore keys and clicks for `ms` of scene time), `selectedIndex`, `items`,
 `rowCenter(i)`; `width` / `height` are its size after `setChoices`; `destroy()` removes it.
 
 `controls` must be the controls of the scene the list lives in (`ui.controls` in UiScene,

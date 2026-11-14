@@ -1,7 +1,9 @@
 /**
  * Smoke scenario: the core model. A flag change reaches the EventBus, the save lands in
  * localStorage, the menu's "Continue" is disabled without a save and enabled with one, and
- * loads it; "New Game" replaces it.
+ * loads it; "New Game" replaces it. Saves of another version count as none. The flag tiers
+ * (plan D17): `cargo.*`, `advice.*` survive a death (`flow.die`), `run.*` counts on until New
+ * game, `voyage.*` and `event.*` go when the next voyage starts.
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/state.mjs
  *
  * @param {import('playwright-core').Page} _page
@@ -45,7 +47,7 @@ export default async function state(_page, h) {
   // Saving needs a position; FlowService sets it during play.
   const stored = await h.eval(() => {
     const { save, state } = window.nasa.services;
-    state.current = { actId: 'prologue', locationId: 'demo-corridor', spawn: 'spawn-default' };
+    state.current = { actId: 'prologue', locationId: 'home', spawn: 'spawn-default' };
     save.save(state);
     return {
       raw: localStorage.getItem('space-owner.save'),
@@ -56,7 +58,7 @@ export default async function state(_page, h) {
   h.log(`localStorage['space-owner.save'] = ${stored.raw}`);
   if (stored.raw === null) throw new Error('localStorage has no space-owner.save after save()');
   if (!stored.hasSave) throw new Error('hasSave() is false after save()');
-  if (stored.loaded?.flags?.x !== true || stored.loaded.locationId !== 'demo-corridor') {
+  if (stored.loaded?.flags?.x !== true || stored.loaded.locationId !== 'home') {
     throw new Error(`load() returned ${JSON.stringify(stored.loaded)}`);
   }
 
@@ -78,7 +80,7 @@ export default async function state(_page, h) {
   }));
   h.log(`Continue -> ${JSON.stringify(continued)}`);
   if (
-    continued.location !== 'demo-corridor' ||
+    continued.location !== 'home' ||
     continued.current?.actId !== 'prologue' ||
     continued.x !== true
   ) {
@@ -97,10 +99,103 @@ export default async function state(_page, h) {
     return raw !== null && JSON.parse(raw).flags.x === undefined;
   }, 10000);
 
-  // A broken save counts as none (and only warns).
+  // A save of another version counts as none (plan D17: version 1 had a simulation snapshot).
   await h.eval(() => localStorage.setItem('space-owner.save', '{"version":99}'));
   const broken = await h.eval(() => window.nasa.services.save.hasSave());
   if (broken) throw new Error('hasSave() accepted a save of another version');
+  const old = await h.eval(() => {
+    localStorage.setItem(
+      'space-owner.save',
+      JSON.stringify({
+        version: 1,
+        flags: {},
+        actId: 'act2',
+        locationId: 'ship-deck',
+        spawn: 'spawn-default',
+        savedAt: 1,
+      }),
+    );
+    return window.nasa.services.save.hasSave();
+  });
+  if (old) throw new Error('hasSave() accepted a version 1 save');
+  await h.eval(() => window.nasa.services.save.clear());
+
+  // --- Flag tiers (plan D17) through a death and a new voyage: `cargo.*` and `advice.*`
+  // survive the death; `run.*` counts on; `voyage.*` and `event.*` stay until the next voyage
+  // starts, which deletes them; New game clears all.
+  await h.goto('/?location=warehouse');
+  await h.waitReady('World');
+  const tiers = () => {
+    const flags = window.nasa.services.state.flags.toRecord();
+    const pick = (prefix) =>
+      Object.fromEntries(Object.entries(flags).filter(([key]) => key.startsWith(prefix)));
+    return {
+      cargo: pick('cargo.'),
+      advice: pick('advice.'),
+      run: pick('run.'),
+      voyage: pick('voyage.'),
+      event: pick('event.'),
+    };
+  };
+  await h.eval(() => {
+    const { flags } = window.nasa.services.state;
+    flags.set('cargo.fuel', 2);
+    flags.set('advice.engineer.fuel', true);
+    flags.set('run.attempt', 3);
+    flags.set('run.bestGate', 2);
+    flags.set('voyage.cause', 'drift');
+    flags.set('event.hull-breach', 'seal');
+  });
+  await h.mark();
+  await h.eval(() => {
+    void window.nasa.services.flow.die('abort');
+  });
+  await h.waitEvent('checkpointSaved', 10000);
+  const afterDeath = await h.eval(tiers);
+  const saved = await h.eval(() => window.nasa.services.save.load()?.flags ?? null);
+  h.log(`tiers after a death: ${JSON.stringify(afterDeath)}`);
+  if (
+    afterDeath.cargo['cargo.fuel'] !== 2 ||
+    afterDeath.advice['advice.engineer.fuel'] !== true ||
+    afterDeath.run['run.attempt'] !== 4 ||
+    afterDeath.run['run.bestGate'] !== 2 ||
+    afterDeath.run['run.lastGate'] !== -1 ||
+    afterDeath.run['run.lastCause'] !== 'abort' ||
+    afterDeath.voyage['voyage.cause'] !== 'drift' ||
+    afterDeath.event['event.hull-breach'] !== 'seal'
+  ) {
+    throw new Error(`unexpected flags after a death: ${JSON.stringify(afterDeath)}`);
+  }
+  if (saved?.['cargo.fuel'] !== 2 || saved['run.attempt'] !== 4) {
+    throw new Error(`the death's checkpoint lacks the kept flags: ${JSON.stringify(saved)}`);
+  }
+  await h.mark();
+  await h.eval(() => {
+    void window.nasa.services.flow.startAct('act2');
+  });
+  await h.waitEvent('checkpointSaved', 10000);
+  const afterStart = await h.eval(tiers);
+  h.log(`tiers after a new voyage: ${JSON.stringify(afterStart)}`);
+  if (
+    afterStart.cargo['cargo.fuel'] !== 2 ||
+    afterStart.advice['advice.engineer.fuel'] !== true ||
+    afterStart.run['run.attempt'] !== 4 ||
+    typeof afterStart.run['run.seed'] !== 'number' ||
+    afterStart.voyage['voyage.cause'] !== undefined ||
+    Object.keys(afterStart.event).length !== 0
+  ) {
+    throw new Error(`unexpected flags after a new voyage: ${JSON.stringify(afterStart)}`);
+  }
+  await h.mark();
+  await h.eval(() => {
+    void window.nasa.services.flow.newGame();
+  });
+  await h.waitEvent('checkpointSaved', 10000);
+  const afterNew = await h.eval(tiers);
+  h.log(`tiers after New game: ${JSON.stringify(afterNew)}`);
+  if (Object.values(afterNew).some((tier) => Object.keys(tier).length !== 0)) {
+    throw new Error(`New game kept flags: ${JSON.stringify(afterNew)}`);
+  }
   await h.eval(() => window.nasa.services.save.clear());
 
   // Settings persist apart from the save, clamped to 0..1.

@@ -1,0 +1,163 @@
+{
+ "type": "map",
+ "version": "1.10",
+ "tiledversion": "1.11.0",
+ "orientation": "orthogonal",
+ "renderorder": "right-down",
+ "width": 40,
+ "height": 23,
+ "tilewidth": 16,
+ "tileheight": 16,
+ "infinite": false,
+ "compressionlevel": -1,
+ "nextlayerid": 4,
+ "nextobjectid": 11,
+ "tilesets": [],
+ "layers": [
+  {
+   "type": "imagelayer",
+   "name": "background",
+   "image": "../images/locations/home.png",
+   "x": 0,
+   "y": 0,
+   "opacity": 1,
+   "visible": true,
+   "id": 1
+  },
+  {
+   "type": "objectgroup",
+   "name": "collisions",
+   "draworder": "topdown",
+   "objects": [
+    {
+     "id": 1,
+     "name": "",
+     "type": "",
+     "x": 0,
+     "y": 0,
+     "width": 640,
+     "height": 16,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 2,
+     "name": "",
+     "type": "",
+     "x": 0,
+     "y": 344,
+     "width": 640,
+     "height": 16,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 3,
+     "name": "",
+     "type": "",
+     "x": 0,
+     "y": 16,
+     "width": 16,
+     "height": 328,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 4,
+     "name": "",
+     "type": "",
+     "x": 624,
+     "y": 16,
+     "width": 16,
+     "height": 132,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 5,
+     "name": "",
+     "type": "",
+     "x": 624,
+     "y": 212,
+     "width": 16,
+     "height": 132,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 6,
+     "name": "",
+     "type": "",
+     "x": 32,
+     "y": 32,
+     "width": 96,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 7,
+     "name": "",
+     "type": "",
+     "x": 464,
+     "y": 16,
+     "width": 96,
+     "height": 32,
+     "rotation": 0,
+     "visible": true
+    },
+    {
+     "id": 8,
+     "name": "",
+     "type": "",
+     "x": 256,
+     "y": 248,
+     "width": 96,
+     "height": 48,
+     "rotation": 0,
+     "visible": true
+    }
+   ],
+   "x": 0,
+   "y": 0,
+   "opacity": 1,
+   "visible": true,
+   "id": 2
+  },
+  {
+   "type": "objectgroup",
+   "name": "objects",
+   "draworder": "topdown",
+   "objects": [
+    {
+     "id": 9,
+     "name": "spawn-default",
+     "type": "spawn",
+     "x": 48,
+     "y": 180,
+     "width": 0,
+     "height": 0,
+     "rotation": 0,
+     "visible": true,
+     "point": true
+    },
+    {
+     "id": 10,
+     "name": "door-warehouse",
+     "type": "door",
+     "x": 624,
+     "y": 148,
+     "width": 16,
+     "height": 64,
+     "rotation": 0,
+     "visible": true
+    }
+   ],
+   "x": 0,
+   "y": 0,
+   "opacity": 1,
+   "visible": true,
+   "id": 3
+  }
+ ]
+}

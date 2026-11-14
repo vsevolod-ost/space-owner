@@ -4,9 +4,15 @@ import { cutscenes } from '@/content/cutscenes';
 import { endings } from '@/content/endings';
 import { ship } from '@/content/simulation/ship';
 import { solarSystem } from '@/content/simulation/solar-system';
-import { actOrder, acts } from '@/content/story';
+import { actOrder, acts, debrief, landingAct } from '@/content/story';
+import { gates } from '@/content/voyage/gates';
+import { cargo } from '@/content/voyage/cargo';
+import { colony } from '@/content/voyage/colony';
+import { voyageEvents } from '@/content/voyage/events';
+import { legs } from '@/content/voyage/legs';
 import { services } from '@/core/services';
 import { installDebugHooks } from '@/debug/hooks';
+import { readSeedParam } from '@/debug/startParams';
 import { BootScene } from '@/scenes/BootScene';
 import { DebugScene } from '@/scenes/DebugScene';
 import { EndingScene } from '@/scenes/EndingScene';
@@ -60,20 +66,46 @@ const game = new Phaser.Game({
 
 // The story flow moves scenes through this driver (src/core does not import Phaser); the story
 // registries are handed over here because src/core never imports content at run time.
-services.flow.attach(new PhaserSceneDriver(game), { acts, actOrder, endings });
+services.flow.attach(new PhaserSceneDriver(game), {
+  acts,
+  actOrder,
+  endings,
+  debrief,
+  landingAct,
+});
 // Cutscenes act on the world through this stage; the registry is handed over here for the same
 // reason (src/core never imports content at run time).
 services.cutscenes.attach(new WorldCutsceneStage(game), cutscenes);
 // Music and sound effects play through Phaser's sound manager, created inside `new Phaser.Game`.
 services.audio.attach(game.sound);
-// The ship simulation gets the solar system and the ship from content, same reason.
-services.simulation.attach({ bodies: solarSystem, ship });
+// The ship simulation gets the solar system, the ship and the voyage's gates and legs from
+// content, same reason.
+services.simulation.attach({ bodies: solarSystem, ship, gates, legs });
+// The cargo registry (the warehouse's crates, the ship's base), the events on the way and the
+// colony sites (needs, colours, buildings), same reason.
+services.voyage.attach(cargo, voyageEvents, colony);
+// `?seed=<n>` fixes the seed of the voyage's events (plan D10: smoke, balance runs).
+services.flow.fixSeed(readSeedParam());
 // Game-time services advance on every game step, not in a scene: panels pause the world scene,
-// but fades and the ship simulation keep running. Stops while the game itself is
+// but fades keep running and the ship simulation can run under the navigation panel (it
+// advances only without hold reasons, see SimulationService). Stops while the game itself is
 // paused (hidden tab).
 game.events.on(Phaser.Core.Events.STEP, (_time: number, delta: number) => {
   services.audio.tick(delta);
   services.simulation.tick(delta);
+});
+
+// A hidden tab holds the ship's clock (GDD `act2-pause`: losing focus switches to Hold).
+// `blur` stands while hidden; `panel` is held too, so the navigation panel comes back in Hold
+// and the player presses Run again. Phaser also stops its loop while hidden; this keeps the
+// rule in the model. Here, not in src/core: core has no DOM subscriptions.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    services.simulation.hold('blur');
+    services.simulation.hold('panel');
+  } else {
+    services.simulation.release('blur');
+  }
 });
 
 // Registered after Phaser's own resize listener, which refreshes the parent size first.

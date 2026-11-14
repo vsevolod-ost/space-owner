@@ -1,10 +1,10 @@
 import type { Act } from '@/content/story/types';
 
-/** Act 1 (placeholder): starts in the room behind the corridor. */
+/** Act 1: the warehouse, where the cargo is chosen; its hatch starts act 2. */
 export const act1: Act = {
-  title: 'Act 1',
+  title: 'Act 1', // OWNER: script
   async start(flow) {
-    await flow.goTo('demo-room', 'spawn-default');
+    await flow.goTo('warehouse', 'spawn-default');
     flow.checkpoint();
   },
 };

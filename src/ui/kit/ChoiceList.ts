@@ -27,7 +27,10 @@ export interface ChoiceListOptions {
 
 /**
  * Vertical list of options. Keyboard: up/down (arrows, W/S) move the selection, `confirm`
- * (Enter, Space) chooses; mouse: hovering a row selects it, a click chooses it. Emits
+ * (Enter, Space) chooses; mouse: hovering a row selects it, a click chooses it. A disabled row
+ * (`setChoices`' `disabled`) is drawn dim and cannot be chosen; the keys and the mouse skip it,
+ * but the selection `setChoices` asks for stays on it (the cursor never jumps to another row by
+ * itself: that row may be an irreversible one). `lockFor` ignores input for a while. Emits
  * `ChoiceList.CHOSEN` with the index, or `ChoiceList.CANCELLED` (Esc, when `cancelable`).
  * `(x, y)` is the top-left corner of the first row.
  *
@@ -47,11 +50,17 @@ export class ChoiceList extends Phaser.GameObjects.Container {
   /** Event when the player backs out with `cancel` (only if `cancelable`). */
   static readonly CANCELLED = 'cancelled';
 
-  private rows: { text: Phaser.GameObjects.Text; zone: Phaser.GameObjects.Zone }[] = [];
+  private rows: {
+    text: Phaser.GameObjects.Text;
+    zone: Phaser.GameObjects.Zone;
+    disabled: boolean;
+  }[] = [];
   private readonly marker: Phaser.GameObjects.Text;
   private selected = 0;
   /** Game frame in which the choices were set: input in that frame is ignored. */
   private openedFrame = -1;
+  /** Scene time (ms) until which keys and clicks are ignored (`lockFor`). */
+  private lockedUntil = -Infinity;
   private readonly cancelable: boolean;
   private readonly fixedWidth?: number;
 
@@ -84,8 +93,11 @@ export class ChoiceList extends Phaser.GameObjects.Container {
     return this.rows.map((row) => row.text.text);
   }
 
-  /** Replaces the options and selects `selected` (default the first). */
-  setChoices(items: readonly string[], selected = 0): this {
+  /**
+   * Replaces the options and selects `selected` (default the first; it stays selected even when
+   * disabled). `disabled[i]` true: row `i` is shown dim and cannot be chosen.
+   */
+  setChoices(items: readonly string[], selected = 0, disabled: readonly boolean[] = []): this {
     for (const row of this.rows) {
       row.text.destroy();
       row.zone.destroy();
@@ -110,33 +122,43 @@ export class ChoiceList extends Phaser.GameObjects.Container {
         .setOrigin(0)
         .setInteractive({ useHandCursor: true })
         .on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => this.select(index))
-        .on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.choose(index));
+        .on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
+          if (!this.locked) this.choose(index);
+        });
       this.add([zone, text]);
       y += height + theme.rowGap;
-      return { text, zone };
+      return { text, zone, disabled: disabled[index] === true };
     });
     this.setSize(width, Math.max(0, y - theme.rowGap));
     this.openedFrame = this.scene.game.loop.frame;
-    this.selected = -1;
-    this.select(Phaser.Math.Clamp(selected, 0, Math.max(0, items.length - 1)));
+    if (this.rows.length > 0) {
+      this.highlight(Phaser.Math.Clamp(selected, 0, this.rows.length - 1));
+    }
     return this;
   }
 
-  /** Moves the selection to `index` (clamped) and redraws the highlight. */
+  /** Moves the selection to `index` (clamped) and redraws it; a disabled row is not selected. */
   select(index: number): this {
     if (this.rows.length === 0) return this;
     const next = Phaser.Math.Clamp(index, 0, this.rows.length - 1);
-    this.rows.forEach((row, i) =>
-      row.text.setColor(i === next ? theme.text.highlight : theme.text.normal),
-    );
-    this.marker.setY(this.rows[next].text.y);
-    this.selected = next;
+    if (!this.rows[next].disabled) this.highlight(next);
     return this;
   }
 
-  /** Emits `CHOSEN` with `index`, as if the player chose that row. */
+  /** Ignores keys and clicks for `ms` of scene time from now (e.g. after an autopause). */
+  lockFor(ms: number): this {
+    this.lockedUntil = this.scene.time.now + ms;
+    return this;
+  }
+
+  /** Whether input is ignored now (`lockFor`). */
+  get locked(): boolean {
+    return this.scene.time.now < this.lockedUntil;
+  }
+
+  /** Emits `CHOSEN` with `index`, as if the player chose that row (not a disabled one). */
   choose(index: number): void {
-    if (index < 0 || index >= this.rows.length) return;
+    if (index < 0 || index >= this.rows.length || this.rows[index].disabled) return;
     this.select(index);
     services.audio.playSfx(CLICK_SOUND);
     this.emit(ChoiceList.CHOSEN, index);
@@ -152,14 +174,38 @@ export class ChoiceList extends Phaser.GameObjects.Container {
     };
   }
 
+  /** Selects row `index` (disabled or not) and redraws the rows and the marker. */
+  private highlight(index: number): void {
+    const disabled = this.rows[index].disabled;
+    this.rows.forEach((row, i) => {
+      const color = row.disabled ? theme.text.dim : theme.text.normal;
+      row.text.setColor(i === index && !disabled ? theme.text.highlight : color);
+    });
+    this.marker.setY(this.rows[index].text.y);
+    this.marker.setColor(disabled ? theme.text.dim : theme.text.highlight);
+    this.selected = index;
+  }
+
+  /** Moves the selection one enabled row up (-1) or down (1), wrapping around. */
+  private step(direction: 1 | -1): void {
+    const count = this.rows.length;
+    for (let i = 1; i <= count; i++) {
+      const index = (((this.selected + direction * i) % count) + count) % count;
+      if (!this.rows[index].disabled) {
+        this.select(index);
+        return;
+      }
+    }
+  }
+
   private readKeys(): void {
     if (!this.active || !this.visible || this.rows.length === 0) return;
-    if (this.scene.game.loop.frame === this.openedFrame) return;
+    if (this.scene.game.loop.frame === this.openedFrame || this.locked) return;
     const controls = this.controls;
     if (controls.justPressed('moveUp')) {
-      this.select((this.selected - 1 + this.rows.length) % this.rows.length);
+      this.step(-1);
     } else if (controls.justPressed('moveDown')) {
-      this.select((this.selected + 1) % this.rows.length);
+      this.step(1);
     } else if (controls.justPressed('confirm')) {
       this.choose(this.selected);
     } else if (this.cancelable && controls.justPressed('cancel')) {

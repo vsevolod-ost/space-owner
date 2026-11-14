@@ -9,14 +9,16 @@
 export default async function debug(page, h) {
   const overlay = () => window.nasa.game.scene.getScene('Debug').debugInfo();
 
-  await h.goto('/?location=demo-corridor&overlay=1');
+  await h.goto('/?location=home&overlay=1');
   await h.waitReady('World');
   await h.hold('ArrowRight', 500);
-  // The text is rebuilt every 250 ms: wait until it names the hero.
-  await h.waitFor(
-    () => window.nasa.game.scene.getScene('Debug').debugInfo().text.includes('hero '),
-    2000,
-  );
+  // The text is rebuilt every 250 ms, and the hero may still glide a frame after the key is
+  // released: wait until it shows where the hero stands now.
+  await h.waitFor(() => {
+    const { x, y } = window.nasa.game.scene.getScene('World').debugInfo().player;
+    const text = window.nasa.game.scene.getScene('Debug').debugInfo().text;
+    return text.includes(`hero ${Math.round(x)},${Math.round(y)}`);
+  }, 2000);
   await h.shot('debug-overlay');
 
   const state = await h.eval(() => ({
@@ -29,7 +31,7 @@ export default async function debug(page, h) {
   if (!state.active) throw new Error('the Debug scene is not active');
   if (state.top !== 'Debug') throw new Error(`top scene is ${state.top}, not Debug`);
   if (on.enabled !== true) throw new Error('overlay not enabled with ?overlay=1');
-  if (!on.text.includes('demo-corridor') || !on.text.includes('hero')) {
+  if (!on.text.includes('loc home') || !on.text.includes('hero')) {
     throw new Error(`overlay text lacks the location or the hero: ${JSON.stringify(on.text)}`);
   }
   const shown = `hero ${Math.round(state.hero.x)},${Math.round(state.hero.y)}`;
