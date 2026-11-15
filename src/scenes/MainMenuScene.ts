@@ -33,6 +33,23 @@ const LABELS = {
 } as const satisfies Record<string, LocalText>;
 /** Heading of the About panel (`StubScene`): title glyphs, max 24. OWNER: script */
 const ABOUT_TITLE: LocalText = { en: 'About', uk: 'Про гру', max: 24 };
+/** Text of the About panel: what the game is and who made it; five lines of up to 40 fit. */
+const ABOUT_DETAILS: LocalText = {
+  en: [
+    'A space mission design game',
+    'NASA Space Apps Challenge 2026',
+    'Team: V. Ostapenko, E. Dmytrenko,',
+    'Ye. Gaidai, A. Ninovskyy, P. Hrebelnyi',
+    'Open source, Apache-2.0 licence',
+  ].join('\n'),
+  uk: [
+    'Гра про проєктування космічної місії',
+    'NASA Space Apps Challenge 2026',
+    'Команда: В. Остапенко, Е. Дмитренко,',
+    'Є. Гайдай, А. Ніновський, П. Гребельний',
+    'Відкритий код, ліцензія Apache-2.0',
+  ].join('\n'),
+};
 /** The ship bobs up by this much and back, px, once per period, ms. OWNER: design */
 const SHIP_BOB_PX = 6;
 const SHIP_BOB_MS = 3500;
@@ -133,7 +150,7 @@ export class MainMenuScene extends Phaser.Scene {
       { label: LABELS.continue, onClick: () => this.continueGame() },
       { label: LABELS.newGame, onClick: () => this.newGame() },
       { label: LABELS.settings, onClick: () => this.openSettings() },
-      { label: LABELS.about, onClick: () => this.openStub(tr(ABOUT_TITLE)) },
+      { label: LABELS.about, onClick: () => this.openStub(tr(ABOUT_TITLE), tr(ABOUT_DETAILS)) },
     ];
     this.buttons = items.map(
       ({ label, onClick }, index) =>

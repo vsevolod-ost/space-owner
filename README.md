@@ -29,7 +29,8 @@ their metadata (`git log --grep "Co-Authored-By: Claude"`).
 AI was used for the code, the developer tools, the technical documentation and the project
 descriptions only. No generative AI was used for the art, the music, the sound effects or the
 in-game texts (dialogues, story, Ukrainian translation): they are made by the team members named
-in [Team and credits](#team-and-credits).
+in [Team and credits](#team-and-credits). The one exception among the in-game texts is the
+credits text of the About panel, which was drafted with AI assistance.
 
 ## Run
 
