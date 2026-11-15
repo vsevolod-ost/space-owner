@@ -8,7 +8,7 @@ shows the ship moving through a simulated solar system.
 The whole loop is playable, in English and Ukrainian: the flat (prologue), the warehouse where the
 cargo is chosen (act 1), the voyage through two gates (the Moon, Mars) on the navigation panel
 (act 2), the colony and its ending (act 3), and the death loop back to the warehouse. The music
-and most of the art are final; the colony buildings, a few small pictures and the sound effects
+and most of the art are final; a few small pictures and the sound effects
 are still placeholders (see "Systems"). `grep -rn "OWNER:" src` lists every number and text a team member owns, marked
 `physics`, `design`, `script` or `art`.
 
@@ -86,7 +86,7 @@ menu, F3 for the debug overlay. Open a location directly with
 | Debug overlay         | done   | F3 or `?overlay=1`: FPS, location, hero coordinates, act, music, simulation, flags                                                                                                                                                                              |
 | Localization          | done   | English and Ukrainian text pairs, language choice with a live rebuild, a pseudo-locale check                                                                                                                                                                    |
 | Smoke test            | done   | 19 headless Chromium scenarios over the production build, the whole voyage included                                                                                                                                                                             |
-| Art and sound effects | partly | Final: music, logo, menu ship, locations, colony pictures, characters, portraits, crates, cargo icons, prologue card. Placeholders: colony buildings, two extra hero portraits, navigation panel icons, sound effects, a few UI pictures the game does not show |
+| Art and sound effects | partly | Final: music, logo, menu ship, locations, colony pictures, characters, colony buildings, portraits, crates, cargo icons, prologue card. Placeholders: two extra hero portraits, navigation panel icons, sound effects, a few UI pictures the game does not show |
 
 The placeholders are drawn and synthesised by plain scripts (`tools/placeholders.py`,
 `tools/sounds.py`), not by generative AI; each placeholder picture carries its file name and a
