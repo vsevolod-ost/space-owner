@@ -10,7 +10,7 @@ NASA does not endorse any non-U.S. Government entity and is not responsible for 
 
 ### 1. Systems Engineering Approach
 
-The _Space Owner_ implements the four major mission segments defined in "Design and Develop Science Missions":
+The _Space Owner_ implements the four major mission segments defined in [Design and Develop Science Missions](https://www.nasa.gov/wp-content/uploads/2025/04/250323-design-and-develop-science-mission.pdf):
 
 - **Launch segment**: Represented by the rocket and launch services in Act 1.
 - **Space segment**: Represented by the spaceship, instruments, and the mission environment in Act 2.
@@ -19,7 +19,7 @@ The _Space Owner_ implements the four major mission segments defined in "Design 
 
 ### 2. GMAT (General Mission Analysis Tool) Integration
 
-Our ship simulation (`src/core/simulation/`) implements high-fidelity physical models inspired by GMAT principles, including:
+Our ship simulation (`src/core/simulation/`) implements high-fidelity physical models inspired by the principles of the [General Mission Analysis Tool (GMAT)](https://software.nasa.gov/software/GSC-19468-1), including:
 
 - Numerical orbital propagation (Verlet integration).
 - Lambert trajectory solving.
@@ -28,13 +28,13 @@ Our ship simulation (`src/core/simulation/`) implements high-fidelity physical m
 
 ### 3. Concept Maturity Levels (CMLs)
 
-The project progression follows the CML framework, where the game acts as an interactive simulation of these stages:
+The project progression follows the [Concept Maturity Levels (CMLs)](https://dataverse.jpl.nasa.gov/dataset.xhtml?persistentId=hdl:2014/44299) framework, where the game acts as an interactive simulation of these stages:
 
 - **CML 1–4**: The warehouse and ship selection process represents the feasibility analysis and trade study phase, where mission architecture (loadout) is evaluated against colony needs.
 
 ### 4. Mission Design Lab (MDL)
 
-The game mimics the collaborative design environment of the MDL by simulating key spacecraft disciplines:
+The game mimics the collaborative design environment of the [Mission Design Lab (MDL)](https://etd.gsfc.nasa.gov/capabilities/integrated-design-center/mission-design-lab/) by simulating key spacecraft disciplines:
 
 - Power (Solar/Battery crates)
 - Propulsion (Fuel/Engine)
@@ -45,15 +45,15 @@ The game mimics the collaborative design environment of the MDL by simulating ke
 
 ### 5. NASA Mission Viz & VR Visualization
 
-The navigation panel in Act 2 serves as an interactive, web-based visualization environment, communicating complex orbital dynamics and trajectories through a three-dimensional-inspired projection.
+Like [NASA Mission Viz](https://nasa.github.io/mission-viz/), the navigation panel in Act 2 serves as an interactive, web-based visualization environment, communicating complex orbital dynamics and trajectories through a three-dimensional-inspired projection.
 
 ### 6. Telescope Design Simulation
 
-The cargo/loadout system mirrors the "Learning Game About Telescopes" by requiring players to select scientific objectives (colony needs) and constraining them with compatible engineering hardware (science instruments, power, propulsion).
+The cargo/loadout system mirrors [A Learning Game About Telescopes](https://science.nasa.gov/mission/webb/game-build-it-yourself/) by requiring players to select scientific objectives (colony needs) and constraining them with compatible engineering hardware (science instruments, power, propulsion).
 
 ### 7. CubeSat 101
 
-The guide’s concepts of ConOps, launch, and operations form the operational framework for the game's mission management, from start at the warehouse to the colony landing.
+The concepts of ConOps, launch, and operations from [CubeSat 101: Basic Concepts and Processes for First-Time CubeSat Developers](https://www3.nasa.gov/sites/default/files/atoms/files/nasa_csli_cubesat_101_508.pdf) form the operational framework for the game's mission management, from start at the warehouse to the colony landing.
 
 ### 8. NASA Space Apps Challenge (VR Mission Visualization)
 
@@ -61,4 +61,4 @@ The game’s focus on mission concept, trajectory, and temporal visualization al
 
 ## CSA (Canadian Space Agency) Resources
 
-We encourage users to explore the [CSA collection of digital games and activities](https://www.asc-csa.gc.ca/), which provide additional educational perspectives on space science.
+We encourage users to explore the [CSA collection of digital games and activities](https://www.asc-csa.gc.ca/eng/youth-educators/digital-games-and-activities.asp), which provide additional educational perspectives on space science.

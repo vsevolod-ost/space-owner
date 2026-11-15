@@ -1,9 +1,7 @@
-# Release-time deploy to GitHub Pages. Not wired to pushes on purpose: the repository is private
-# until the release, and Pages sites are public even for private repositories. At the release:
-#   1. make the repository public;
-#   2. Settings -> Pages -> Build and deployment -> Source: GitHub Actions;
-#   3. run this workflow by hand (Actions -> "Deploy to GitHub Pages" -> Run workflow), or add
-#      `push: { branches: [main] }` below to publish every merge.
+# Deploy to GitHub Pages: https://vsevolod-ost.github.io/space-owner/
+# Run by hand (Actions -> "Deploy to GitHub Pages" -> Run workflow), or add
+# `push: { branches: [main] }` below to publish every merge. Needs Settings -> Pages -> Build and
+# deployment -> Source: GitHub Actions.
 name: Deploy to GitHub Pages
 
 on:

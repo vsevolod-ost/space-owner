@@ -26,13 +26,16 @@ documentation (`docs/`) was generated or edited with AI assistance, then reviewe
 tested and corrected by the team. AI-assisted commits carry a `Co-Authored-By: Claude` line in
 their metadata (`git log --grep "Co-Authored-By: Claude"`).
 
-This section covers the code only; the art and the music are described by their authors.
+AI was used for the code, the developer tools, the technical documentation and the project
+descriptions only. No generative AI was used for the art, the music, the sound effects or the
+in-game texts (dialogues, story, Ukrainian translation): they are made by the team members named
+in [Team and credits](#team-and-credits).
 
 ## Run
 
-Play online: after the release, on GitHub Pages. Until then run it locally:
+Play online: <https://vsevolod-ost.github.io/space-owner/>.
 
-Needs [Node.js](https://nodejs.org/) 22 or newer.
+To run it locally: needs [Node.js](https://nodejs.org/) 22 or newer.
 
 ```bash
 npm install
@@ -88,14 +91,31 @@ The placeholders are drawn and synthesised by plain scripts (`tools/placeholders
 `tools/sounds.py`), not by generative AI; each placeholder picture carries its file name and a
 `PLACEHOLDER` PNG comment. The list of pictures and their state: [Art guide](docs/HOWTO-art.md).
 
-## Team
+## Team and credits
 
+| Who                                 | Role                                                    |
+| ----------------------------------- | ------------------------------------------------------- |
+| Vsevolod Ostapenko                  | Author of the idea, team lead, developer                |
+| Emilia Dmytrenko                    | Composer, sound designer, manager, project presentation |
+| Gaidai Yevangelina, Artem Ninovskyy | Artists                                                 |
+| Pasha Hrebelnyi                     | Physics, author of the dialogues                        |
+
+- Art: drawn by hand by Gaidai Yevangelina and Artem Ninovskyy. The pictures still marked as
+  placeholders are drawn by the script `tools/placeholders.py`.
+- Music: composed by Emilia Dmytrenko in FL Studio. The placeholder sound effects are synthesised
+  by the script `tools/sounds.py`.
+- In-game texts: written by the team.
+- Code: the team with an AI coding assistant, see
+  [Use of Artificial Intelligence](#use-of-artificial-intelligence).
+- NASA and partner resources the design follows: [NASA Data & Resources](docs/NASA-RESOURCES.md).
 - The team's task list and design notes are kept outside the repository.
 - Who owns which folders: [Contributing - Who owns what](docs/CONTRIBUTING.md#who-owns-what).
 - What artists need: [Art guide](docs/HOWTO-art.md).
 
 ## Licences
 
+- Space Owner - the code, art, music, sounds and texts made by the team - is released under the
+  [Apache License 2.0](LICENSE).
 - Phaser: MIT licence.
 - Font Press Start 2P (The Press Start 2P Project Authors): SIL Open Font License 1.1, text in
   [public/fonts/OFL.txt](public/fonts/OFL.txt).
