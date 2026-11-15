@@ -29,7 +29,7 @@ export interface LoadedLocation {
   height: number;
   /**
    * Background layers back to front (one for a single-image background), at depth -1 under
-   * every actor and prop; their tints are set by `Props`.
+   * every actor and prop; `Props` shows or hides them (`BackgroundLayer.when`).
    */
   background: BuiltBackgroundLayer[];
   /** Static bodies of the `collisions` layer; collide actors with this. */

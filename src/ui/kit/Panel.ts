@@ -1,18 +1,23 @@
 import Phaser from 'phaser';
-import { cutCorners } from '@/ui/kit/shapes';
+import { fillChamfered, strokeChamfered } from '@/ui/kit/shapes';
 import { theme } from '@/ui/theme';
 
 /** Smallest panel side, px. */
 const MIN_SIZE = 16;
-/** Panels this high or lower are compact: small corner cut, thin outline, no corner marks. */
+/** Panels this high or lower are compact: a small corner cut and a 2 px frame, no lit strips. */
 const COMPACT_HEIGHT = 36;
 /** Corner cut of a compact and of a full panel, px. */
-const COMPACT_CUT = 4;
-const FULL_CUT = 12;
+const COMPACT_CUT = 2;
+const FULL_CUT = 4;
+/** The lit strips on a full panel's bezel: length, distance from the corner, least panel width. */
+const ACCENT_LENGTH = 16;
+const ACCENT_INSET = 10;
+const ACCENT_MIN_WIDTH = 64;
 
 /**
- * Framed background of any size, drawn in code (`theme.panel`: a deep-space plate with cut
- * corners, an indigo outline and four corner marks on full-size panels). Positioned by its
+ * Framed background of any size, drawn in code (`theme.panel`): dark glass in a steel bezel with
+ * cut corners, lit from the top left, and two lit strips on the bezel of full-size panels;
+ * panels 36 px high or lower (toasts, hints, strips) get a thinner frame. Positioned by its
  * top-left corner; the size is rounded to whole pixels and is never below 16 px. A plain
  * `setInteractive()` makes the whole panel clickable.
  *
@@ -61,19 +66,24 @@ export class Panel extends Phaser.GameObjects.Container {
   private draw(): void {
     const w = this.panelWidth;
     const h = this.panelHeight;
-    const compact = h <= COMPACT_HEIGHT;
     const look = theme.panel;
-    const outline = cutCorners(0, 0, w, h, compact ? COMPACT_CUT : FULL_CUT);
     const g = this.background.clear();
-    g.fillStyle(look.fill, look.fillAlpha).fillPoints(outline, true);
-    g.lineStyle(compact ? 1 : 2, look.stroke, 1).strokePoints(outline, true);
-    // Corner marks only on big panels: on small widgets they would cover the text.
-    if (!compact) {
-      g.lineStyle(1, look.accent, 0.8)
-        .strokeRect(6, 6, 4, 4)
-        .strokeRect(w - 10, 6, 4, 4)
-        .strokeRect(6, h - 10, 4, 4)
-        .strokeRect(w - 10, h - 10, 4, 4);
+    if (h <= COMPACT_HEIGHT) {
+      fillChamfered(g, 0, 0, w, h, COMPACT_CUT, look.fill, look.fillAlpha);
+      strokeChamfered(g, 0, 0, w, h, COMPACT_CUT, look.outline);
+      strokeChamfered(g, 1, 1, w - 2, h - 2, COMPACT_CUT - 1, look.frame, look.shade);
+      return;
+    }
+    fillChamfered(g, 0, 0, w, h, FULL_CUT, look.fill, look.fillAlpha);
+    // The bezel, outside in: a dark line, the lit and shaded edges, the face, a dark line.
+    strokeChamfered(g, 0, 0, w, h, FULL_CUT, look.outline);
+    strokeChamfered(g, 1, 1, w - 2, h - 2, FULL_CUT - 1, look.light, look.shade);
+    strokeChamfered(g, 2, 2, w - 4, h - 4, FULL_CUT - 2, look.frame);
+    strokeChamfered(g, 3, 3, w - 6, h - 6, FULL_CUT - 3, look.outline);
+    if (w >= ACCENT_MIN_WIDTH) {
+      g.fillStyle(look.accent, 1)
+        .fillRect(ACCENT_INSET, 2, ACCENT_LENGTH, 1)
+        .fillRect(w - ACCENT_INSET - ACCENT_LENGTH, h - 3, ACCENT_LENGTH, 1);
     }
   }
 }

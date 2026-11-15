@@ -1,18 +1,21 @@
 import Phaser from 'phaser';
 import type { AudioKey } from '@/assets';
 import { services } from '@/core/services';
-import { cutCorners } from '@/ui/kit/shapes';
+import { fillChamfered, strokeChamfered } from '@/ui/kit/shapes';
 import { createText } from '@/ui/kit/text';
 import { theme } from '@/ui/theme';
 
 /** Default size of a button, px. */
 const DEFAULT_WIDTH = 160;
 const DEFAULT_HEIGHT = 36;
-/** Below this size a button is a plain rectangle (no cut corners or corner marks), px. */
+/** Below this size a button is small: a 1 px corner cut and a 1 px lip, px. */
 const SMALL_WIDTH = 40;
 const SMALL_HEIGHT = 28;
-/** Size of the cut corners of a full-size button, px. */
-const CORNER_CUT = 8;
+/** Corner cut and height of the lip (the key's side under its face), full-size and small, px. */
+const CUT = 2;
+const SMALL_CUT = 1;
+const LIP = 2;
+const SMALL_LIP = 1;
 /** Sound of a click. */
 const CLICK_SOUND: AudioKey = 'ui-click';
 
@@ -27,26 +30,30 @@ export interface ButtonOptions {
 }
 
 /**
- * Labelled button drawn in code (`theme.button`: a dark plate with cut corners and a neon
- * outline that changes on hover and press; small buttons are plain rectangles). `(x, y)` is
- * the centre. Fires `onClick` (and plays the `ui-click` sound) when the pointer is both
- * pressed and released over it. A disabled button is half transparent and ignores input.
+ * Labelled button drawn in code (`theme.button`): a key of the console with a steel rim and a
+ * dark lip under it; the rim lights up cyan under the pointer or with `setFocused`, and the key
+ * sinks onto its lip while pressed. `(x, y)` is the centre. Fires `onClick` (and plays the `ui-click` sound) when the pointer is both
+ * pressed and released over it, or on `click()`. A disabled button is half transparent and ignores input.
  */
 export class Button extends Phaser.GameObjects.Container {
+  /** Event when the pointer comes over the enabled button: a keyboard focus can follow it. */
+  static readonly HOVERED = 'hovered';
   /** Text shown on the button. */
   readonly label: string;
   private readonly background: Phaser.GameObjects.Graphics;
+  private readonly text: Phaser.GameObjects.Text;
   private readonly buttonWidth: number;
   private readonly buttonHeight: number;
   private isPressed = false;
   private enabled = true;
+  private focused = false;
 
   constructor(
     scene: Phaser.Scene,
     x: number,
     y: number,
     label: string,
-    onClick: () => void,
+    private readonly onClick: () => void,
     options: ButtonOptions = {},
   ) {
     super(scene, Math.round(x), Math.round(y));
@@ -55,9 +62,9 @@ export class Button extends Phaser.GameObjects.Container {
     this.buttonHeight = Math.round(options.height ?? DEFAULT_HEIGHT);
 
     this.background = scene.add.graphics();
+    this.text = createText(scene, 0, 0, label, 'body').setOrigin(0.5);
+    this.add([this.background, this.text]);
     this.draw('normal');
-    const text = createText(scene, 0, 0, label, 'body').setOrigin(0.5);
-    this.add([this.background, text]);
     scene.add.existing(this);
 
     const w = this.buttonWidth;
@@ -69,11 +76,13 @@ export class Button extends Phaser.GameObjects.Container {
         useHandCursor: true,
       })
       .on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
-        if (this.enabled) this.draw('hover');
+        if (!this.enabled) return;
+        this.draw('hover');
+        this.emit(Button.HOVERED);
       })
       .on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
         this.isPressed = false;
-        if (this.enabled) this.draw('normal');
+        if (this.enabled) this.drawAtRest();
       })
       .on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => {
         if (!this.enabled) return;
@@ -84,9 +93,15 @@ export class Button extends Phaser.GameObjects.Container {
         if (!this.enabled || !this.isPressed) return;
         this.isPressed = false;
         this.draw('hover');
-        services.audio.playSfx(CLICK_SOUND);
-        onClick();
+        this.click();
       });
+  }
+
+  /** Clicks the button as the pointer does (sound, `onClick`): for a key; not when disabled. */
+  click(): void {
+    if (!this.enabled) return;
+    services.audio.playSfx(CLICK_SOUND);
+    this.onClick();
   }
 
   /** Enables or disables the button; a disabled one is drawn faded and ignores the pointer. */
@@ -94,7 +109,7 @@ export class Button extends Phaser.GameObjects.Container {
     this.enabled = enabled;
     this.isPressed = false;
     this.setAlpha(enabled ? 1 : theme.disabledAlpha);
-    this.draw('normal');
+    this.drawAtRest();
     if (this.background.input) this.background.input.cursor = enabled ? 'pointer' : 'default';
     return this;
   }
@@ -104,24 +119,40 @@ export class Button extends Phaser.GameObjects.Container {
     return this.enabled;
   }
 
-  /** Redraws the plate in the colours of `state`. */
+  /**
+   * Marks the button as the one the keyboard is on (the hover look) or not. The scene that
+   * moves a selection with the keys calls it; the button itself reads only the pointer.
+   */
+  setFocused(focused: boolean): this {
+    this.focused = focused;
+    if (!this.isPressed) this.drawAtRest();
+    return this;
+  }
+
+  /** Draws the button as it is with no pointer on it. */
+  private drawAtRest(): void {
+    this.draw(this.focused && this.enabled ? 'hover' : 'normal');
+  }
+
+  /** Redraws the key in the colours of `state`; pressed, its face sits down on the lip. */
   private draw(state: ButtonState): void {
     const look = theme.button[state];
     const w = this.buttonWidth;
     const h = this.buttonHeight;
+    const small = w < SMALL_WIDTH || h < SMALL_HEIGHT;
+    const cut = small ? SMALL_CUT : CUT;
+    const lip = small ? SMALL_LIP : LIP;
     const left = -Math.floor(w / 2);
     const top = -Math.floor(h / 2);
+    const faceHeight = h - lip;
+    const sunk = state === 'pressed' ? lip : 0;
+    const faceTop = top + sunk;
     const g = this.background.clear();
-    g.fillStyle(look.fill, 1).lineStyle(look.line, look.stroke, 1);
-    if (w < SMALL_WIDTH || h < SMALL_HEIGHT) {
-      g.fillRect(left, top, w, h).strokeRect(left, top, w, h);
-      return;
-    }
-    const outline = cutCorners(left, top, w, h, CORNER_CUT);
-    g.fillPoints(outline, true).strokePoints(outline, true);
-    // Two small corner marks, top left and bottom right.
-    g.lineStyle(1, look.stroke, 0.9)
-      .strokeRect(left + 3, top + 3, 3, 3)
-      .strokeRect(left + w - 6, top + h - 6, 3, 3);
+    if (sunk === 0) fillChamfered(g, left, top + lip, w, faceHeight, cut, theme.button.lip);
+    fillChamfered(g, left, faceTop, w, faceHeight, cut, look.fill);
+    strokeChamfered(g, left, faceTop, w, faceHeight, cut, look.light, look.shade);
+    g.fillStyle(look.gloss, 1).fillRect(left + cut + 1, faceTop + 1, w - (cut + 1) * 2, 1);
+    // The label rides on the face: centred on it, and down with it.
+    this.text.setY(sunk - Math.floor(lip / 2));
   }
 }

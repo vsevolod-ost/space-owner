@@ -4,6 +4,7 @@
  * `attach` - src/core imports content with `import type` only, so it has no runtime
  * dependency on it (same pattern as `CutsceneService.attach(stage, library)`).
  */
+import { DEBUG } from '@/config';
 import type { CutsceneId } from '@/content/cutscenes';
 import type { Ending, EndingId } from '@/content/endings';
 import type { ActId } from '@/content/story';
@@ -102,6 +103,8 @@ export class FlowService {
   private fixedSeed: number | null = null;
   /** Summary of the last voyage lost (`die`) in this page's life, or null. */
   private lastLost: FlightSummary | null = null;
+  /** `LOSS_BEAT_MS`, or what `setDebugLossBeat` made it. */
+  private lossBeatMs = LOSS_BEAT_MS;
 
   constructor(
     private readonly state: GameState,
@@ -172,7 +175,7 @@ export class FlowService {
   }
 
   /**
-   * Starts act `id`: its title card on a black screen, then its `start` script (which goes to
+   * Starts act `id`: its title card on a black screen (over its `card` picture), then its `start` script (which goes to
    * a location and saves a checkpoint). Resolves when the script has finished.
    */
   async startAct(id: ActId): Promise<void> {
@@ -182,7 +185,7 @@ export class FlowService {
     const session = this.beginSession();
     this.actId = id;
     if (this.state.current) this.state.current = { ...this.state.current, actId: id };
-    await driver.showActTitle(resolveText(act.title, this.state));
+    await driver.showActTitle(resolveText(act.title, this.state), act.card);
     if (session !== this.session) return;
     await act.start(this.apiFor(session));
   }
@@ -377,7 +380,25 @@ export class FlowService {
     const session = this.session;
     setTimeout(() => {
       if (session === this.session) void this.deathLoop(summary);
-    }, LOSS_BEAT_MS);
+    }, this.lossBeatMs);
+  }
+
+  /**
+   * Debug only (`?debug=1` or `npm run dev`): the panel shows a lost voyage for `ms` before the
+   * death loop (a smoke scenario that shoots LOST takes a longer one: a screenshot on a loaded
+   * machine may outlast `LOSS_BEAT_MS`); null restores `LOSS_BEAT_MS`. Lasts for the page's
+   * life. Without debug mode it is ignored with a warning.
+   */
+  setDebugLossBeat(ms: number | null): void {
+    if (!DEBUG) {
+      console.warn('FlowService.setDebugLossBeat: debug mode only (?debug=1)');
+      return;
+    }
+    if (ms !== null && (!Number.isFinite(ms) || ms < 0)) {
+      console.warn(`FlowService.setDebugLossBeat: bad beat ${ms}, kept ${this.lossBeatMs}`);
+      return;
+    }
+    this.lossBeatMs = ms ?? LOSS_BEAT_MS;
   }
 
   /** The `run.*` flags after a lost voyage (plan D17: kept until New game). */

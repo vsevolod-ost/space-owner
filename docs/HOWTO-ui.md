@@ -16,13 +16,33 @@ Rules for every piece of UI:
   a code change, not a new picture.
 - Colours and spacing come from `theme`, not from numbers in place.
 
+## The look: a flight console
+
+The UI is drawn as the ship's own instruments, in the palette of the ship art, so a panel over
+the deck looks like part of the deck. Keep to these when adding a screen:
+
+- **Dark glass in a steel bezel.** Every window is a `Panel`: navy glass, a 4 px steel frame lit
+  from the top left, corners cut by a pixel staircase, two short lit strips on the frame. Small
+  things (toasts, hints, strips) get the thin 2 px frame.
+- **Cyan is focus.** What the keys or the pointer are on: a button's rim, the band and bar of
+  the selected row, the lit strips. Nothing else is cyan (the navigation panel's RUN word is
+  the one exception: the engine is on).
+- **Amber is the chosen text**: the selected row's text and arrow, a speaker's name, a card's
+  heading (`theme.text.highlight`).
+- **Red and hazard stripes are an alarm** (`theme.text.alarm`, `theme.hazard`); orange a warning.
+- **Amounts are gauges**: bars cut into lamp segments (`drawGauge`).
+- **Whole pixels only.** Shapes are built from `fillRect` by the helpers in `kit/shapes.ts`
+  (`fillChamfered`, `strokeChamfered`, `drawGauge`, `fillHazard`, `fillArrow`,
+  `drawSelection`); no slanted or curved lines in UI chrome (the navigation map's orbits are
+  content, not chrome).
+
 ## Screen layout
 
 The game is 640×360 pixels, scaled up by a whole factor. Scenes draw in this order, bottom to top:
 
 | Scene        | What it shows                                                                |
 | ------------ | ---------------------------------------------------------------------------- |
-| `MainMenu`   | Background, logo, button panel.                                              |
+| `MainMenu`   | Background, logo, buttons (mouse; Up/Down move the focus, Enter clicks it).  |
 | `World`      | The location, hero, NPCs. Its camera moves; nothing in it is UI.             |
 | `Ui`         | `UiScene`: the "E" hint, toasts, the dialogue window, the fader on top.      |
 | panel scenes | `PanelScene` subclasses (stub, pause, settings, navigation) over everything. |
@@ -56,8 +76,9 @@ ui.controls.justPressed('confirm'); // UiScene's own keyboard, never locked by t
 | `text.alarm`, `text.warn`, `text.good`     | Navigation panel: critical, low, good (RUN, LANDED).                    |
 | `fontSize.body` (8), `fontSize.title` (16) | Text sizes; multiples of 8 only.                                        |
 | `lineSpacing`                              | Extra space between lines of multi-line text.                           |
-| `panel`                                    | Panel plate: fill, its alpha, outline, corner-mark colour.              |
-| `button`                                   | Button plate per state (`normal`, `hover`, `pressed`): fill, outline.   |
+| `panel`                                    | Panel: glass fill and alpha, bezel colours, the lit strips.             |
+| `button`                                   | Button per state (`normal`, `hover`, `pressed`): face, rim; the `lip`.  |
+| `selection`, `rule`, `hazard`              | Selected row's band; rules inside panels; the alarm's hazard stripes.   |
 | `menu`                                     | Main menu sky gradient and star colours.                                |
 | `ship`                                     | Navigation status column: status words, levels, resource bar colours.   |
 | `panelBorder`                              | How far a panel's frame reaches in from the edge (8).                   |
@@ -92,8 +113,9 @@ createText(this, 320, 40, tr(TITLE), 'title').setOrigin(0.5, 0); // TITLE = { en
 
 ### `new Panel(scene, x, y, width, height)` — `kit/Panel.ts`
 
-Framed background drawn in code (`theme.panel`): a plate with cut corners, an outline and, on
-panels taller than 36 px, four corner marks. `(x, y)` is the top-left corner.
+Framed background drawn in code (`theme.panel`): dark glass in a steel bezel with cut corners
+and, on panels taller than 36 px, two lit strips (lower panels get a thin frame). `(x, y)` is
+the top-left corner.
 `panel.resize(width, height)` changes the size; a plain `panel.setInteractive()` makes the whole
 panel clickable.
 
@@ -103,11 +125,12 @@ const panel = new Panel(this, 120, 80, 400, 200);
 
 ### `new Button(scene, x, y, label, onClick, { width?, height? })` — `kit/Button.ts`
 
-Button drawn in code (`theme.button`: a plate with cut corners whose colours change on hover and
-press) with the label on top. `(x, y)` is the centre. Mouse only: hover, press, click on release; a click plays the `ui-click` sound (so does a
+Button drawn in code (`theme.button`: a key with a steel rim that lights up cyan on hover and
+sinks onto its lip on press) with the label on top. `setFocused(true)` gives it the hover look
+for a selection moved with the keys (the settings panel's Back). `(x, y)` is the centre. Mouse: hover (emits `Button.HOVERED`), press, click on release; `click()` does the same from a key (the main menu); a click plays the `ui-click` sound (so does a
 choice in a `ChoiceList`). `setEnabled(false)` fades it and ignores input; `isEnabled()`, `label`.
-The default size is 160x36; buttons under 40x28 (the settings panel's 24x20 "-" / "+") are
-plain rectangles.
+The default size is 160x36; buttons under 40x28 (the settings panel's 24x20 "-" / "+") get a
+smaller corner cut and lip.
 
 ```ts
 new Button(this, 320, 220, tr(BACK), () => this.close()); // BACK = { en: 'Back', uk: TODO, max: 18 }
@@ -137,7 +160,8 @@ toast.show(tr(SAVED));
 
 ### `new ChoiceList(scene, x, y, controls, { width?, cancelable? })` — `kit/ChoiceList.ts`
 
-Vertical list of options. `(x, y)` is the top-left of the first row. Keys: up/down (arrows, W/S),
+Vertical list of options; the selected row stands on a lit band (`theme.selection`) that
+reaches 4 px past the list's sides. `(x, y)` is the top-left of the first row. Keys: up/down (arrows, W/S),
 `confirm` (Enter, Space) chooses, `cancel` (Esc) emits `ChoiceList.CANCELLED` if `cancelable`.
 Mouse: hover selects, click chooses. Emits `ChoiceList.CHOSEN` with the index.
 `setChoices(items, selected = 0, disabled = [])` (`disabled[i]` true: row `i` is dim and cannot
@@ -192,7 +216,7 @@ A panel that opens over the game is its own scene extending `PanelScene`
   world's controls are paused with the world, and presses made while a scene was paused are
   dropped when it resumes, so the Esc that closes a panel does not reach the world.
 - A dark backdrop (`theme.backdrop`) covers the screen behind the panel and catches clicks.
-- `addPanel({ title?, width, height })` draws a centred `Panel` with the title and returns the
+- `addPanel({ title?, width, height })` draws a centred `Panel` with the title (and a rule under it) and returns the
   content area inside it (`Phaser.Geom.Rectangle`: `x`, `y`, `width`, `height`, `centerX`, …).
 - `onTeardown(fn, untilShutdown?)` runs `fn` when the content goes (before a rebuild and on
   close; with `untilShutdown`, only on close): release holds and event handlers `build` took.

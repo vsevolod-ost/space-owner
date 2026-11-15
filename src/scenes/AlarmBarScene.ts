@@ -10,6 +10,7 @@ import { SceneKey } from '@/scenes/keys';
 import type { NavigationScene } from '@/scenes/NavigationScene';
 import type { UiScene } from '@/scenes/UiScene';
 import { Panel } from '@/ui/kit/Panel';
+import { drawGauge, fillHazard } from '@/ui/kit/shapes';
 import { createText } from '@/ui/kit/text';
 import { theme } from '@/ui/theme';
 
@@ -23,6 +24,11 @@ const MIN_WIDTH = 152;
 const MARGIN = 4;
 /** Space between the box's edge and its content: clear of the panel art's frame, px. */
 const PAD = theme.panelBorder;
+/** The hazard strip down the box's left side: its distance from the edge and its width, px. */
+const STRIPE_X = 6;
+const STRIPE_WIDTH = 5;
+/** Left edge of the texts and the bar: right of the hazard strip, px. */
+const LEFT = STRIPE_X + STRIPE_WIDTH + 4;
 /** Gap between the two lines of text and between the text and the bar, px. */
 const GAP = 4;
 /** Height of the countdown bar, px. */
@@ -88,13 +94,24 @@ export class AlarmBarScene extends Phaser.Scene {
   create(): void {
     const pad = PAD;
     this.panel = new Panel(this, 0, 0, MIN_WIDTH, this.boxHeight());
-    this.title = createText(this, pad, pad, '', 'body').setColor(theme.text.highlight);
+    this.title = createText(this, LEFT, pad, '', 'body').setColor(theme.text.highlight);
+    const stripe = this.add.graphics();
+    const { base, stripe: dark } = theme.hazard;
+    fillHazard(
+      stripe,
+      STRIPE_X,
+      STRIPE_X,
+      STRIPE_WIDTH,
+      this.boxHeight() - STRIPE_X * 2,
+      base,
+      dark,
+    );
     const lineY = pad + theme.fontSize.body + GAP;
-    this.station = createText(this, pad, lineY, '', 'body');
+    this.station = createText(this, LEFT, lineY, '', 'body');
     this.seconds = createText(this, 0, lineY, '', 'body').setOrigin(1, 0);
     this.bar = this.add.graphics();
     this.box = this.add
-      .container(0, MARGIN, [this.panel, this.title, this.station, this.seconds, this.bar])
+      .container(0, MARGIN, [this.panel, stripe, this.title, this.station, this.seconds, this.bar])
       .setVisible(false);
     // The next frame redraws the title and the station in the new language.
     const offLanguage = services.events.on('languageChanged', () => {
@@ -196,9 +213,9 @@ export class AlarmBarScene extends Phaser.Scene {
       this.title?.width ?? 0,
       (this.station?.width ?? 0) + GAP + (this.seconds?.width ?? 0) + theme.fontSize.body * 3,
     );
-    const width = Math.max(MIN_WIDTH, Math.ceil(textWidth) + pad * 2);
+    const width = Math.max(MIN_WIDTH, Math.ceil(textWidth) + LEFT + pad);
     this.laidOutSecondsWidth = this.seconds?.width ?? 0;
-    this.barWidth = width - pad * 2;
+    this.barWidth = width - LEFT - pad;
     this.panel?.resize(width, this.boxHeight());
     this.seconds?.setX(width - pad);
     this.boxWidth = width;
@@ -224,13 +241,8 @@ export class AlarmBarScene extends Phaser.Scene {
     if (!bar) return;
     const pad = PAD;
     const y = this.boxHeight() - pad - BAR_HEIGHT;
-    bar.clear();
-    bar.fillStyle(theme.bar.back, 1).fillRect(pad, y, this.barWidth, BAR_HEIGHT);
-    if (width > 0) {
-      bar
-        .fillStyle(alarmColor ? theme.bar.alarm : theme.bar.fill, 1)
-        .fillRect(pad, y, width, BAR_HEIGHT);
-    }
+    const color = alarmColor ? theme.bar.alarm : theme.bar.fill;
+    drawGauge(bar.clear(), LEFT, y, this.barWidth, BAR_HEIGHT, width, color, theme.bar.back);
   }
 
   /** Two lines of text, the bar and the padding, px. */

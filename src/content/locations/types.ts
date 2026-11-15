@@ -165,14 +165,14 @@ export interface TriggerBinding {
 export type Binding = DoorBinding | NpcBinding | InteractableBinding | TriggerBinding | PropBinding;
 
 /**
- * One layer of a layered background: an image the size of the world, and a colour multiplied
- * over it from the state (the colony's sky by the body it stands on). Re-read when a flag
- * changes (see `WorldCondition`).
+ * One layer of a layered background: an image the size of the world, shown while `when` holds
+ * (the colony's picture of the body it stands on). Re-read when a flag changes (see
+ * `WorldCondition`).
  */
 export interface BackgroundLayer {
   image: ImageKey;
-  /** Colour multiplied over the layer (`0xff8866`); undefined or 0xffffff: none. */
-  tint?: (state: GameState) => number | undefined;
+  /** The layer is shown only while this is true; default always. */
+  when?: (state: GameState) => boolean;
 }
 
 /**
@@ -183,11 +183,11 @@ export interface LocationDef {
   /** Name shown to the player. */
   title: LocalText;
   /**
-   * Background image, or layers drawn back to front (`[{ image: 'location-colony-sky', tint },
-   * { image: 'location-colony-ground' }]`), or a function that builds the layers from the
-   * game's registries once (`BindingSources`, as for `bindings`: the colony's tints follow the
-   * colony registry). The (first) image's size is the size of the world (camera and physics
-   * bounds); the other layers should match it.
+   * Background image, or layers drawn back to front (`[{ image: 'location-colony-moon', when },
+   * { image: 'location-colony-base' }]`), or a function that builds the layers from the
+   * game's registries once (`BindingSources`, as for `bindings`: the colony's picture follows
+   * the body it stands on). The (first) image's size is the size of the world (camera and
+   * physics bounds); the other layers should match it.
    */
   background:
     | ImageKey

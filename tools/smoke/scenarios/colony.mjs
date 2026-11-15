@@ -3,16 +3,18 @@ import { VOYAGE_SEED } from '../voyage-seed.mjs';
 /**
  * Smoke scenario: the colony and the endings (plan S11, D19). `?act=act3` opens the colony;
  * with the flags of a Stop on Mars (and an oxygen crate, the battery, solar panels, the
- * reactor aboard) the sky and the ground take Mars's colours, four buildings stand and the
- * power closes Mars's needs: a colony; with the flags of a Stop on the Moon (fuel, solar
- * panels, the reactor, a regolith kit) they take the Moon's, three buildings stand (fuel
+ * reactor aboard) the power closes Mars's needs: a colony, so the background is Mars with
+ * the colony drawn in (`location-colony-mars-built`) and no buildings stand over it; with
+ * the flags of a Stop on the Moon with a thermal, a regolith and an ice kit it is a colony too,
+ * the Moon with the colony drawn in; with fuel, solar panels, the reactor, a regolith kit it is the
+ * Moon's empty picture, three buildings stand (fuel
  * builds nothing) and the colony is a settlement (heat and shielding short). The shelter tells
  * the tier, the systems each need; the overlook says its line and ends on `colony-moon` with
  * the settlement's tier line; "Fly again" takes the hero to the
  * warehouse's hatch in act 1 with the cargo still aboard, `run.attempt` +1, a checkpoint.
  * Then a real Stop: act 2 with the smoke seed, the panel open with the debug warp to the Moon, "Stop
  * here" on the gate card -> LANDED, the title "Moon · day N", act 3 in the colony on the Moon.
- * Screenshots: colony-mars, colony-moon, colony-ending, colony-fly-again, colony-landed.
+ * Screenshots: colony-mars, colony-moon-built, colony-moon, colony-ending, colony-fly-again, colony-landed.
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/colony.mjs --timeout 600000
  *
  * @param {import('playwright-core').Page} page
@@ -55,21 +57,29 @@ export default async function colony(page, h) {
       },
       { gate, body, cargo },
     );
-  /** Waits until the colony shows `sky` over its sky layer, then returns its props. */
-  const painted = async (sky) => {
+  /** The bodies whose picture the colony's background shows (`location-colony-<body>`). */
+  const shownBodies = (background) =>
+    Object.entries(background)
+      .filter(([key, shown]) => shown && key !== 'location-colony-base')
+      .map(([key]) => key.replace('location-colony-', ''))
+      .join(',');
+  /** Waits until the colony shows the picture of `body` alone, then returns its props. */
+  const painted = async (body) => {
     await waitWith(
-      (tint) =>
-        window.nasa.game.scene.getScene('World').debugInfo().props.background[
-          'location-colony-sky'
-        ] === tint,
-      sky,
+      (b) => {
+        const background = window.nasa.game.scene.getScene('World').debugInfo().props.background;
+        return Object.entries(background).every(
+          ([key, shown]) =>
+            key === 'location-colony-base' || shown === (key === `location-colony-${b}`),
+        );
+      },
+      body,
       SLOW,
     );
     return (await h.eval(world)).props;
   };
-  /** The hold's bays (one building place each) and the sites' colours, read after a load. */
+  /** The hold's bays (one building place each), read after a load. */
   let bays;
-  let sites;
   /** Names of the buildings drawn at `build-1..<bays>`, in place order, empty places cut off. */
   const buildings = (props) =>
     Array.from({ length: bays }, (_, i) => props.props[`build-${i + 1}`]?.layers.join('+') ?? '')
@@ -105,37 +115,39 @@ export default async function colony(page, h) {
   await h.eval(() => window.nasa.services.save.clear());
   await h.goto('/?act=act3');
   await h.waitReady('World', SLOW);
-  ({ bays, sites } = await h.eval(() => ({
-    bays: window.nasa.services.voyage.cargo.bays,
-    sites: window.nasa.services.voyage.colony.bodies,
-  })));
+  bays = await h.eval(() => window.nasa.services.voyage.cargo.bays);
   await h.waitEvent('checkpointSaved', SLOW);
   await h.waitFor(faderClear, SLOW);
   if ((await h.eval(world)).locationId !== 'colony')
     throw new Error('act3 did not open the colony');
 
-  // --- Mars: the sky and the ground in Mars's colours, four buildings, a colony (power 4/4,
+  // --- Mars: a full colony: the built picture, no buildings, a colony (power 4/4,
   // heat 1/1 from the reactor).
   await land(1, 'mars', { oxygen: 1, battery: 1, solar: 1, reactor: 1 });
-  const mars = await painted(sites.mars.sky);
+  const mars = await painted('mars-built');
   h.log(`mars: ${JSON.stringify(mars.background)}, buildings ${buildings(mars)}`);
-  if (mars.background['location-colony-ground'] !== sites.mars.ground) {
-    throw new Error(`the ground is not Mars's: ${JSON.stringify(mars.background)}`);
-  }
-  if (buildings(mars) !== 'colony-module,colony-battery,colony-solar,colony-reactor') {
+  if (buildings(mars) !== '') {
     throw new Error(`unexpected buildings on Mars: ${buildings(mars)}`);
   }
   const marsTier = await h.eval(() => window.nasa.services.voyage.colonyTier('mars'));
   if (marsTier !== 'colony') throw new Error(`Mars with every power source is a ${marsTier}`);
   await h.shot('colony-mars');
 
-  // --- The Moon: other colours, three buildings (fuel builds nothing), a settlement.
-  await land(0, 'moon', { fuel: 1, solar: 1, reactor: 1, 'regolith-kit': 1 });
-  const moon = await painted(sites.moon.sky);
-  h.log(`moon: ${JSON.stringify(moon.background)}, buildings ${buildings(moon)}`);
-  if (moon.background['location-colony-ground'] !== sites.moon.ground) {
-    throw new Error(`the ground is not the Moon's: ${JSON.stringify(moon.background)}`);
+  // --- The Moon, a full colony (heat 2/2 from the thermal kit, shielding 4/4: the base, the
+  // regolith and ice kits): the built picture, no buildings.
+  await land(0, 'moon', { 'thermal-kit': 1, 'regolith-kit': 1, 'ice-kit': 1 });
+  const moonBuilt = await painted('moon-built');
+  if (buildings(moonBuilt) !== '') {
+    throw new Error(`unexpected buildings on the built Moon: ${buildings(moonBuilt)}`);
   }
+  const moonTier = await h.eval(() => window.nasa.services.voyage.colonyTier('moon'));
+  if (moonTier !== 'colony') throw new Error(`the Moon with heat and shielding is a ${moonTier}`);
+  await h.shot('colony-moon-built');
+
+  // --- The Moon: its picture, three buildings (fuel builds nothing), a settlement.
+  await land(0, 'moon', { fuel: 1, solar: 1, reactor: 1, 'regolith-kit': 1 });
+  const moon = await painted('moon');
+  h.log(`moon: ${JSON.stringify(moon.background)}, buildings ${buildings(moon)}`);
   if (buildings(moon) !== 'colony-solar,colony-reactor,colony-regolith') {
     throw new Error(`unexpected buildings on the Moon: ${buildings(moon)}`);
   }
@@ -276,14 +288,14 @@ export default async function colony(page, h) {
   }));
   const landedSave = await h.eval(savedGame);
   h.log(
-    `act 3: ${colonyNow.world.locationId}, act ${colonyNow.current?.actId}, sky ` +
-      `${colonyNow.world.props.background['location-colony-sky']}, save ${landedSave?.actId}`,
+    `act 3: ${colonyNow.world.locationId}, act ${colonyNow.current?.actId}, picture ` +
+      `${shownBodies(colonyNow.world.props.background)}, save ${landedSave?.actId}`,
   );
   if (
     colonyNow.world.locationId !== 'colony' ||
     colonyNow.current?.actId !== 'act3' ||
     colonyNow.navigation ||
-    colonyNow.world.props.background['location-colony-sky'] !== sites.moon.sky ||
+    shownBodies(colonyNow.world.props.background) !== 'moon' ||
     landedSave?.actId !== 'act3' ||
     landedSave.voyage
   ) {

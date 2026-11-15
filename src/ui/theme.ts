@@ -1,7 +1,9 @@
 /**
  * Look of the whole UI in one place: colours, spacing and text sizes. Kit components and
  * scenes read these values instead of writing their own numbers, so a restyle is one edit here.
- * Panels and buttons are drawn in code from `panel` and `button`, see docs/HOWTO-ui.md.
+ * The look is a flight console: steel bezels and dark glass from the ship art, cyan for focus,
+ * amber for the selected text, hazard stripes for an alarm. Panels and buttons are drawn in code
+ * from `panel` and `button`, see docs/HOWTO-ui.md.
  */
 export const theme = {
   /** Text colours, CSS strings for Phaser text styles. */
@@ -31,16 +33,43 @@ export const theme = {
   },
   /** Extra space between lines of multi-line text, px. */
   lineSpacing: 4,
-  /** Panels (`Panel`): a deep-space plate, its outline and the corner marks. OWNER: art */
-  panel: { fill: 0x0f0e17, fillAlpha: 0.95, stroke: 0x6366f1, accent: 0xa855f7 },
   /**
-   * Buttons (`Button`) per state: plate fill, outline colour and outline width, px. OWNER: art
+   * Panels (`Panel`): a screen in a steel bezel, in the ship art's palette. `fill` is the glass,
+   * `outline` the dark line outside and inside the bezel, `light` / `shade` its lit and shaded
+   * edges, `frame` its face, `accent` the two lit strips on it. OWNER: art
+   */
+  panel: {
+    fill: 0x0d1321,
+    fillAlpha: 0.95,
+    outline: 0x070a12,
+    light: 0x8b9cb2,
+    frame: 0x5e6786,
+    shade: 0x3b4664,
+    accent: 0x28e8f2,
+  },
+  /**
+   * Buttons (`Button`), a key of the console, per state: the key's face, the lit and shaded
+   * edges of its rim and the gloss line under the top edge; `lip` is the key's side, seen under
+   * the face until it is pressed. Hover is also the look of keyboard focus. OWNER: art
    */
   button: {
-    normal: { fill: 0x181825, stroke: 0x6366f1, line: 1 },
-    hover: { fill: 0x2e2b44, stroke: 0xa855f7, line: 2 },
-    pressed: { fill: 0x0f0e17, stroke: 0x38bdf8, line: 2 },
+    normal: { fill: 0x1c2740, light: 0x8b9cb2, shade: 0x3b4664, gloss: 0x2a3a5c },
+    hover: { fill: 0x27365a, light: 0x28e8f2, shade: 0x28e8f2, gloss: 0x3a4f7c },
+    pressed: { fill: 0x141c30, light: 0x1aa3ad, shade: 0x1aa3ad, gloss: 0x141c30 },
+    lip: 0x070a12,
   },
+  /**
+   * The selected row of a list (`ChoiceList`, the settings): a tinted band, the lit bar at its
+   * left and the arrow; `disabled` replaces all three on a row that cannot be chosen.
+   */
+  selection: {
+    enabled: { band: 0x28e8f2, bandAlpha: 0.14, bar: 0x28e8f2, arrow: 0xffd34d },
+    disabled: { band: 0x5e6786, bandAlpha: 0.14, bar: 0x5e6786, arrow: 0x5e6786 },
+  },
+  /** Thin rules between the parts of a panel, and the lit segment in the middle of a title's. */
+  rule: { line: 0x3b4664, accent: 0x28e8f2 },
+  /** Hazard stripes (the station alarm's box), as on the airlock's frame. */
+  hazard: { base: 0xffaf34, stripe: 0x1a1410 },
   /**
    * The main menu's sky: gradient from top to bottom, far stars, the colours near stars pick
    * from. OWNER: art
@@ -50,7 +79,7 @@ export const theme = {
     farStar: 0xffffff,
     nearStars: [0xffffff, 0x38bdf8, 0x818cf8, 0xf472b6],
   },
-  /** Panels: how far the frame (outline, corner marks) reaches in from the edge, px. */
+  /** Panels: room kept clear for the frame (the bezel is 4 px) from the edge, px. */
   panelBorder: 8,
   /** Space between a panel's edge and its content, px. Keep >= panelBorder. */
   panelPadding: 12,
@@ -115,8 +144,8 @@ export const theme = {
    * deck. The timer bar uses `bar` (its `alarm` colour in the last third).
    */
   stationAlarm: { marker: 0xff5a4d },
-  /** An empty slot of the HOLD strip (warehouse, ship deck). */
-  holdSlot: 0x1c2333,
+  /** A slot of the HOLD strip (warehouse, ship deck): a well and the lit edge at its bottom right. */
+  holdSlot: { well: 0x070a12, edge: 0x2a3550 },
   /** How long a toast stays on screen, ms. */
   toastMs: 2000,
 } as const;

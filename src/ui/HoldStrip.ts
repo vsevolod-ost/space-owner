@@ -75,8 +75,13 @@ export class HoldStrip extends Phaser.GameObjects.Container {
     const width = pad * 2 + this.captionWidth + CAPTION_GAP + bays * (SLOT + GAP) - GAP;
     this.setPosition(Math.round((GAME_WIDTH - width) / 2), TOP);
     this.panel.resize(width, pad * 2 + SLOT);
-    this.slots.clear().fillStyle(theme.holdSlot, 1);
-    for (let i = 0; i < bays; i++) this.slots.fillRect(this.slotX(i), pad, SLOT, SLOT);
+    const g = this.slots.clear();
+    for (let i = 0; i < bays; i++) {
+      // A well: dark, with the edge the light catches at its bottom right.
+      const x = this.slotX(i);
+      g.fillStyle(theme.holdSlot.edge, 1).fillRect(x, pad, SLOT, SLOT);
+      g.fillStyle(theme.holdSlot.well, 1).fillRect(x, pad, SLOT - 1, SLOT - 1);
+    }
   }
 
   /**

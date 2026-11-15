@@ -33,6 +33,7 @@ formats on save.
 | `npm run build`                 | `check`, then the production build into `dist/`.                                 |
 | `npm run preview`               | Serves `dist/` as the players get it.                                            |
 | `npm run smoke`                 | Builds, serves the build and runs the menu scenario in headless Chromium.        |
+| `npm run smoke:all`             | Builds and runs every smoke scenario, several at once (`-- --gpu`: on the GPU).  |
 | `npm run lint:fix`              | ESLint with automatic fixes.                                                     |
 | `npm run format`                | Formats every file (code and Markdown) with Prettier.                            |
 | `npm run typecheck`             | TypeScript only (`tsc --noEmit`).                                                |
@@ -64,6 +65,13 @@ Before you open a pull request:
    `voyage` plays the loop end to end on seed 1 (New game, warehouse, fuel + oxygen + supplies
    - solar, Moon, Go on, Mars, Stop, colony, ending). Screenshots go to `smoke-out/`. A scenario fails on
      any console error, page error or failed request (a missing file is a 404).
+
+   All of them before a big pull request: `npm run smoke:all` (builds first; one server,
+   several scenarios at once, a line per scenario, logs in `smoke-out/logs/`). On a machine
+   with a GPU add `-- --gpu`: about 2 minutes instead of 5 (one by one they take 8.5).
+   `--only menu,ship` picks scenarios, `--pages N` sets how many game pages are open at a time
+   (the default is careful on purpose: an overloaded machine makes the scenarios' waits time
+   out). A single scenario takes `--gpu` too.
 
 4. Play the part you changed in `npm run dev` and look at the browser console (F12): the game
    warns there about unbound map objects, unknown keys and wrong spawn names.

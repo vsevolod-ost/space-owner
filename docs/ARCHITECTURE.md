@@ -180,7 +180,7 @@ services.flow.goTo(location, spawn)           core/flow/FlowService.ts
        NPC actors from `npc` bindings whose `when` holds, the hero at the spawn, colliders,
        camera follow
        Props (world/Props.ts): pictures of `prop` objects and interactables with `prop`,
-         background tints, all re-read from the state; the HOLD strip (`showHold`)
+         background layers shown, all re-read from the state; the HOLD strip (`showHold`)
        Interactables: doors, NPCs, interactables, triggers from the location's `bindings`
        audio.playMusic(def.music) when the location has one
        events.emit('locationEntered', { locationId, spawn })
@@ -189,7 +189,7 @@ services.flow.goTo(location, spawn)           core/flow/FlowService.ts
 
 **Deferred rebuild.** Every `flagChanged` marks the world dirty; `WorldScene.update` rebuilds on
 the next frame with no dialogue open and no cutscene playing (a panel pauses the scene, so it
-waits for the panel too): NPCs and objects whose `when` changed appear or go, props and tints
+waits for the panel too): NPCs and objects whose `when` changed appear or go, props and background layers
 are re-read, the HOLD strip refreshes. The hero and the NPCs keep their positions; the scene is
 not restarted. `WorldScene.debugInfo()` has `rebuilds` and `rebuildPending`.
 
@@ -354,6 +354,7 @@ locations`). No `id` or `key` fields: a typo in an id is a compile error.
   `nasa.services.simulation.snapshot()`, `nasa.services.simulation.voyage`,
   `nasa.services.simulation.setDebugWarp(20)` (the flight 20 times faster),
   `nasa.services.stationAlarm.debugInfo()` / `.setDebugTimer(ms)` (the alarm's timer),
+  `nasa.services.flow.setDebugLossBeat(ms)` (how long the panel shows LOST),
   `nasa.services.locale.debugInfo()` / `.setLanguage('pseudo')`, and every scene's
   `debugInfo()`:
   `nasa.game.scene.getScene('World').debugInfo()` (also `MainMenu`, `Ui`, `Pause`, `Settings`,
@@ -364,5 +365,6 @@ locations`). No `id` or `key` fields: a typo in an id is a compile error.
   day and hold reasons, flag count and the last 5 changed flags. Draws above everything, the fader included.
 - **Smoke** (`npm run smoke`, `tools/smoke.mjs`): builds the game, serves the production build
   with `vite preview`, opens it in headless Chromium with `debug=1` and runs a scenario from
-  `tools/smoke/scenarios/`; fails on any console error, page error or failed request. See
+  `tools/smoke/scenarios/`; fails on any console error, page error or failed request.
+  `npm run smoke:all` (`tools/smoke-all.mjs`) runs every scenario, several at once. See
   [CONTRIBUTING.md](CONTRIBUTING.md#checks).

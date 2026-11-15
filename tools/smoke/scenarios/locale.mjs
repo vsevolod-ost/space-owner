@@ -31,8 +31,11 @@
  *    the E hint and the alarm bar are switched to pseudo and back live (they re-resolve on
  *    `languageChanged`).
  *
- * Run (about 2.5 min, near the default 180 s limit):
- *   node tools/smoke.mjs --scenario tools/smoke/scenarios/locale.mjs --timeout 300000
+ * The language choice (1-5) and every group of screens of 6 on each language run side by side,
+ * each on a page of its own (`h.parallel`).
+ *
+ * Run (about 1 min; 30 s with `--gpu`):
+ *   node tools/smoke.mjs --scenario tools/smoke/scenarios/locale.mjs
  *
  * @param {import('playwright-core').Page} page
  * @param {any} h helpers, see tools/smoke.mjs
@@ -67,15 +70,30 @@ const EN = {
 const UK_NAME = 'Українська';
 const WAREHOUSE = '/?location=warehouse&spawn=spawn-default';
 
-export default async function locale(page, h) {
-  await browserLanguages(page, h);
-  await switchFromMenu(page, h);
-  await langParamNotStored(h);
-  await switchFromPause(h);
-  await liveRebuildOverMenu(h);
-  await liveRebuildOverPause(h);
+/** Pages this scenario can use at once (`h.parallel`; tools/smoke-all.mjs reads it). */
+export const pages = 11;
+
+export default async function locale(_page, root) {
+  // Independent parts side by side, each on a page with its own storage: the language choice
+  // (1-5, in order: each phase starts from what the one before stored) and every group of
+  // screens on en and on pseudo. The longest first.
   const failures = [];
-  for (const lang of ['en', 'pseudo']) await walkScreens(page, h, lang, failures);
+  const choice = async (page, h) => {
+    await browserLanguages(page, h);
+    await switchFromMenu(page, h);
+    await langParamNotStored(h);
+    await switchFromPause(h);
+    await liveRebuildOverMenu(h);
+    await liveRebuildOverPause(h);
+  };
+  const groups = [navigationScreens, lossScreens, warehouseScreens, endingScreen, menuScreens];
+  const screens = groups.flatMap((group) =>
+    ['en', 'pseudo'].map((lang) => async (page, h) => {
+      const url = (path) => `${path}${path.includes('?') ? '&' : '?'}lang=${lang}`;
+      await group(page, h, url, lookWith(h, lang, failures), lang);
+    }),
+  );
+  await root.parallel([...screens, choice]);
   if (failures.length > 0) {
     throw new Error(`Latin letters under pseudo (strings not through tr):\n${failures.join('\n')}`);
   }
@@ -357,6 +375,8 @@ const ALARM_SEED = 71;
 /** The hull breach's timer, ms: room for the shots before it runs out. */
 const LONG_TIMER_MS = 60000;
 const SLOW = 10000;
+/** How long the panel shows LOST in `lossScreens`, ms: room for the look on a loaded machine. */
+const LOSS_BEAT_MS = 5000;
 /**
  * Strings that may keep Latin letters under pseudo, with the reason. Empty: the settings row
  * names the pseudo language with `pseudo('Pseudo')`, so even the language name is Cyrillic.
@@ -364,20 +384,29 @@ const SLOW = 10000;
 const LATIN_EXCEPTIONS = new Map();
 
 /**
- * Walks the S6 screens on `lang` (`en` or `pseudo`, through `?lang=`): each is shot as
- * `locale-<screen>-<lang>`; on pseudo every visible text but the debug overlay's must be free of
- * Latin letters (a string not through `tr`, D12): offenders go to `failures`. Overlapping and
- * off-screen texts are logged as hints for the eye.
+ * The `look(screen, scene)` of page `h` for the S6 screens on `lang` (`en` or `pseudo`, through
+ * `?lang=`): shoots `screen` as `locale-<screen>-<lang>` and reads its texts; `scene` is the
+ * scene key whose text the screen is about: no text at all, or none of `scene`, fails at once
+ * (the check would see nothing). On pseudo every visible text but the debug overlay's must be
+ * free of Latin letters (a string not through `tr`, D12): offenders go to `failures`.
+ * Overlapping and off-screen texts are logged as hints for the eye.
  */
-async function walkScreens(page, h, lang, failures) {
-  /**
-   * Shoots `screen` and reads its texts; `scene` is the scene key whose text the screen is
-   * about: no text at all, or none of `scene`, fails at once (the check would see nothing).
-   */
-  const look = async (screen, scene) => {
+function lookWith(h, lang, failures) {
+  return async (screen, scene) => {
     await frames(h, 2);
+    // The UI's clock stands still for the look: a toast's two seconds must not run out during
+    // a slow screenshot (a loaded machine, several scenarios at once).
+    const wasPaused = await h.eval(() => {
+      const { time } = window.nasa.game.scene.getScene('Ui');
+      const paused = time.paused;
+      time.paused = true;
+      return paused;
+    });
     await h.shot(`locale-${screen}-${lang}`);
     const texts = await allTexts(h);
+    await h.eval((paused) => {
+      window.nasa.game.scene.getScene('Ui').time.paused = paused;
+    }, wasPaused);
     for (const hint of layoutHints(texts)) h.log(`${screen}/${lang} ${hint}`);
     if (texts.length === 0 || !texts.some((t) => t.scene === scene)) {
       throw new Error(
@@ -392,33 +421,32 @@ async function walkScreens(page, h, lang, failures) {
     }
     return texts;
   };
-  const url = (path) => `${path}${path.includes('?') ? '&' : '?'}lang=${lang}`;
-
-  await menuScreens(h, url, look);
-  await warehouseScreens(page, h, url, look, lang);
-  await navigationScreens(h, url, look, lang);
-  await lossScreens(page, h, url, look);
-  await endingScreen(page, h, url, look);
 }
 
 /**
  * Waits for UiScene's title (`showTitle`: act title cards, the landing's) to be fully shown and
- * stops the UI's tweens there, so the look sees it whole; `resumeTitle` lets it go on.
+ * stops the UI's tweens and clock there, so the look sees it whole and a toast shown under it
+ * (the checkpoint's) keeps its time; `resumeTitle` lets them go on.
  */
 async function holdTitle(h) {
   await h.waitFor(() => {
     const ui = window.nasa.game.scene.getScene('Ui');
     if (ui.title?.alpha !== 1) return false;
     ui.tweens.pauseAll();
+    ui.time.paused = true;
     return true;
   }, SLOW);
 }
 
 async function resumeTitle(h) {
-  await h.eval(() => window.nasa.game.scene.getScene('Ui').tweens.resumeAll());
+  await h.eval(() => {
+    const ui = window.nasa.game.scene.getScene('Ui');
+    ui.time.paused = false;
+    ui.tweens.resumeAll();
+  });
 }
 
-async function menuScreens(h, url, look) {
+async function menuScreens(_page, h, url, look) {
   // No saved game on either language: Continue is shown disabled on both shots.
   await h.goto(url('/'));
   await h.waitReady('MainMenu');
@@ -587,7 +615,7 @@ async function liveHint(h, before) {
     throw new Error(`E hint not back: ${JSON.stringify(back)}`);
 }
 
-async function navigationScreens(h, url, look, lang) {
+async function navigationScreens(_page, h, url, look, lang) {
   const faderClear = () => window.nasa.game.scene.getScene('Ui').debugInfo().fader === 0;
   await h.goto(url('/'));
   await h.waitReady('MainMenu');
@@ -767,10 +795,12 @@ async function lossScreens(page, h, url, look) {
   // Lost to an event with the longest cause label (`greenhouse-leak`, 15 chars) rather than
   // the drift: the longest "Lost: {cause}, day {day}" line. The panel shows LOST for a second
   // before the death loop (ship.mjs).
-  await h.eval(() => {
+  // The beat is longer here: the look's screenshot must come before the death loop.
+  await h.eval((beatMs) => {
+    window.nasa.services.flow.setDebugLossBeat(beatMs);
     window.nasa.services.simulation.voyage.simulation.applyEvent('greenhouse-leak', { die: true });
     window.nasa.services.simulation.release('pause');
-  });
+  }, LOSS_BEAT_MS);
   await h.waitEvent('voyageEnded', 20000);
   const lost = await look('nav-lost', 'Navigation');
   const status = await h.eval(() => window.nasa.game.scene.getScene('Navigation').debugInfo());

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { SceneDriver } from '@/core/flow/SceneDriver';
+import { isImageKey } from '@/assets';
 import { isLocationId } from '@/content/locations';
 import { services } from '@/core/services';
 import { isOverlayScene, SceneKey } from '@/scenes/keys';
@@ -16,6 +17,8 @@ const TRANSITION_LOCK = 'transition';
 const TITLE_LOCK = 'act-title';
 /** How long an act title card stays on screen, fades included, ms. */
 const ACT_TITLE_MS = 1500;
+/** How long an act title card over a picture stays on screen, fades included, ms. OWNER: design */
+const ACT_CARD_MS = 4000;
 
 /** How `replaceGame` treats what was running. */
 interface ReplaceOptions {
@@ -69,18 +72,22 @@ export class PhaserSceneDriver implements SceneDriver {
 
   /**
    * Fades to black (at once from Boot) and shows `title` on the black screen for
-   * `ACT_TITLE_MS`, using UiScene's title, which draws above the fader. The screen stays black
+   * `ACT_TITLE_MS` (over picture `image` for `ACT_CARD_MS`), using UiScene's title, which draws
+   * above the fader. The screen stays black
    * afterwards: the act's `goTo` fades in on its location, `finish` on the end screen. The
    * hero cannot move meanwhile, and the black fader takes the clicks meant for the menu.
    */
-  async showActTitle(title: string): Promise<void> {
+  async showActTitle(title: string, image?: string): Promise<void> {
+    if (image !== undefined && !isImageKey(image)) {
+      throw new Error(`showActTitle: unknown image "${image}"`);
+    }
     const ui = this.ui;
     await ui.whenReady();
     const world = this.runningWorld();
     world?.controls.lock(TITLE_LOCK);
     try {
       await ui.fader.fadeOut(this.topSceneKey() === SceneKey.Boot ? 0 : FADE_MS);
-      await ui.showTitle(title, ACT_TITLE_MS);
+      await ui.showTitle(title, image ? ACT_CARD_MS : ACT_TITLE_MS, image);
     } finally {
       world?.controls.unlock(TITLE_LOCK);
     }

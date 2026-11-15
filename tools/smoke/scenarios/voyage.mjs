@@ -302,13 +302,12 @@ export default async function voyage(page, h) {
     current: window.nasa.services.state.current,
     navigation: window.nasa.game.scene.isActive('Navigation'),
     under: window.nasa.services.simulation.isUnderWay,
-    // Mars's sky as the colony table has it (an artist may change the colour).
-    marsSky: window.nasa.services.voyage.colony.bodies.mars.sky,
   }));
+  const background = colony.world.props.background;
   const save = await h.eval(savedGame);
   h.log(
-    `act 3: ${colony.world.locationId}, act ${colony.current?.actId}, sky ` +
-      `${colony.world.props.background['location-colony-sky']}, save ` +
+    `act 3: ${colony.world.locationId}, act ${colony.current?.actId}, background ` +
+      `${JSON.stringify(background)}, save ` +
       `${JSON.stringify({ ...save, flags: undefined })}`,
   );
   if (
@@ -316,7 +315,8 @@ export default async function voyage(page, h) {
     colony.current?.actId !== 'act3' ||
     colony.navigation ||
     colony.under ||
-    colony.world.props.background['location-colony-sky'] !== colony.marsSky
+    !background['location-colony-mars'] ||
+    background['location-colony-moon']
   ) {
     throw new Error(`Stop did not open the colony on Mars: ${JSON.stringify(colony)}`);
   }

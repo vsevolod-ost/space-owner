@@ -4,8 +4,8 @@
  * puts it back, plan S9); a flag set while a dialogue is
  * open (`openDialogueDef`, with a line that is a function of the state) changes the world only
  * after the dialogue closes. On the ship deck the hold's bays show what was taken, fuel first
- * (plan D21). In the colony the sky is tinted by `voyage.stopBody` (the Moon's colour without
- * one, then mars, then the moon again; the full colony check is colony.mjs).
+ * (plan D21). In the colony the background is the picture of `voyage.stopBody` (the Moon's
+ * without one, then Mars's, then the Moon's again; the full colony check is colony.mjs).
  * Run: node tools/smoke.mjs --scenario tools/smoke/scenarios/props.mjs
  *
  * @param {import('playwright-core').Page} page
@@ -116,52 +116,33 @@ export default async function props(page, h) {
   }
   await h.shot('props-deck-hold');
 
-  // --- Colony: the sky is tinted by the body ------------------------------------------------
+  // --- Colony: the background is the body's picture ----------------------------------------
   const skyClip = async () => {
     const box = await page.locator('canvas').boundingBox();
     return page.screenshot({
       clip: { x: box.x + box.width * 0.4, y: box.y + box.height * 0.1, width: 32, height: 32 },
     });
   };
-  const skyTint = () =>
-    window.nasa.game.scene.getScene('World').debugInfo().props.background['location-colony-sky'];
+  /** Whether the colony shows the picture of `body` and no other body's. */
+  const shows = (body) => {
+    const background = window.nasa.game.scene.getScene('World').debugInfo().props.background;
+    return Object.entries(background).every(
+      ([key, shown]) =>
+        key === 'location-colony-base' || shown === (key === `location-colony-${body}`),
+    );
+  };
   await h.goto('/?location=colony');
   await h.waitReady('World');
-  /** A colony site's colours as the game reads them (src/content/voyage/colony.ts). */
-  const colours = (body) =>
-    h.eval((b) => {
-      const site = window.nasa.services.voyage.colony.bodies[b];
-      return { sky: site.sky, ground: site.ground };
-    }, body);
-  const moonColours = await colours('moon');
-  const marsColours = await colours('mars');
   // Without a landing the colony stands on the first site, the Moon.
-  if ((await h.eval(skyTint)) !== moonColours.sky)
-    throw new Error("the sky is not the Moon's without a body");
+  if (!(await h.eval(shows, 'moon')))
+    throw new Error("the picture is not the Moon's without a body");
   await setFlag('voyage.stopBody', 'mars');
-  await page.waitForFunction(
-    (sky) =>
-      window.nasa.game.scene.getScene('World').debugInfo().props.background[
-        'location-colony-sky'
-      ] === sky,
-    marsColours.sky,
-    { timeout: 15000 },
-  );
-  const mars = await h.eval(skyTint);
+  await page.waitForFunction(shows, 'mars', { timeout: 15000 });
   await h.shot('props-colony-mars');
   const marsSky = await skyClip();
   await setFlag('voyage.stopBody', 'moon');
-  await page.waitForFunction(
-    (sky) =>
-      window.nasa.game.scene.getScene('World').debugInfo().props.background[
-        'location-colony-sky'
-      ] === sky,
-    moonColours.sky,
-    { timeout: 15000 },
-  );
-  const moon = await h.eval(skyTint);
+  await page.waitForFunction(shows, 'moon', { timeout: 15000 });
   await h.shot('props-colony-moon');
   const moonSky = await skyClip();
-  h.log(`sky tint mars 0x${mars.toString(16)}, moon 0x${moon.toString(16)}`);
   if (marsSky.equals(moonSky)) throw new Error('the sky looks the same for mars and the moon');
 }

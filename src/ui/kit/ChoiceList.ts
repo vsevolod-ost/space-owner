@@ -3,16 +3,19 @@ import type { AudioKey } from '@/assets';
 import { services } from '@/core/services';
 import type { Controls } from '@/core/input/controls';
 import type { Point } from '@/world/Actor';
+import { drawSelection, SELECTION_PAD } from '@/ui/kit/shapes';
 import { createText } from '@/ui/kit/text';
 import { theme } from '@/ui/theme';
 
 /** Sound of choosing a row. */
 const CLICK_SOUND: AudioKey = 'ui-click';
 
-/** Marker drawn left of the selected row. */
-const MARKER = '>';
-/** Width of the marker column, px (two glyphs of the 8 px font). */
+/** Width of the column left of the rows, where the selected row's arrow stands, px. */
 const MARKER_WIDTH = 16;
+/** The arrow's distance from the band's left edge, px. */
+const ARROW_X = 9;
+/** How far the selected row's band reaches past the list's sides, px. */
+const BAND_OVERHANG = 4;
 
 /** Options of a `ChoiceList`. */
 export interface ChoiceListOptions {
@@ -26,7 +29,8 @@ export interface ChoiceListOptions {
 }
 
 /**
- * Vertical list of options. Keyboard: up/down (arrows, W/S) move the selection, `confirm`
+ * Vertical list of options; the selected row stands on a lit band with an arrow
+ * (`theme.selection`). Keyboard: up/down (arrows, W/S) move the selection, `confirm`
  * (Enter, Space) chooses; mouse: hovering a row selects it, a click chooses it. A disabled row
  * (`setChoices`' `disabled`) is drawn dim and cannot be chosen; the keys and the mouse skip it,
  * but the selection `setChoices` asks for stays on it (the cursor never jumps to another row by
@@ -55,7 +59,7 @@ export class ChoiceList extends Phaser.GameObjects.Container {
     zone: Phaser.GameObjects.Zone;
     disabled: boolean;
   }[] = [];
-  private readonly marker: Phaser.GameObjects.Text;
+  private readonly band: Phaser.GameObjects.Graphics;
   private selected = 0;
   /** Game frame in which the choices were set: input in that frame is ignored. */
   private openedFrame = -1;
@@ -78,8 +82,8 @@ export class ChoiceList extends Phaser.GameObjects.Container {
     super(scene, Math.round(x), Math.round(y));
     this.cancelable = options.cancelable ?? false;
     this.fixedWidth = options.width;
-    this.marker = createText(scene, 0, 0, MARKER, 'body', { color: theme.text.highlight });
-    this.add(this.marker);
+    this.band = scene.add.graphics();
+    this.add(this.band);
     scene.add.existing(this);
     scene.events.on(Phaser.Scenes.Events.UPDATE, this.readKeys, this);
     this.once(Phaser.GameObjects.Events.DESTROY, () => {
@@ -178,15 +182,23 @@ export class ChoiceList extends Phaser.GameObjects.Container {
     };
   }
 
-  /** Selects row `index` (disabled or not) and redraws the rows and the marker. */
+  /** Selects row `index` (disabled or not) and redraws the rows and the band. */
   private highlight(index: number): void {
     const disabled = this.rows[index].disabled;
     this.rows.forEach((row, i) => {
       const color = row.disabled ? theme.text.dim : theme.text.normal;
       row.text.setColor(i === index && !disabled ? theme.text.highlight : color);
     });
-    this.marker.setY(this.rows[index].text.y);
-    this.marker.setColor(disabled ? theme.text.dim : theme.text.highlight);
+    const text = this.rows[index].text;
+    drawSelection(
+      this.band.clear(),
+      -BAND_OVERHANG,
+      text.y - SELECTION_PAD,
+      this.width + BAND_OVERHANG * 2,
+      Math.ceil(text.height) + SELECTION_PAD * 2,
+      ARROW_X,
+      disabled ? theme.selection.disabled : theme.selection.enabled,
+    );
     this.selected = index;
   }
 

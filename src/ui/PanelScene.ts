@@ -20,6 +20,9 @@ export interface PanelFrame {
 
 /** Gap between the title and the content area, px. */
 const TITLE_GAP = 8;
+/** The rule under the title: its distance below the title and its lit middle segment, px. */
+const TITLE_RULE_GAP = 3;
+const TITLE_RULE_ACCENT = 32;
 
 /**
  * Base class of panel scenes over the game: pause menu, settings, the navigation
@@ -164,7 +167,7 @@ export abstract class PanelScene<TData extends object = object> extends Phaser.S
   }
 
   /**
-   * Draws a panel in the middle of the screen with the title at its top and returns the
+   * Draws a panel in the middle of the screen with the title and a rule under it at its top and returns the
    * content area inside it (padding and title excluded), in whole pixels.
    */
   protected addPanel(frame: PanelFrame): Phaser.Geom.Rectangle {
@@ -177,6 +180,14 @@ export abstract class PanelScene<TData extends object = object> extends Phaser.S
       const title = createText(this, left + frame.width / 2, contentTop, frame.title, 'title');
       title.setOrigin(0.5, 0);
       contentTop += Math.ceil(title.height) + TITLE_GAP;
+      const ruleY = contentTop - TITLE_GAP + TITLE_RULE_GAP;
+      const middle = Math.round(left + frame.width / 2 - TITLE_RULE_ACCENT / 2);
+      this.add
+        .graphics()
+        .fillStyle(theme.rule.line, 1)
+        .fillRect(left + pad, ruleY, frame.width - pad * 2, 1)
+        .fillStyle(theme.rule.accent, 1)
+        .fillRect(middle, ruleY, TITLE_RULE_ACCENT, 1);
     }
     return new Phaser.Geom.Rectangle(
       left + pad,

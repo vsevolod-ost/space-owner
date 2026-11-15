@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { ImageKey } from '@/assets';
+import type { Controls } from '@/core/input/controls';
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config';
 import { TODO, tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
@@ -7,6 +8,7 @@ import { SceneKey } from '@/scenes/keys';
 import type { SettingsScene } from '@/scenes/SettingsScene';
 import type { StubScene } from '@/scenes/StubScene';
 import { Button } from '@/ui/kit/Button';
+import { KeyboardControls } from '@/world/KeyboardControls';
 import { theme } from '@/ui/theme';
 
 const LOGO: ImageKey = 'menu-logo';
@@ -71,17 +73,24 @@ export interface MainMenuDebugInfo {
   continueEnabled: boolean;
   /** Buttons from top to bottom. */
   buttons: MenuButtonInfo[];
+  /** Index of the button the keyboard is on. */
+  focused: number;
 }
 
 /**
  * Main menu: a gradient sky with drifting, twinkling stars, the logo, the ship bobbing on the
- * right and the list of menu items. A language change (from the settings opened over it, while
- * it is paused) rebuilds the buttons in place.
+ * right and the list of menu items. Up/Down move the focus over the enabled buttons (it starts on
+ * Continue when there is a save, else on New Game, and follows the pointer), `confirm` clicks
+ * the focused one. A language change (from the settings opened over it, while
+ * it is paused) rebuilds the buttons in place and keeps the focus.
  */
 export class MainMenuScene extends Phaser.Scene {
   private buttons: Button[] = [];
   private continueButton?: Button;
   private stars: Star[] = [];
+  private controls?: Controls;
+  /** Index of the button the keyboard is on. */
+  private focused = 0;
 
   constructor() {
     super(SceneKey.MainMenu);
@@ -106,7 +115,11 @@ export class MainMenuScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
+    // The menu's own keyboard: presses made while a panel is over it are dropped on resume.
+    this.controls = new KeyboardControls(this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => (this.controls = undefined));
     this.buildButtons();
+    this.focus(services.save.hasSave() ? 0 : 1);
     const off = services.events.on('languageChanged', () => this.buildButtons());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, off);
   }
@@ -127,10 +140,34 @@ export class MainMenuScene extends Phaser.Scene {
         new Button(this, BUTTONS_X, FIRST_BUTTON_Y + index * BUTTON_SPACING, tr(label), onClick),
     );
     this.continueButton = this.buttons[0].setEnabled(services.save.hasSave());
+    this.buttons.forEach((button, index) => button.on(Button.HOVERED, () => this.focus(index)));
+    this.focus(this.focused);
   }
 
-  /** Stars drift left, wrap around and twinkle. */
+  /** Puts the keyboard focus on button `index` and lights it up. */
+  private focus(index: number): void {
+    this.focused = index;
+    this.buttons.forEach((button, i) => button.setFocused(i === index));
+  }
+
+  /** Moves the focus one enabled button up (-1) or down (1), wrapping around. */
+  private stepFocus(direction: 1 | -1): void {
+    const count = this.buttons.length;
+    for (let i = 1; i <= count; i++) {
+      const index = (((this.focused + direction * i) % count) + count) % count;
+      if (this.buttons[index].isEnabled()) {
+        this.focus(index);
+        return;
+      }
+    }
+  }
+
+  /** Reads the keys; stars drift left, wrap around and twinkle. */
   update(time: number, delta: number): void {
+    const controls = this.controls;
+    if (controls?.justPressed('moveUp')) this.stepFocus(-1);
+    else if (controls?.justPressed('moveDown')) this.stepFocus(1);
+    else if (controls?.justPressed('confirm')) this.buttons[this.focused]?.click();
     const dt = delta / 1000;
     this.stars.forEach((star, i) => {
       star.x -= star.speed * dt;
@@ -147,6 +184,7 @@ export class MainMenuScene extends Phaser.Scene {
   debugInfo(): MainMenuDebugInfo {
     return {
       continueEnabled: this.continueButton?.isEnabled() ?? false,
+      focused: this.focused,
       buttons: this.buttons.map((button) => ({
         label: button.label,
         x: button.x,

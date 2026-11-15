@@ -16,8 +16,8 @@
  "layers": [
   {
    "type": "imagelayer",
-   "name": "background-colony-sky",
-   "image": "../images/locations/colony-sky.png",
+   "name": "background-colony-moon",
+   "image": "../images/locations/colony-moon.png",
    "x": 0,
    "y": 0,
    "opacity": 1,
@@ -26,8 +26,8 @@
   },
   {
    "type": "imagelayer",
-   "name": "background-colony-ground",
-   "image": "../images/locations/colony-ground.png",
+   "name": "background-colony-mars",
+   "image": "../images/locations/colony-mars.png",
    "x": 0,
    "y": 0,
    "opacity": 1,

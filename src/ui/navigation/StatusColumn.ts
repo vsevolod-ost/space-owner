@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import { tr } from '@/core/locale/text';
+import { drawGauge, strokeChamfered } from '@/ui/kit/shapes';
 import { createText } from '@/ui/kit/text';
 import {
   levelColor,
@@ -45,12 +46,15 @@ const ROW_STEP = 16;
 const TELEMETRY_Y = 148;
 const TELEMETRY_STEP = 12;
 const LOG_Y = 176;
+/** Rules between the column's parts: under the heading and above the log, px. */
+const RULE_YS = [49, 171];
 /** Lines of the log kept on screen. */
 const LOG_LINES = 6;
 /** Row layout: icon, name, bar, value, px from the column's left. */
 const NAME_X = 12;
 const BAR_X = 84;
-const BAR_WIDTH = 112;
+/** The bar's inside (width less the frame) is a whole number of gauge segments less a gap. */
+const BAR_WIDTH = 113;
 const BAR_HEIGHT = 6;
 const VALUE_X = 204;
 
@@ -126,18 +130,25 @@ export class StatusColumn {
     this.detail.setText(view.detail);
     const g = this.bars;
     g.clear();
+    g.fillStyle(theme.rule.line, 1);
+    for (const ruleY of RULE_YS) g.fillRect(this.area.x, this.area.y + ruleY, this.area.width, 1);
     ROW_IDS.forEach((id, i) => {
       const row = view.rows?.[id];
       const rowY = this.area.y + ROWS_Y + i * ROW_STEP + 1;
       const barX = this.area.x + BAR_X;
-      g.fillStyle(theme.bar.back, 1);
-      g.fillRect(barX, rowY, BAR_WIDTH, BAR_HEIGHT);
-      if (row) {
-        g.fillStyle(resourceBarColor(id), 1);
-        g.fillRect(barX, rowY, Math.round(BAR_WIDTH * row.fraction), BAR_HEIGHT);
-      }
-      g.lineStyle(1, levelFrame(row?.level ?? 'normal'), 1);
-      g.strokeRect(barX, rowY, BAR_WIDTH, BAR_HEIGHT);
+      const inner = BAR_WIDTH - 2;
+      const filled = row ? Math.round(inner * row.fraction) : 0;
+      strokeChamfered(g, barX, rowY, BAR_WIDTH, BAR_HEIGHT, 0, levelFrame(row?.level ?? 'normal'));
+      drawGauge(
+        g,
+        barX + 1,
+        rowY + 1,
+        inner,
+        BAR_HEIGHT - 2,
+        filled,
+        resourceBarColor(id),
+        theme.bar.back,
+      );
       this.values[id].setText(row?.value ?? '-').setColor(levelColor(row?.level ?? 'normal'));
     });
     this.telemetry.forEach((line, i) => line.setText(view.telemetry[i] ?? ''));

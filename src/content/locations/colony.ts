@@ -115,8 +115,9 @@ async function overlook(voyage: VoyageService, ctx: WorldContext): Promise<void>
  * The building places `build-1..<bays>` (class `prop`, one per bay of the hold: at most that
  * many buildings): place `n` shows the `n`-th building of the cargo aboard
  * (`voyage.colonyBuildings`: one per copy of an item that gives this body something, in the
- * hold's order), or nothing. The map has them from `tools/make_maps.py`, which reads the same
- * count (`bays` in src/content/voyage/cargo/index.ts).
+ * hold's order), or nothing; nothing at all under a built picture (`builtPicture`). The map
+ * has them from `tools/make_maps.py`, which reads the same count (`bays` in
+ * src/content/voyage/cargo/index.ts).
  */
 function buildPlaces(voyage: VoyageService): Record<string, Binding> {
   return Object.fromEntries(
@@ -126,6 +127,7 @@ function buildPlaces(voyage: VoyageService): Record<string, Binding> {
         kind: 'prop',
         prop: {
           layers: (s) => {
+            if (builtPicture(voyage, s)) return []; // the picture has the colony drawn in
             const building = voyage.colonyBuildings(s.flags)[i];
             // `colonyBuildings` in src/content/voyage/colony.ts names only `colony-*` images.
             return building ? [{ image: `colony-${building}` as ImageKey }] : [];
@@ -137,24 +139,47 @@ function buildPlaces(voyage: VoyageService): Record<string, Binding> {
 }
 
 /**
- * The sky and the ground painted in the body's colours (`sky`, `ground` of the colony
- * registry); the base (lander and shelter) keeps its own.
+ * The pictures of each colony site: `empty`, sky and ground with nothing built (the base layer
+ * and the buildings stand over it); `built`, the same with a whole colony drawn in, shown
+ * instead when the colony there is a full one (tier `colony`; no buildings are drawn then).
+ * A body without `built` always shows `empty` with its buildings. OWNER: art
+ */
+const BODY_BACKGROUNDS: Readonly<Record<ColonyBodyId, { empty: ImageKey; built?: ImageKey }>> = {
+  moon: { empty: 'location-colony-moon', built: 'location-colony-moon-built' },
+  mars: { empty: 'location-colony-mars', built: 'location-colony-mars-built' },
+};
+
+/** Whether the colony now stands on a body with a `built` picture and is a full colony. */
+function builtPicture(voyage: VoyageService, s: GameState): boolean {
+  const body = voyage.colonyBody(s.flags);
+  if (!Object.hasOwn(BODY_BACKGROUNDS, body)) return false;
+  if (!BODY_BACKGROUNDS[body as ColonyBodyId].built) return false;
+  return voyage.colonyTier(body, voyage.buildLoadout(s.flags)) === 'colony';
+}
+
+/**
+ * The pictures of the body the colony stands on (`voyage.colonyBody`): empty, or built when
+ * the colony is full (`builtPicture`); then the base (lander and shelter) over it.
  */
 function background(voyage: VoyageService): readonly BackgroundLayer[] {
-  const colours = (s: GameState) => voyage.colony.bodies[voyage.colonyBody(s.flags)];
-  return [
-    { image: 'location-colony-sky', tint: (s) => colours(s)?.sky },
-    { image: 'location-colony-ground', tint: (s) => colours(s)?.ground },
-    { image: 'location-colony-base' },
-  ];
+  const on = (s: GameState, body: string) => voyage.colonyBody(s.flags) === body;
+  const bodies = Object.entries(BODY_BACKGROUNDS).flatMap(
+    ([body, { empty, built }]): BackgroundLayer[] => [
+      { image: empty, when: (s) => on(s, body) && !builtPicture(voyage, s) },
+      ...(built
+        ? [{ image: built, when: (s: GameState) => on(s, body) && builtPicture(voyage, s) }]
+        : []),
+    ],
+  );
+  return [...bodies, { image: 'location-colony-base' }];
 }
 
 /**
  * Act 3: the colony on the body where the hero stopped (plan D19, GDD `act3-content` A,
- * `colony-location-variants`), one map for every body. The background is three layers
- * (`location-colony-sky`, `-ground`, `-base`); the sky and the ground are tinted by the body
- * (`voyage.stopBody`, the Moon without a landing). The places `build-1..7` show a building
- * per colony item taken. `shelter` tells the colony's tier, `systems` each need of the body,
+ * `colony-location-variants`), one map for every body. The background is the picture of the
+ * body (`BODY_BACKGROUNDS`: `voyage.stopBody`, the Moon without a landing; with the colony
+ * drawn in when it is a full one) under the base (`location-colony-base`). The places
+ * `build-1..7` show a building per colony item taken. `shelter` tells the colony's tier, `systems` each need of the body,
  * `overlook` the view and then the body's ending (`colony-<body>`, the tier line on the end
  * screen). Lines are placeholders. OWNER: script
  */

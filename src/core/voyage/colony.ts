@@ -22,14 +22,10 @@ export type ColonyNeeds = Partial<Record<ColonyAxis, number>>;
 
 /**
  * One gate body as a colony site: its conditions (`ColonySite`: what items' `colony` functions
- * read), its needs and the colours its colony is painted in.
+ * read) and its needs. Its picture is the colony location's (src/content/locations/colony.ts).
  */
 export interface ColonyBodyDef extends ColonySite {
   needs: ColonyNeeds;
-  /** Colour multiplied over the colony's sky layer (`location-colony-sky`). */
-  sky: number;
-  /** Colour multiplied over the colony's ground layer (`location-colony-ground`). */
-  ground: number;
 }
 
 /**

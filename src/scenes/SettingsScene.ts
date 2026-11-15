@@ -14,6 +14,7 @@ import { SceneKey } from '@/scenes/keys';
 import type { Point } from '@/world/Actor';
 import { PanelScene } from '@/ui/PanelScene';
 import { Button } from '@/ui/kit/Button';
+import { drawSelection } from '@/ui/kit/shapes';
 import { createText } from '@/ui/kit/text';
 import { theme } from '@/ui/theme';
 
@@ -91,8 +92,12 @@ const SMALL_BUTTON = { width: 24, height: 20 };
 const VALUE_WIDTH = 88;
 /** Size of the Back button, px. */
 const BACK_BUTTON = { width: 96, height: 24 };
-/** Distance from the selection marker to what it marks, px. */
+/** Room left of the row labels for the selection arrow, px. */
 const MARKER_GAP = 12;
+/** The selected row's band: its height, how far it reaches past the content, its arrow, px. */
+const BAND_HEIGHT = 24;
+const BAND_OVERHANG = 4;
+const ARROW_X = 6;
 
 /**
  * Settings panel: music and sound effects volume, each with "-" / "+" (step 10%)
@@ -114,7 +119,10 @@ export class SettingsScene extends PanelScene {
     up: Button;
   }[] = [];
   private back?: Button;
-  private marker?: Phaser.GameObjects.Text;
+  /** The band under the selected row (`theme.selection`). */
+  private band?: Phaser.GameObjects.Graphics;
+  /** Left edge and width of the band, px. */
+  private bandSpan = { x: 0, width: 0 };
   /** The title as drawn by `addPanel`. */
   private shownTitle = '';
 
@@ -130,6 +138,9 @@ export class SettingsScene extends PanelScene {
     const valueX = upX - SMALL_BUTTON.width / 2 - VALUE_WIDTH / 2;
     const downX = valueX - VALUE_WIDTH / 2 - SMALL_BUTTON.width / 2;
     const labelX = area.x + MARKER_GAP;
+    // Under the rows: created first.
+    this.band = this.add.graphics();
+    this.bandSpan = { x: area.x - BAND_OVERHANG, width: area.width + BAND_OVERHANG * 2 };
 
     this.rows = ROWS.map(({ setting, label }, index) => {
       const y = area.y + SMALL_BUTTON.height / 2 + index * ROW_SPACING;
@@ -149,15 +160,13 @@ export class SettingsScene extends PanelScene {
       () => this.close(),
       BACK_BUTTON,
     );
-    this.marker = createText(this, area.x, 0, '>', 'body', { color: theme.text.highlight });
-    this.marker.setOrigin(0, 0.5);
 
     this.select(this.rebuilding ? this.selected : 0);
     this.refresh();
     this.onTeardown(() => {
       this.rows = [];
       this.back = undefined;
-      this.marker = undefined;
+      this.band = undefined;
     });
   }
 
@@ -209,11 +218,16 @@ export class SettingsScene extends PanelScene {
     this.rows.forEach((row, i) =>
       row.label.setColor(i === this.selected ? theme.text.highlight : theme.text.normal),
     );
+    // A row stands on the band; Back, a button, lights up as under the pointer.
     const row = this.rows[this.selected];
-    if (row) this.marker?.setPosition(row.label.x - MARKER_GAP, row.label.y);
-    else if (this.back) {
-      this.marker?.setPosition(this.back.x - BACK_BUTTON.width / 2 - MARKER_GAP, this.back.y);
+    const band = this.band?.clear();
+    if (row && band) {
+      const { x, width } = this.bandSpan;
+      const height = BAND_HEIGHT;
+      const top = row.label.y - height / 2;
+      drawSelection(band, x, top, width, height, ARROW_X, theme.selection.enabled, height / 2 - 3);
     }
+    this.back?.setFocused(!row);
   }
 
   /**

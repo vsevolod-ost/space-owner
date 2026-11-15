@@ -14,15 +14,13 @@ import type { ColonyBodyDef, ColonyCatalog } from '@/core/voyage/colony';
  * and ice from the polar craters), Mars power 4 (dust storms dim the panels: every power source)
  * and heat 1. They pull apart, so no 7-bay hold that reaches Mars builds a full colony on both
  * (invariant I4); picked by a search over the needs with I4 and I5 (`npm run balance`).
- * OWNER: art - `sky` and `ground`, multiplied over the light neutral placeholders of
- * `location-colony-sky` and `-ground` (a GradientMap after the artists' pilot, GDD
- * `colony-location-variants` E).
+ * Each body's picture: `BODY_BACKGROUNDS` in src/content/locations/colony.ts.
  */
 export const colonyBodies = {
-  // No air, no magnetic field: radiation and dust. Black sky, grey regolith.
-  moon: { sunFactor: 1, needs: { heat: 2, shielding: 4 }, sky: 0x24242c, ground: 0xb4b4b0 },
-  // Thin air, radiation, dust storms that dim the panels. Butterscotch sky, rust ground.
-  mars: { sunFactor: 0.43, needs: { power: 4, heat: 1 }, sky: 0xe0b48c, ground: 0xc0603a },
+  // No air, no magnetic field: radiation and dust.
+  moon: { sunFactor: 1, needs: { heat: 2, shielding: 4 } },
+  // Thin air, radiation, dust storms that dim the panels.
+  mars: { sunFactor: 0.43, needs: { power: 4, heat: 1 } },
 } as const satisfies Record<string, ColonyBodyDef>;
 
 /** Id of a colony site: a gate body. */

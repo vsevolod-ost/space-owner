@@ -16,10 +16,11 @@ export interface SceneDriver {
   /** Fades the screen in if it is black or fading; resolves at once if it is clear. */
   reveal(): Promise<void>;
   /**
-   * Fades the screen to black and shows an act title card on it; resolves when the title is
-   * gone. The screen stays black, so the act's following `goTo` fades in on its location.
+   * Fades the screen to black and shows an act title card on it (over picture `image`, an
+   * image key, if given); resolves when the title is gone. The screen stays black, so the act's
+   * following `goTo` fades in on its location.
    */
-  showActTitle(title: string): Promise<void>;
+  showActTitle(title: string, image?: string): Promise<void>;
   /** Replaces whatever runs (world, panels, menu) with the end screen of ending `ending`. */
   showEnding(ending: string): void;
   /** Closes the game (world, panels, dialogue, title) and opens the main menu. */

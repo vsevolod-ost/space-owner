@@ -148,7 +148,7 @@ translation on one page too.
   longer (never longer than its `max`); `{placeholders}` stay. Look for text that overflows or
   overlaps. Any Latin letter left on screen is a string that did not go through `tr`.
 - The smoke scenario `locale` (`node tools/smoke.mjs --scenario
-tools/smoke/scenarios/locale.mjs --timeout 300000` after `npm run build`; about 2.5 min)
+tools/smoke/scenarios/locale.mjs` after `npm run build`; about a minute, half with `--gpu`)
   checks the language choice (browser languages, the settings row from the menu and the pause,
   reload, `?lang=` not stored), the live rebuild, and then walks the screens on `en` and on
   `pseudo` (screenshots `smoke-out/locale-<screen>-<lang>.png`): menus, dialogues, a cutscene

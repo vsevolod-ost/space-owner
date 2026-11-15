@@ -136,7 +136,8 @@ export const storeroom: LocationDef = {
 The four locations of the game, to copy from: `home.ts` (one act door), `warehouse.ts` (crates
 built from the cargo registry, advisers, the hatch: a dialogue built by code, the HOLD strip),
 `ship-deck.ts` (the navigation station opens a panel; the hold's bays are props),
-`colony.ts` (a layered, tinted background built from the colony registry; building places).
+`colony.ts` (a layered background: the picture of the body it stands on, with the colony
+drawn in when it is full; building places).
 
 - `door`: `to` is a location id (checked by the compiler); `spawn` is a spawn name in that
   location's map. **The spawn name is not checked by the compiler**: a wrong one warns at run
@@ -172,14 +173,14 @@ built from the cargo registry, advisers, the hatch: a dialogue built by code, th
   centred on the object, sorted with the actors by the object's bottom edge. `layers` may be a
   function of the state (the ship's hold shows whatever was taken); `tint: (s) => 0xff8866`
   colours them. A prop does not block: put it where a collision rectangle already stands.
-- `background` may be a list of layers drawn back to front, each with an optional
-  `tint: (s) => colour`, or a function `({ voyage }) => [layers]` built once like `bindings`
-  (`colony.ts`: the sky and the ground take the colours of the body in the colony registry, the
-  base keeps its own). The first layer's size is the world's size.
+- `background` may be a list of layers drawn back to front, each shown only while its optional
+  `when: (s) => boolean` holds, or a function `({ voyage }) => [layers]` built once like
+  `bindings` (`colony.ts`: one picture per body, shown on that body, the base over it). The
+  first layer's size is the world's size.
 - `showHold: true` shows the HOLD strip at the top of the screen: `HOLD n/7` and the icons of
   the cargo aboard (the warehouse and the ship deck). It covers about the top 32 px in the
   middle (x 220-420, y 4-28); keep doors, spawns and anything to read out of it.
-- When a flag changes the location rebuilds on the next frame (props, `when`, tints, the HOLD
+- When a flag changes the location rebuilds on the next frame (props, `when`, background layers, the HOLD
   strip), but not while a dialogue or a cutscene runs or a panel pauses the world: then it waits
   for the end. The hero and the NPCs keep their places. `WorldScene.debugInfo().props` shows
   what is drawn.

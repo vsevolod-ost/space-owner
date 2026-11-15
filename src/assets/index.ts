@@ -12,6 +12,10 @@ export type { SpritesheetEntry } from '@/assets/spritesheets';
 
 /** Texture key of a single image. */
 export type ImageKey = keyof typeof images;
+/** Whether `key` names an image of the registry. */
+export function isImageKey(key: string): key is ImageKey {
+  return Object.hasOwn(images, key);
+}
 /** Texture key of a sprite sheet. */
 export type SpritesheetKey = keyof typeof spritesheets;
 /** Key of a sound or music track. */

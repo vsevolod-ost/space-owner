@@ -28,10 +28,16 @@ export const images = {
   'location-home': { path: 'assets/images/locations/home.png' },
   'location-warehouse': { path: 'assets/images/locations/warehouse.png' },
   'location-ship-deck': { path: 'assets/images/locations/ship-deck.png' },
-  // The colony is drawn in three layers, back to front (sky and ground are tinted per body).
-  'location-colony-sky': { path: 'assets/images/locations/colony-sky.png' },
-  'location-colony-ground': { path: 'assets/images/locations/colony-ground.png' },
+  // The colony: the picture of its body (real art, nothing built on it), then the base over it.
+  'location-colony-moon': { path: 'assets/images/locations/colony-moon.png' },
+  'location-colony-mars': { path: 'assets/images/locations/colony-mars.png' },
+  /** Real art: the Moon with a whole colony drawn in, shown for a full colony there. */
+  'location-colony-moon-built': { path: 'assets/images/locations/colony-moon-built.png' },
+  /** Real art: Mars with a whole colony drawn in, shown for a full colony there. */
+  'location-colony-mars-built': { path: 'assets/images/locations/colony-mars-built.png' },
   'location-colony-base': { path: 'assets/images/locations/colony-base.png' },
+  /** Real art: the prologue's title card (the hero on the roof at night). */
+  'card-prologue': { path: 'assets/images/cards/prologue.png' },
   /** Empty cargo crate (32x32); the item icon from `items` is drawn on it. */
   crate: { path: 'assets/sprites/crate.png' },
   /** Generic colony module (64x48), used for colony items without their own building. */

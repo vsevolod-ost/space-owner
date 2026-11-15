@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config';
 import { dialogues } from '@/content/dialogues';
 import type { DialogueId } from '@/content/dialogues';
+import type { ImageKey } from '@/assets';
 import { DialogueRunner } from '@/core/dialogue/DialogueRunner';
 import { defineDialogue } from '@/core/dialogue/types';
 import type { Dialogue, Speaker } from '@/core/dialogue/types';
@@ -41,6 +42,8 @@ export const SAY_DIALOGUE_ID = 'say';
 export const CODE_DIALOGUE_ID = 'code';
 /** How long a title (`showTitle`) takes to appear and to disappear, ms. */
 const TITLE_FADE_MS = 300;
+/** Y of a title shown over a picture: in the upper quarter, off the picture's middle. */
+const CARD_TITLE_Y = Math.round(GAME_HEIGHT / 4);
 
 /** Draw order inside UiScene, bottom to top. */
 export const UiDepth = {
@@ -48,6 +51,8 @@ export const UiDepth = {
   dialogue: 10,
   toast: 20,
   fader: 100,
+  /** An act card's picture (`showTitle` with an image), over the black screen of the fader. */
+  card: 105,
   /** Titles show over the black screen of the fader. */
   title: 110,
 } as const;
@@ -69,6 +74,8 @@ export interface UiDebugInfo {
   dialogue: ({ id: string } & DialogueBoxInfo) | null;
   /** Text of the title on screen (`showTitle`), or null. */
   title: string | null;
+  /** Image key of the picture under the title (`showTitle` with an image), or null. */
+  card: string | null;
   /** Whether a dialogue window is on screen (an ended one stays until the next step). */
   dialogueShown: boolean;
 }
@@ -96,6 +103,8 @@ export class UiScene extends Phaser.Scene {
   private debugChoicesPanel?: Panel;
   private dialogue?: { id: string; box: DialogueBox };
   private title?: Label;
+  /** The picture under `title`; destroyed with it. */
+  private card?: Phaser.GameObjects.Image;
   /** A toast asked for before `create` ran. */
   private pendingToast: string | null = null;
   private readyWaiters: (() => void)[] = [];
@@ -243,19 +252,31 @@ export class UiScene extends Phaser.Scene {
   /**
    * Shows `text` large in the middle of the screen, above everything including the fader (so
    * it reads over a black screen), for `ms` in all: it fades in, stays, fades out, and the
-   * promise resolves when it is gone. A new title replaces one still on screen.
+   * promise resolves when it is gone. With `image` (a picture the size of the screen, an act's
+   * card), the picture fades in and out with it, under it, and the title stands in the upper
+   * quarter. A new title replaces one still on screen.
    */
-  async showTitle(text: string, ms: number): Promise<void> {
+  async showTitle(text: string, ms: number, image?: ImageKey): Promise<void> {
     await this.whenReady();
     this.title?.destroy();
-    const title = new Label(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, text, {
+    const card = image
+      ? this.add.image(0, 0, image).setOrigin(0).setDepth(UiDepth.card)
+      : undefined;
+    const y = card ? CARD_TITLE_Y : GAME_HEIGHT / 2;
+    const title = new Label(this, GAME_WIDTH / 2, y, text, {
       variant: 'title',
       wrapWidth: GAME_WIDTH - 96,
     }).setDepth(UiDepth.title);
     this.title = title;
+    this.card = card;
+    title.once(Phaser.GameObjects.Events.DESTROY, () => {
+      card?.destroy();
+      if (this.card === card) this.card = undefined;
+    });
     const fade = Math.min(TITLE_FADE_MS, Math.max(0, Math.floor(ms / 2)));
     const hold = Math.max(0, ms - fade * 2);
-    title.setAlpha(fade > 0 ? 0 : 1);
+    const targets = card ? [title, card] : [title];
+    for (const target of targets) target.setAlpha(fade > 0 ? 0 : 1);
     await new Promise<void>((resolve) => {
       const done = () => {
         if (title.active) title.destroy();
@@ -264,7 +285,7 @@ export class UiScene extends Phaser.Scene {
       };
       title.once(Phaser.GameObjects.Events.DESTROY, resolve);
       this.tweens.chain({
-        targets: title,
+        targets,
         tweens: [
           { alpha: 1, duration: fade },
           { alpha: 0, duration: fade, delay: hold },
@@ -376,6 +397,7 @@ export class UiScene extends Phaser.Scene {
       choices: choices ? { items: choices.items, selected: choices.selectedIndex } : null,
       dialogue: this.dialogueInfo(),
       title: this.title?.text ?? null,
+      card: this.card?.texture.key ?? null,
       dialogueShown: this.dialogue?.box.shown ?? false,
     };
   }

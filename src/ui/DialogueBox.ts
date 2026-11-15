@@ -7,6 +7,7 @@ import type { Controls } from '@/core/input/controls';
 import { tr } from '@/core/locale/text';
 import { ChoiceList } from '@/ui/kit/ChoiceList';
 import { Panel } from '@/ui/kit/Panel';
+import { fillArrow, strokeChamfered } from '@/ui/kit/shapes';
 import { createText } from '@/ui/kit/text';
 import { theme } from '@/ui/theme';
 
@@ -22,6 +23,8 @@ const CHOICES_WIDTH = 240;
 const NAME_GAP = 8;
 /** Blink period of the "more" marker shown when a line is fully typed, ms. */
 const MARKER_BLINK_MS = 500;
+/** Long side of the "more" arrow in the corner, px. */
+const MARKER_SIZE = 7;
 
 /** What `DialogueBox.debugInfo()` returns. */
 export interface DialogueBoxInfo {
@@ -58,9 +61,11 @@ export class DialogueBox {
 
   private readonly panel: Panel;
   private readonly portrait: Phaser.GameObjects.Image;
+  /** The bezel around the portrait. */
+  private readonly portraitFrame: Phaser.GameObjects.Graphics;
   private readonly name: Phaser.GameObjects.Text;
   private readonly body: Phaser.GameObjects.Text;
-  private readonly marker: Phaser.GameObjects.Text;
+  private readonly marker: Phaser.GameObjects.Graphics;
   private choicesPanel?: Panel;
   private choiceList?: ChoiceList;
 
@@ -97,6 +102,28 @@ export class DialogueBox {
     // Same depth for all parts: what is created later draws on top, so the panel comes first.
     this.panel = new Panel(scene, 0, top, GAME_WIDTH, DIALOGUE_BOX_HEIGHT).setDepth(depth);
     this.panel.setInteractive().on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => this.confirm());
+    const look = theme.panel;
+    this.portraitFrame = scene.add.graphics().setDepth(depth).setVisible(false);
+    const frameSize = PORTRAIT_SIZE + 4;
+    strokeChamfered(
+      this.portraitFrame,
+      pad - 2,
+      top + pad - 2,
+      frameSize,
+      frameSize,
+      1,
+      look.shade,
+      look.light,
+    );
+    strokeChamfered(
+      this.portraitFrame,
+      pad - 1,
+      top + pad - 1,
+      frameSize - 2,
+      frameSize - 2,
+      0,
+      look.outline,
+    );
     this.portrait = scene.add
       .image(pad, top + pad, '__DEFAULT')
       .setOrigin(0)
@@ -108,12 +135,15 @@ export class DialogueBox {
     this.body = createText(scene, 0, 0, '', 'body', { lineSpacing: theme.lineSpacing }).setDepth(
       depth,
     );
-    this.marker = createText(scene, GAME_WIDTH - pad, GAME_HEIGHT - pad, '>', 'body', {
-      color: theme.text.highlight,
-    })
-      .setOrigin(1, 1)
-      .setDepth(depth)
-      .setVisible(false);
+    this.marker = scene.add.graphics().setDepth(depth).setVisible(false);
+    fillArrow(
+      this.marker,
+      GAME_WIDTH - pad - MARKER_SIZE,
+      GAME_HEIGHT - pad - Math.ceil(MARKER_SIZE / 2),
+      'down',
+      theme.selection.enabled.arrow,
+      MARKER_SIZE,
+    );
 
     scene.events.on(Phaser.Scenes.Events.UPDATE, this.update, this);
     this.show(runner.current());
@@ -145,7 +175,15 @@ export class DialogueBox {
     this.end();
     if (this.destroyed) return;
     this.destroyed = true;
-    for (const part of [this.panel, this.portrait, this.name, this.body, this.marker]) {
+    const parts = [
+      this.panel,
+      this.portraitFrame,
+      this.portrait,
+      this.name,
+      this.body,
+      this.marker,
+    ];
+    for (const part of parts) {
       part.destroy();
     }
   }
@@ -214,6 +252,7 @@ export class DialogueBox {
       this.portrait.setTexture(portrait).setDisplaySize(PORTRAIT_SIZE, PORTRAIT_SIZE);
     }
     this.portrait.setVisible(portrait !== undefined);
+    this.portraitFrame.setVisible(portrait !== undefined);
     const left = portrait ? pad + PORTRAIT_SIZE + pad : pad;
     this.name.setText(character ? tr(character.name) : '').setPosition(left, top);
     const textTop = character ? top + theme.fontSize.title + NAME_GAP : top;

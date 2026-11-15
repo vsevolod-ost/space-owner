@@ -7,11 +7,17 @@
  * Usage:
  *   npm run smoke                                   # build, then the menu scenario
  *   node tools/smoke.mjs --scenario tools/smoke/scenarios/menu.mjs [--out smoke-out] [--timeout 180000]
- *                        [--viewport 1280x720] [--url http://127.0.0.1:5173/] [--headed]
+ *                        [--viewport 1280x720] [--url http://127.0.0.1:5173/] [--headed] [--gpu]
+ *                        [--pages 4]
+ *   npm run smoke:all                               # build, then every scenario, several at once
+ *                                                   # (tools/smoke-all.mjs)
  *
  * Needs a fresh `npm run build` (dist/). `--url` skips `vite preview` and uses a running server
  * (e.g. `npm run dev`). The browser is the system Chromium (CHROMIUM env var overrides the
- * path); playwright-core does not download browsers.
+ * path); playwright-core does not download browsers. WebGL runs on the software renderer unless
+ * `--gpu` asks for the machine's GPU (faster where there is one). `--pages`: how many pages
+ * `h.parallel` runs at once (default: a quarter of the CPU threads, half with `--gpu`; more
+ * than the machine can draw slows the game down until the scenarios' waits time out).
  *
  * A scenario exports `default async (page, h) => {}`; `page` is the Playwright page, `h` the
  * helpers below. Functions passed to `h.waitFor`, `h.holdUntil` and `h.eval` run inside the
@@ -33,27 +39,31 @@
  *   h.shot(name)                       screenshot to <out>/<name>.png, logs canvas size
  *   h.eval(fn, arg)                    run fn(arg) in the page and return its result
  *   h.teleport(x, y)                   move the hero (World scene debugTeleport)
+ *   h.parallel(tasks)                  run every `async (page, h) => {}` of `tasks`, each on a
+ *                                      page of its own (own browser and storage), at most
+ *                                      `--pages` at a time: independent parts of a scenario
+ *                                      side by side; export `pages` from the scenario (how
+ *                                      many it can use) for tools/smoke-all.mjs
  *   h.log(...args)                     print a line prefixed with the scenario name
  */
-import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
-import { createServer } from 'node:net';
+import { availableParallelism } from 'node:os';
 import { basename, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { stripVTControlCharacters } from 'node:util';
 import { chromium } from 'playwright-core';
 
+import { startPreview } from './smoke/preview.mjs';
+
 const DEFAULT_TIMEOUT_MS = 15000;
+/** Sound may start without a click. */
+const COMMON_ARGS = ['--autoplay-policy=no-user-gesture-required'];
 /**
- * Flags for a headless box without a GPU or a user: WebGL on the SwiftShader software renderer
- * (also when the GPU is blocklisted), and sound allowed to start without a click.
+ * Default flags, for a headless box without a GPU: WebGL on the SwiftShader software renderer
+ * (also when the GPU is blocklisted). Works everywhere; costs about a CPU core per page.
  */
-const CHROMIUM_ARGS = [
-  '--use-angle=swiftshader',
-  '--enable-unsafe-swiftshader',
-  '--ignore-gpu-blocklist',
-  '--autoplay-policy=no-user-gesture-required',
-];
+const SOFTWARE_ARGS = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+/** `--gpu`: WebGL on the machine's GPU; several pages at once then keep their frame rate. */
+const GPU_ARGS = ['--enable-gpu'];
 
 const args = parseArgs(process.argv.slice(2));
 const scenarioPath = resolve(args.scenario ?? 'tools/smoke/scenarios/menu.mjs');
@@ -62,31 +72,78 @@ const [vw, vh] = (args.viewport ?? '1280x720').split('x').map(Number);
 const scenarioName = basename(scenarioPath, '.mjs');
 
 const timeoutMs = Number(args.timeout ?? 180000);
+const maxPages = Number(
+  args.pages ?? Math.max(1, Math.floor(availableParallelism() / (args.gpu ? 2 : 4))),
+);
+const chromiumArgs = [
+  ...(args.gpu ? GPU_ARGS : SOFTWARE_ARGS),
+  '--ignore-gpu-blocklist',
+  ...COMMON_ARGS,
+];
 
 if (!vw || !vh) fail(`--viewport must look like 1280x720, got "${args.viewport}"`);
+if (!Number.isInteger(maxPages) || maxPages < 1) fail('--pages must be a positive whole number');
 if (!Number.isFinite(timeoutMs) || timeoutMs <= 0)
   fail(`--timeout must be a positive number of ms`);
 
 const problems = [];
 let preview;
-let browser;
+const browsers = [];
+let baseUrl;
 
 // Whole-run deadline: a page-side promise that never settles must not hang CI.
 const watchdog = setTimeout(() => {
   console.error(`\nSMOKE FAILED (${scenarioName}): timed out after ${timeoutMs} ms`);
   for (const problem of problems) console.error(`  - ${problem}`);
-  preview?.kill();
+  preview?.process.kill();
   process.exit(1);
 }, timeoutMs);
 
 try {
   await mkdir(outDir, { recursive: true });
-  const baseUrl = args.url ?? (await startPreview());
-  browser = await chromium.launch({
+  if (!args.url) preview = await startPreview();
+  baseUrl = args.url ?? preview.url;
+  const { page, h } = await openPage();
+
+  const { default: scenario } = await import(pathToFileURL(scenarioPath).href);
+  if (typeof scenario !== 'function') {
+    throw new Error(`${scenarioPath} must export a default async function`);
+  }
+
+  log(`viewport ${vw}x${vh}, base ${baseUrl}, out ${outDir}`);
+  await scenario(page, h);
+} catch (error) {
+  problems.push(`scenario failed: ${error instanceof Error ? error.message : String(error)}`);
+} finally {
+  // The preview goes first and on its own: a hung browser must not leave vite holding its port.
+  preview?.process.kill();
+  await Promise.all(
+    browsers.map((browser) =>
+      browser.close().catch((error) => log(`browser close failed: ${error.message}`)),
+    ),
+  );
+}
+clearTimeout(watchdog);
+
+if (problems.length > 0) {
+  console.error(`\nSMOKE FAILED (${scenarioName}): ${problems.length} problem(s)`);
+  for (const problem of problems) console.error(`  - ${problem}`);
+  process.exit(1);
+}
+log('OK');
+
+/**
+ * Opens a page in a browser of its own (its own localStorage, and its own renderer: pages of
+ * one browser share its software GPU process and slow each other down) with the problem
+ * listeners attached; resolves with the page and its helpers.
+ */
+async function openPage() {
+  const browser = await chromium.launch({
     executablePath: process.env.CHROMIUM ?? '/usr/bin/chromium',
     headless: !args.headed,
-    args: CHROMIUM_ARGS,
+    args: chromiumArgs,
   });
+  browsers.push(browser);
   const context = await browser.newContext({ viewport: { width: vw, height: vh } });
   const page = await context.newPage();
 
@@ -105,32 +162,11 @@ try {
   page.on('response', (response) => {
     if (response.status() >= 400) problems.push(`HTTP ${response.status()}: ${response.url()}`);
   });
-
-  const { default: scenario } = await import(pathToFileURL(scenarioPath).href);
-  if (typeof scenario !== 'function') {
-    throw new Error(`${scenarioPath} must export a default async function`);
-  }
-
-  log(`viewport ${vw}x${vh}, base ${baseUrl}, out ${outDir}`);
-  await scenario(page, createHelpers(page, baseUrl));
-} catch (error) {
-  problems.push(`scenario failed: ${error instanceof Error ? error.message : String(error)}`);
-} finally {
-  // The preview goes first and on its own: a hung browser must not leave vite holding its port.
-  preview?.kill();
-  await browser?.close().catch((error) => log(`browser close failed: ${error.message}`));
+  return { page, h: createHelpers(page), browser };
 }
-clearTimeout(watchdog);
-
-if (problems.length > 0) {
-  console.error(`\nSMOKE FAILED (${scenarioName}): ${problems.length} problem(s)`);
-  for (const problem of problems) console.error(`  - ${problem}`);
-  process.exit(1);
-}
-log('OK');
 
 /** Builds the helper object `h` passed to a scenario. */
-function createHelpers(page, baseUrl) {
+function createHelpers(page) {
   let readySeen = 0;
   let eventMark = 0;
 
@@ -260,6 +296,19 @@ function createHelpers(page, baseUrl) {
       if (error) throw new Error(`teleport(${x}, ${y}): ${error}`);
     },
 
+    async parallel(tasks) {
+      const queue = [...tasks];
+      const worker = async () => {
+        for (let task = queue.shift(); task; task = queue.shift()) {
+          const opened = await openPage();
+          await task(opened.page, opened.h);
+          // Closed at once: its renderer must not weigh on the tasks still running.
+          await opened.browser.close();
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(maxPages, tasks.length) }, worker));
+    },
+
     log,
   };
   return h;
@@ -276,65 +325,13 @@ async function canvasInfo(page) {
   return { box, game: game ?? { width: box.width, height: box.height } };
 }
 
-/** Starts `vite preview` on a free port and resolves with its URL. */
-async function startPreview() {
-  const port = await freePort();
-  preview = spawn(
-    process.execPath,
-    [
-      resolve('node_modules/vite/bin/vite.js'),
-      'preview',
-      '--host',
-      '127.0.0.1',
-      '--port',
-      String(port),
-      '--strictPort',
-    ],
-    { stdio: ['ignore', 'pipe', 'pipe'] },
-  );
-  let output = '';
-  return await new Promise((resolveUrl, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error(`vite preview did not start:\n${output}`)),
-      20000,
-    );
-    const onData = (chunk) => {
-      output += chunk;
-      // Vite colours its output; strip ANSI codes before looking for the URL.
-      const match = stripVTControlCharacters(output).match(/Local:\s+(http\S+)/);
-      if (match) {
-        clearTimeout(timer);
-        resolveUrl(match[1]);
-      }
-    };
-    preview.stdout.on('data', onData);
-    preview.stderr.on('data', onData);
-    preview.on('exit', (code) => {
-      clearTimeout(timer);
-      reject(new Error(`vite preview exited with code ${code}:\n${output}`));
-    });
-  });
-}
-
-function freePort() {
-  return new Promise((resolvePort, reject) => {
-    const server = createServer();
-    server.unref();
-    server.on('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close(() => resolvePort(port));
-    });
-  });
-}
-
 function parseArgs(argv) {
   const result = {};
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (!arg.startsWith('--')) fail(`unexpected argument "${arg}"`);
     const name = arg.slice(2);
-    if (name === 'headed') result.headed = true;
+    if (name === 'headed' || name === 'gpu') result[name] = true;
     else result[name] = argv[++i];
   }
   return result;

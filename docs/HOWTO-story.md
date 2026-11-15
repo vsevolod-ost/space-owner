@@ -47,6 +47,9 @@ export const acts = { prologue, act1, act2, act3 } as const satisfies Record<str
 How an act runs (`services.flow.startAct('act1')`):
 
 1. The screen fades to black and the act's `title` shows on it for 1.5 s. The hero cannot move.
+   With `card: 'card-prologue'` (an image key, a 640×360 picture in `images/cards/`) the title
+   stands in the upper quarter over that picture, both fading in and out, for 4 s (the
+   prologue's card).
 2. `start(flow)` runs while the screen is still black. It **must** end in one of:
    - `await flow.goTo(location, spawn)` - the screen fades in on that location;
    - `flow.finish(endingId)` - the end screen.
@@ -139,8 +142,8 @@ live on like `cargo.*`. New game clears everything.
 ## Endings
 
 Stop at a gate lands the ship: after a moment on the panel act 3 starts (`landingAct` in
-`src/content/story/index.ts`) with the title card "<Body> · day N" and the colony, painted and
-built by the `voyage.stopBody` and `cargo.*` flags (`src/content/locations/colony.ts`). Its
+`src/content/story/index.ts`) with the title card "<Body> · day N" and the colony, its picture and
+buildings chosen by the `voyage.stopBody` and `cargo.*` flags (`src/content/locations/colony.ts`). Its
 `overlook` calls `flow.finish('colony-<body>')`: the end screen (`EndingScene`) with the
 body's title and text, the line of the colony's tier (`colonyFit`, `src/core/voyage/colony.ts`)
 and "Fly again" (back to the warehouse at the hatch, cargo and `run.*` kept) / "Main menu".

@@ -30,13 +30,13 @@ export interface PropDebugInfo {
 export interface PropsDebugInfo {
   /** Drawn props by the name of their map object. */
   props: Record<string, PropDebugInfo>;
-  /** Tint of each background layer by its image key; null: none. */
-  background: Record<string, number | null>;
+  /** Whether each background layer is shown, by its image key. */
+  background: Record<string, boolean>;
 }
 
 /**
  * The pictures of a location that follow the flags: `prop` objects and interactables with a
- * `prop`, and the tints of a layered background. `refresh(state)` redraws them all from the
+ * `prop`, and which layers of a layered background show. `refresh(state)` redraws them all from the
  * state; WorldScene calls it on entering and after flags change (not during a dialogue or a
  * cutscene).
  */
@@ -48,11 +48,11 @@ export class Props {
     private readonly options: PropsOptions,
   ) {}
 
-  /** Redraws every prop whose object is there now and re-tints the background layers. */
+  /** Redraws every prop whose object is there now and shows or hides the background layers. */
   refresh(state: GameState): void {
     this.clear();
     for (const { layer, image } of this.options.background) {
-      applyTint(image, layer.tint?.(state));
+      image.setVisible(layer.when?.(state) ?? true);
     }
     for (const object of this.options.objects) {
       const binding = this.options.bindings[object.name];
@@ -72,15 +72,12 @@ export class Props {
   }
 
   /**
-   * What each drawn prop shows, by the name of its map object, and the tint of each background
-   * layer by its image key (null: none).
+   * What each drawn prop shows, by the name of its map object, and whether each background
+   * layer is shown, by its image key.
    */
   debugInfo(): PropsDebugInfo {
     const background = Object.fromEntries(
-      this.options.background.map(({ layer, image }) => [
-        layer.image,
-        image.isTinted ? image.tint : null,
-      ]),
+      this.options.background.map(({ layer, image }) => [layer.image, image.visible]),
     );
     const props = Object.fromEntries(
       [...this.drawn].map(([name, { images, tint }]) => [

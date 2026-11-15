@@ -5,6 +5,7 @@
  * `services.flow` (`startAct`, `finish`). A lost voyage runs the death loop
  * (`services.flow.die`, `debrief` in ./index.ts). How to write one: docs/HOWTO-story.md.
  */
+import type { ImageKey } from '@/assets';
 import type { CutsceneId } from '@/content/cutscenes';
 import type { EndingId } from '@/content/endings';
 import type { LocationId } from '@/content/locations';
@@ -42,6 +43,11 @@ export interface Act {
    * the state is read when the card shows (act 3: "<Body> · day N" of the landing).
    */
   title: StateText;
+  /**
+   * Picture under the title card, the size of the screen (`images/cards/`); the card then
+   * stays longer. Without it the title shows on black.
+   */
+  card?: ImageKey;
   /**
    * Runs after the title, while the screen is still black: must end with `flow.goTo` (the
    * screen fades in on the new location) or with `flow.finish`.

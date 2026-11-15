@@ -47,8 +47,8 @@ TILE = 16
 # obstacles: impassable rectangles inside the room, (x, y, width, height[, label]), px;
 #            label '' draws none
 # markup:    draw the map objects of tools/make_maps.py on the background (layout draft)
-# layers:    a layered background (colony): image names, back to front; replaces `floor`
-# horizon:   layered background only: y of the horizon, px (the ground is transparent above)
+# layers:    a layered background (colony): image names, back to front; replaces `floor`. Every
+#            layer but the last is real art (a picture per body) and is not generated
 # Rule for every generated map: the straight line from `spawn-default` along the middle
 # (y = height/2) to every door, NPC, trigger and station stays free of collisions - the smoke
 # tests walk it.
@@ -94,12 +94,11 @@ LOCATIONS: dict[str, dict] = {
         ],
         'markup': True,
     },
-    # Act 3: one map for every body; sky and ground are recoloured per body, the base is not.
+    # Act 3: one map for every body; the picture of the body (real art), the base over it.
     'colony': {
         'size': (640, 360),
         'wall': 16,
-        'layers': ['colony-sky', 'colony-ground', 'colony-base'],
-        'horizon': 128,
+        'layers': ['colony-moon', 'colony-mars', 'colony-base'],
         'doorways': [],
         'obstacles': [
             (16, 16, 608, 112, 'sky'),
@@ -539,29 +538,10 @@ def location(name: str, geometry: dict) -> None:
 
 
 def layered_location(name: str, geometry: dict) -> None:
-    """The colony: sky (opaque), ground (transparent above the horizon), base (transparent but
-    for the lander, the shelter and the layout draft). Sky and ground are light neutral greys
-    because the game tints them per body; the base is not tinted."""
+    """The colony's base layer (transparent but for the lander, the shelter and the layout
+    draft); the pictures of the bodies under it are real art."""
     width, height = geometry['size']
-    horizon = geometry['horizon']
-    sky_layer, ground_layer, base_layer = geometry['layers']
-
-    sky = Image.new('RGB', (width, height), (212, 214, 218))
-    d = new_draw(sky)
-    for y in range(0, horizon, 32):
-        d.line((0, y, width, y), fill=(200, 202, 206))
-    label(d, (24, 22), f'{sky_layer}  {width}x{height}  PLACEHOLDER', (120, 122, 128))
-    save(sky, f'images/locations/{sky_layer}.png')
-
-    ground_floor = (176, 176, 172)
-    ground = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-    d = new_draw(ground)
-    d.rectangle((0, horizon, width - 1, height - 1), fill=ground_floor + (255,))
-    draw_grid(d, (width, height), ground_floor, top=horizon)
-    d.line((0, height // 2, width, height // 2), fill=lighter(ground_floor, 30))
-    label(d, (24, height - 16), f'{ground_layer}  {width}x{height}  PLACEHOLDER', (110, 110, 106))
-    save(ground, f'images/locations/{ground_layer}.png')
-
+    base_layer = geometry['layers'][-1]
     base = Image.new('RGBA', (width, height), (0, 0, 0, 0))
     d = new_draw(base)
     for x, y, w, h, *_ in geometry['obstacles'][1:]:  # lander and shelter, not the sky
