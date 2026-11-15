@@ -1,5 +1,5 @@
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { SceneKey } from '@/scenes/keys';
 import { PanelScene } from '@/ui/PanelScene';
 import { Button } from '@/ui/kit/Button';
@@ -19,8 +19,8 @@ const PANEL_HEIGHT = 176;
 /** Centre of the Back button: (320, 220). */
 const BACK_Y = GAME_HEIGHT / 2 + 40;
 /** The default details line (up to five lines fit) and the Back button (max 18). OWNER: script */
-const DETAILS: LocalText = { en: '(in development)', uk: TODO };
-const BACK_LABEL: LocalText = { en: 'Back', uk: TODO, max: 18 };
+const DETAILS: LocalText = { en: '(in development)', uk: '(у розробці)' };
+const BACK_LABEL: LocalText = { en: 'Back', uk: 'Назад', max: 18 };
 
 /**
  * Temporary panel for sections that do not exist yet: a heading, details and a Back button

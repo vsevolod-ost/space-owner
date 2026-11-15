@@ -1,11 +1,10 @@
-import { TODO } from '@/core/locale/text';
 import type { CargoDef } from '@/core/voyage/types';
 
 /** A fuel crate: more propellant for the tank (plan variable-mass D3), up to three crates. */
 export const fuel: CargoDef = {
   // OWNER: script
-  label: { en: 'Fuel', uk: TODO, max: 14 },
-  line: { en: 'One more leg of fuel.', uk: TODO, max: 60 },
+  label: { en: 'Fuel', uk: 'Паливо', max: 14 },
+  line: { en: 'One more leg of fuel.', uk: 'Ще один етап палива.', max: 60 },
   // OWNER: physics - the empty tank and feed lines of one crate.
   dryMassKg: 3_000,
   // OWNER: design - bays taken and copies allowed

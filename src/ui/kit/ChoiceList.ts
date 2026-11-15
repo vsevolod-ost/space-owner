@@ -4,6 +4,7 @@ import { services } from '@/core/services';
 import type { Controls } from '@/core/input/controls';
 import type { Point } from '@/world/Actor';
 import { drawSelection, SELECTION_PAD } from '@/ui/kit/shapes';
+import { StepGate } from '@/ui/kit/StepGate';
 import { createText } from '@/ui/kit/text';
 import { theme } from '@/ui/theme';
 
@@ -61,8 +62,8 @@ export class ChoiceList extends Phaser.GameObjects.Container {
   }[] = [];
   private readonly band: Phaser.GameObjects.Graphics;
   private selected = 0;
-  /** Game frame in which the choices were set: input in that frame is ignored. */
-  private openedFrame = -1;
+  /** Closed while the step the choices were set in runs: keys in that step are ignored. */
+  private readonly opening: StepGate;
   /**
    * Game loop time (ms) until which keys and clicks are ignored (`lockFor`). Not the scene's
    * clock: in a panel scene started again that clock still holds the time it stopped at until
@@ -80,6 +81,7 @@ export class ChoiceList extends Phaser.GameObjects.Container {
     options: ChoiceListOptions = {},
   ) {
     super(scene, Math.round(x), Math.round(y));
+    this.opening = new StepGate(scene.game);
     this.cancelable = options.cancelable ?? false;
     this.fixedWidth = options.width;
     this.band = scene.add.graphics();
@@ -138,7 +140,7 @@ export class ChoiceList extends Phaser.GameObjects.Container {
       return { text, zone, disabled: disabled[index] === true };
     });
     this.setSize(width, Math.max(0, y - theme.rowGap));
-    this.openedFrame = this.scene.game.loop.frame;
+    this.opening.close();
     if (this.rows.length > 0) {
       this.highlight(Phaser.Math.Clamp(selected, 0, this.rows.length - 1));
     }
@@ -216,7 +218,7 @@ export class ChoiceList extends Phaser.GameObjects.Container {
 
   private readKeys(): void {
     if (!this.active || !this.visible || this.rows.length === 0) return;
-    if (this.scene.game.loop.frame === this.openedFrame || this.locked) return;
+    if (this.opening.isClosed || this.locked) return;
     const controls = this.controls;
     if (controls.justPressed('moveUp')) {
       this.step(-1);

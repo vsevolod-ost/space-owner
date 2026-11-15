@@ -2,7 +2,7 @@ import type { Binding, LocationDef, PropLayer, PropSpec } from '@/content/locati
 import type { CargoId } from '@/content/voyage/cargo';
 import { defineDialogue } from '@/core/dialogue/types';
 import type { Dialogue } from '@/core/dialogue/types';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import type { GameState } from '@/core/state/GameState';
 import { formatText } from '@/core/text/format';
 import { tonnesText } from '@/core/text/units';
@@ -16,14 +16,17 @@ const STAND_DIALOGUE_ID = 'cargo-stand';
 const HATCH_DIALOGUE_ID = 'hatch';
 
 /** Choices of a cargo stand (plan D21). OWNER: script */
-const TAKE: LocalText = { en: 'Take it', uk: TODO };
-const PUT_BACK: LocalText = { en: 'Put it back', uk: TODO };
-const LEAVE: LocalText = { en: 'Leave it', uk: TODO };
+const TAKE: LocalText = { en: 'Take it', uk: 'Взяти' };
+const PUT_BACK: LocalText = { en: 'Put it back', uk: 'Покласти назад' };
+const LEAVE: LocalText = { en: 'Leave it', uk: 'Залишити' };
 /**
  * The stand's line instead of "Take it" when the hold is full (GDD `act1-loadout-undo`).
  * OWNER: script
  */
-const NO_SPACE: LocalText = { en: 'No cargo space. Put something back first.', uk: TODO };
+const NO_SPACE: LocalText = {
+  en: 'No cargo space. Put something back first.',
+  uk: 'Немає місця для вантажу. Спершу покладіть щось назад.',
+};
 
 /** Bays of the hold in use by the flags now (every copy aboard takes its item's `bays`). */
 function baysUsed(voyage: VoyageService, s: GameState): number {
@@ -40,11 +43,14 @@ function baysFree(voyage: VoyageService, s: GameState): number {
  * of the flags now (plan variable-mass D7), `Cargo 3/7 · 134.5 t`. OWNER: script
  */
 function cargoToast(voyage: VoyageService, s: GameState): string {
-  return formatText(tr({ en: 'Cargo {used}/{bays} · {mass} t', uk: TODO }), {
-    used: baysUsed(voyage, s),
-    bays: voyage.cargo.bays,
-    mass: tonnesText(voyage.startMassKg(s.flags)),
-  });
+  return formatText(
+    tr({ en: 'Cargo {used}/{bays} · {mass} t', uk: 'Вантаж {used}/{bays} · {mass} т' }),
+    {
+      used: baysUsed(voyage, s),
+      bays: voyage.cargo.bays,
+      mass: tonnesText(voyage.startMassKg(s.flags)),
+    },
+  );
 }
 
 /**
@@ -75,30 +81,43 @@ export function cargoStand(
   };
   const text = (s: GameState): string => {
     const lines = [
-      formatText(tr({ en: '{label}. {line}', uk: TODO }), {
+      formatText(tr({ en: '{label}. {line}', uk: '{label}. {line}' }), {
         label: tr(def.label),
         line: tr(def.line),
       }),
     ];
     // The crate's mass with its start contents (plan variable-mass D7). OWNER: script
     lines.push(
-      formatText(tr({ en: 'Mass {mass} t.', uk: TODO }), {
+      formatText(tr({ en: 'Mass {mass} t.', uk: 'Маса {mass} т.' }), {
         mass: tonnesText(voyage.itemMassKg(itemId)),
       }),
     );
     if (def.maxCopies > 1) {
       lines.push(
-        formatText(tr({ en: 'Aboard: {n} of {max}.', uk: TODO }), {
+        formatText(tr({ en: 'Aboard: {n} of {max}.', uk: 'На борту: {n} з {max}.' }), {
           n: count(s),
           max: def.maxCopies,
         }),
       );
     }
     if (isLast(s))
-      lines.push(tr({ en: 'Its crate is in the hold; the place is empty.', uk: TODO }));
+      lines.push(
+        tr({
+          en: 'Its crate is in the hold; the place is empty.',
+          uk: 'Його контейнер у відсіку; місце порожнє.',
+        }),
+      );
     else if (taken(s))
-      lines.push(tr({ en: 'Empty; put back the last crate taken first.', uk: TODO }));
-    else if (!isNext(s)) lines.push(tr({ en: 'The crates are taken front first.', uk: TODO }));
+      lines.push(
+        tr({
+          en: 'Empty; put back the last crate taken first.',
+          uk: 'Порожньо; спершу поверніть останній узятий контейнер.',
+        }),
+      );
+    else if (!isNext(s))
+      lines.push(
+        tr({ en: 'The crates are taken front first.', uk: 'Контейнери беруться сперед.' }),
+      );
     else if (baysFree(voyage, s) < def.bays) lines.push(tr(NO_SPACE));
     return lines.join('\n');
   };
@@ -170,15 +189,21 @@ function crates(voyage: VoyageService): Record<string, Binding> {
  * a gap.
  */
 const GAPS: readonly { ids: readonly CargoId[]; name: LocalText }[] = [
-  { ids: ['fuel'], name: { en: 'spare fuel', uk: TODO } },
-  { ids: ['oxygen', 'greenhouse'], name: { en: 'extra air', uk: TODO } },
-  { ids: ['supplies', 'greenhouse'], name: { en: 'extra food and water', uk: TODO } },
-  { ids: ['battery', 'solar', 'reactor'], name: { en: 'a power source', uk: TODO } },
-  { ids: ['regolith-kit', 'ice-kit', 'thermal-kit'], name: { en: 'a colony kit', uk: TODO } },
+  { ids: ['fuel'], name: { en: 'spare fuel', uk: 'запасне паливо' } },
+  { ids: ['oxygen', 'greenhouse'], name: { en: 'extra air', uk: 'додаткове повітря' } },
+  {
+    ids: ['supplies', 'greenhouse'],
+    name: { en: 'extra food and water', uk: 'додаткова їжа та вода' },
+  },
+  { ids: ['battery', 'solar', 'reactor'], name: { en: 'a power source', uk: 'джерело живлення' } },
+  {
+    ids: ['regolith-kit', 'ice-kit', 'thermal-kit'],
+    name: { en: 'a colony kit', uk: 'набір для колонії' },
+  },
 ];
 
 /** Between the gap names in the hatch line. OWNER: script */
-const GAP_SEPARATOR: LocalText = { en: ', ', uk: TODO };
+const GAP_SEPARATOR: LocalText = { en: ', ', uk: ', ' };
 
 /** The open gaps of the hold by the flags now, in `GAPS` order, in the current language. */
 function gapsOf(voyage: VoyageService, s: GameState): string[] {
@@ -207,7 +232,7 @@ export function hatchCheck(voyage: VoyageService, onBoard: () => void): Dialogue
             ? formatText(
                 tr({
                   en: "Hold on, pilot. Before boarding, not aboard: {gaps}. Free bays: {free}. Don't launch half-equipped.",
-                  uk: TODO,
+                  uk: 'Зачекай, пілоте. Перед посадкою на борт не завантажено: {gaps}. Вільних відсіків: {free}. Не стартуй наполовину укомплектованим.',
                 }),
                 {
                   gaps: gaps.join(tr(GAP_SEPARATOR)),
@@ -217,7 +242,7 @@ export function hatchCheck(voyage: VoyageService, onBoard: () => void): Dialogue
             : formatText(
                 tr({
                   en: "Before boarding. Nothing missing. Free bays: {free}. You're either ready or stubborn.",
-                  uk: TODO,
+                  uk: 'Перед посадкою. Нічого не бракує. Вільних відсіків: {free}. Ти або готовий, або впираєшся.',
                 }),
                 {
                   free,
@@ -225,8 +250,8 @@ export function hatchCheck(voyage: VoyageService, onBoard: () => void): Dialogue
               );
         },
         choices: [
-          { text: { en: 'Wait', uk: TODO } },
-          { text: { en: 'Board', uk: TODO }, effect: () => onBoard() },
+          { text: { en: 'Wait', uk: 'Зачекати' } },
+          { text: { en: 'Board', uk: 'Посадка' }, effect: () => onBoard() },
         ],
       },
     },
@@ -254,7 +279,7 @@ async function hatch(ctx: WorldContext): Promise<void> {
  * the top shows what is aboard.
  */
 export const warehouse: LocationDef = {
-  title: { en: 'Warehouse', uk: TODO }, // OWNER: script
+  title: { en: 'Warehouse', uk: 'Склад' }, // OWNER: script
   background: 'location-warehouse',
   map: 'warehouse',
   music: 'music-act1', // OWNER: art

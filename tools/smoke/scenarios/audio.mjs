@@ -1,7 +1,7 @@
 /**
  * Smoke scenario: audio and settings. The menu's Settings button opens the settings panel;
  * "+" on Music (mouse) and Right on SFX (keyboard) change and store the volumes. At home
- * exactly one track (`music-demo`) plays after a click (the smoke browser starts unlocked, so the
+ * exactly one track (`music-prologue`) plays after a click (the smoke browser starts unlocked, so the
  * queued-until-unlock path is not exercised here); walking through the door (act 1's title
  * card) into the warehouse crossfades to act 1's theme (`music-act1`), and asking for the track
  * that already plays keeps the same sound instance (not restarted). Pause ->
@@ -90,8 +90,8 @@ export default async function audio(page, h) {
   await page.waitForTimeout(500);
   const home = await h.eval(playing);
   h.log(`home (sound locked before click: ${lockedBefore}): playing ${JSON.stringify(home)}`);
-  if (home.length !== 1 || home[0].key !== 'music-demo') {
-    throw new Error(`expected exactly music-demo playing, got ${JSON.stringify(home)}`);
+  if (home.length !== 1 || home[0].key !== 'music-prologue') {
+    throw new Error(`expected exactly music-prologue playing, got ${JSON.stringify(home)}`);
   }
   // Keep the instance to compare after the door.
   await h.eval(() => {
@@ -174,18 +174,18 @@ export default async function audio(page, h) {
   const resumed = await h.eval(async () => {
     const { audio } = window.nasa.services;
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    audio.playMusic('music-demo', { fadeMs: 0 });
+    audio.playMusic('music-prologue', { fadeMs: 0 });
     await wait(1500);
     audio.playMusic('music-alarm', { fadeMs: 0 });
     const left = audio.debugInfo().tracks.length;
-    audio.playMusic('music-demo', { fadeMs: 0, resume: true });
-    const back = audio.debugInfo().tracks.find((track) => track.key === 'music-demo');
+    audio.playMusic('music-prologue', { fadeMs: 0, resume: true });
+    const back = audio.debugInfo().tracks.find((track) => track.key === 'music-prologue');
     return { left, seek: back?.seek ?? -1 };
   });
   h.log(`resume: ${JSON.stringify(resumed)}`);
-  // The demo loop is 4 s; it was stopped about 1.5 s in.
+  // It was stopped about 1.5 s in.
   if (resumed.left !== 1 || !(resumed.seek > 1)) {
-    throw new Error(`music-demo did not resume where it stopped: ${JSON.stringify(resumed)}`);
+    throw new Error(`music-prologue did not resume where it stopped: ${JSON.stringify(resumed)}`);
   }
 
   // --- Layers: none on a plain track; one asked for later joins the playing track in time --
@@ -195,7 +195,8 @@ export default async function audio(page, h) {
     const plain = audio.setLayer(true, 0);
     audio.playMusic('music-flight', { fadeMs: 0 });
     await wait(700);
-    audio.playMusic('music-flight', { layer: 'music-flight-drums' });
+    // Any two tracks of one length do: no music has a real layer yet.
+    audio.playMusic('music-flight', { layer: 'music-act3' });
     const raised = audio.setLayer(true, 0);
     const track = audio.debugInfo().tracks[0];
     return { plain, raised, track };

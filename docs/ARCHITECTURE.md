@@ -139,19 +139,19 @@ the panel closes; panels stack. See [HOWTO-ui.md](HOWTO-ui.md).
 Created once in `src/core/services.ts` before Phaser starts; every scene imports the `services`
 object. No DI container, no Phaser registry.
 
-| `services.`    | Class                                   | One line                                                                                             |
-| -------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `events`       | `EventBus<GameEvents>` (`core/events`)  | Typed event bus; all events and payloads are listed in `core/events/events.ts`.                      |
-| `state`        | `GameState` (`core/state`)              | Story flags (`state.flags`), the current act/location/spawn (`state.current`), the save.             |
-| `flow`         | `FlowService` (`core/flow`)             | New game, continue, acts, `goTo`, checkpoints, the death loop, endings, main menu.                   |
-| `cutscenes`    | `CutsceneService` (`core/cutscene`)     | Plays cutscene scripts one at a time (`play(id)`, queued), cancels them on leaving.                  |
+| `services.`    | Class                                   | One line                                                                                               |
+| -------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `events`       | `EventBus<GameEvents>` (`core/events`)  | Typed event bus; all events and payloads are listed in `core/events/events.ts`.                        |
+| `state`        | `GameState` (`core/state`)              | Story flags (`state.flags`), the current act/location/spawn (`state.current`), the save.               |
+| `flow`         | `FlowService` (`core/flow`)             | New game, continue, acts, `goTo`, checkpoints, the death loop, endings, main menu.                     |
+| `cutscenes`    | `CutsceneService` (`core/cutscene`)     | Plays cutscene scripts one at a time (`play(id)`, queued), cancels them on leaving.                    |
 | `save`         | `SaveService` (`core/state`)            | The single save slot in `localStorage` (`space-owner.save`).                                           |
 | `settings`     | `SettingsService` (`core/settings`)     | Music and SFX volume and the language in `localStorage` (`space-owner.settings`), apart from the save. |
-| `locale`       | `LocaleService` (`core/locale`)         | The language `tr` shows; `setLanguage` stores it and emits `languageChanged`.                        |
-| `audio`        | `AudioService` (`core/audio`)           | Music with crossfade, sound effects, volumes; over Phaser's sound manager.                           |
-| `simulation`   | `SimulationService` (`core/simulation`) | Runs the act 2 ship simulation: start, hold/release, stop, tick, snapshot, clone.                    |
-| `voyage`       | `VoyageService` (`core/voyage`)         | Cargo, event and colony registries; what `cargo.<id>` puts aboard; colony tiers.                     |
-| `stationAlarm` | `StationAlarmService` (`core/alarm`)    | Act 2's alarm: the open event's deck station and real-time countdown; the timeout.                   |
+| `locale`       | `LocaleService` (`core/locale`)         | The language `tr` shows; `setLanguage` stores it and emits `languageChanged`.                          |
+| `audio`        | `AudioService` (`core/audio`)           | Music with crossfade, sound effects, volumes; over Phaser's sound manager.                             |
+| `simulation`   | `SimulationService` (`core/simulation`) | Runs the act 2 ship simulation: start, hold/release, stop, tick, snapshot, clone.                      |
+| `voyage`       | `VoyageService` (`core/voyage`)         | Cargo, event and colony registries; what `cargo.<id>` puts aboard; colony tiers.                       |
+| `stationAlarm` | `StationAlarmService` (`core/alarm`)    | Act 2's alarm: the open event's deck station and real-time countdown; the timeout.                     |
 
 Not a service but core too: `DialogueRunner` (`core/dialogue`, one per open dialogue, created by
 `UiScene.openDialogue`) and the `Controls` interface (`core/input/controls.ts`: actions
@@ -200,14 +200,14 @@ the background images. See [HOWTO-location.md](HOWTO-location.md).
 
 ## Where state lives
 
-| What                 | Where                                                       | Persists                         |
-| -------------------- | ----------------------------------------------------------- | -------------------------------- |
-| Story flags          | `services.state.flags` (`Flags`), keys like `engineer.met`  | in the save, at checkpoints      |
-| Act, location, spawn | `services.state.current` (set by `FlowService`)             | in the save, at checkpoints      |
-| Voyage (act 2)       | `SimulationService` (a `Voyage` and its `Simulation`)       | no: `voyage: true` + `run.seed`  |
-| The save             | `localStorage` `space-owner.save` (`SaveService`, version 2)  | until New Game                   |
-| Volumes              | `localStorage` `space-owner.settings` (`SettingsService`)     | always; New Game keeps them      |
-| Scene-local state    | the scene instance (hero position, open dialogue, controls) | no; lost when the scene restarts |
+| What                 | Where                                                        | Persists                         |
+| -------------------- | ------------------------------------------------------------ | -------------------------------- |
+| Story flags          | `services.state.flags` (`Flags`), keys like `engineer.met`   | in the save, at checkpoints      |
+| Act, location, spawn | `services.state.current` (set by `FlowService`)              | in the save, at checkpoints      |
+| Voyage (act 2)       | `SimulationService` (a `Voyage` and its `Simulation`)        | no: `voyage: true` + `run.seed`  |
+| The save             | `localStorage` `space-owner.save` (`SaveService`, version 2) | until New Game                   |
+| Volumes              | `localStorage` `space-owner.settings` (`SettingsService`)    | always; New Game keeps them      |
+| Scene-local state    | the scene instance (hero position, open dialogue, controls)  | no; lost when the scene restarts |
 
 Only `flow.checkpoint()` writes the save. Continue loads the last checkpoint (flags as they were
 then; a voyage under way starts again from its start with the same seed) and `goTo`s its spawn.
@@ -325,7 +325,7 @@ of behaviour (a new binding kind, a new cutscene API call, a new panel) are engi
 
 - Classes and the files that hold one class: PascalCase (`FlowService.ts`, `WorldScene.ts`).
 - Modules of functions or constants: camelCase (`controls.ts`, `startParams.ts`, `keys.ts`).
-- Content and asset files: kebab-case (`ship-deck.ts`, `engineer-advice.ts`, `music-demo.wav`).
+- Content and asset files: kebab-case (`ship-deck.ts`, `engineer-advice.ts`, `music-act1.mp3`).
 - Content ids are the object keys of their registries (`locations`, `dialogues`, `cutscenes`,
   `acts`, `endings`, `images`, `audio`, ...); types derive from them (`LocationId = keyof typeof
 locations`). No `id` or `key` fields: a typo in an id is a compile error.

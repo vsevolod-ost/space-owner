@@ -1,11 +1,10 @@
-import { TODO } from '@/core/locale/text';
 import type { CargoDef } from '@/core/voyage/types';
 
 /** A battery pack: stored power, no production. */
 export const battery: CargoDef = {
   // OWNER: script
-  label: { en: 'Battery', uk: TODO, max: 14 },
-  line: { en: 'Stored power for the long dark.', uk: TODO, max: 60 },
+  label: { en: 'Battery', uk: 'Батарея', max: 14 },
+  line: { en: 'Stored power for the long dark.', uk: 'Запас енергії для довгої темряви.', max: 60 },
   // OWNER: physics - a large battery bank with its frame: heavy for the energy it holds.
   dryMassKg: 4_000,
   // OWNER: design - bays taken and copies allowed

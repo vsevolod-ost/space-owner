@@ -148,7 +148,8 @@ export class PhaserSceneDriver implements SceneDriver {
     // The script must not go on behind the fade (its own fades would fight this one).
     if (options.endGame) {
       services.cutscenes.cancel();
-      // The menu and the end screen have no music (yet): the track fades out with the screen.
+      // The menu has no music (yet) and the end screen starts its own: the track fades out
+      // with the screen.
       services.audio.stopMusic(FADE_MS);
     }
     const manager = this.game.scene;

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH } from '@/config';
 import { stationName } from '@/content/locations/ship-deck';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import { formatText } from '@/core/text/format';
 import type { StationAlarm } from '@/core/alarm/StationAlarmService';
@@ -37,7 +37,7 @@ const BAR_HEIGHT = 4;
 const ALARM_SHARE = 1 / 3;
 /** The seconds left: `{seconds}` a whole number. OWNER: script */
 // budget: 4 chars ("30s"); the box widens to fit, from MIN_WIDTH
-const SECONDS: LocalText = { en: '{seconds}s', uk: TODO };
+const SECONDS: LocalText = { en: '{seconds}s', uk: '{seconds}с' };
 
 /** What `AlarmBarScene.debugInfo()` returns. */
 export interface AlarmBarInfo {

@@ -1,5 +1,5 @@
 import type { ImageKey, SpritesheetKey } from '@/assets';
-import { TODO, type LocalText } from '@/core/locale/text';
+import type { LocalText } from '@/core/locale/text';
 
 /** Facing direction of a character; also the name of a row in its sprite sheet. */
 export type Direction = 'down' | 'left' | 'right' | 'up';
@@ -73,21 +73,21 @@ const STANDING_SHEET = {
  */
 export const characters = {
   hero: {
-    name: { en: 'Hero', uk: TODO },
+    name: { en: 'Hero', uk: 'Герой' },
     portrait: 'portrait-hero',
     spritesheet: 'hero',
     ...STANDARD_SHEET,
     speed: DEFAULT_SPEED,
   },
   engineer: {
-    name: { en: 'Engineer', uk: TODO },
+    name: { en: 'Engineer', uk: 'Інженер' },
     portrait: 'portrait-engineer',
     spritesheet: 'npc-engineer',
     ...STANDING_SHEET,
     speed: DEFAULT_SPEED,
   },
   astronomer: {
-    name: { en: 'Astronomer', uk: TODO },
+    name: { en: 'Astronomer', uk: 'Астроном' },
     portrait: 'portrait-astronomer',
     spritesheet: 'npc-astronomer',
     ...STANDING_SHEET,
@@ -95,7 +95,7 @@ export const characters = {
   },
   /** The ship's computer: speaks on the deck and the panel, has no body. */
   computer: {
-    name: { en: 'Computer', uk: TODO },
+    name: { en: 'Computer', uk: 'Комп’ютер' },
     portrait: 'portrait-computer',
   },
 } as const satisfies Record<string, CharacterDef>;

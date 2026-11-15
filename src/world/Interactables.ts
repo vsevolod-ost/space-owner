@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { services } from '@/core/services';
 import { characters } from '@/content/characters';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { formatText } from '@/core/text/format';
 import type { DialogueId } from '@/content/dialogues';
 import type { LocationId } from '@/content/locations';
@@ -20,7 +20,10 @@ import { isPresent } from '@/world/presence';
 import type { WorldContext } from '@/world/WorldContext';
 
 /** The toast at an NPC without a dialogue: `{name}` the character's name. OWNER: script */
-const NOTHING_TO_SAY: LocalText = { en: '{name} has nothing to say yet.', uk: TODO };
+const NOTHING_TO_SAY: LocalText = {
+  en: '{name} has nothing to say yet.',
+  uk: '{name} поки що нічого не каже.',
+};
 /**
  * How close the hero's feet must be to an interactable or an NPC to focus it, px: measured to
  * the nearest point of the object's rectangle (a point object: to the point; an NPC: to its

@@ -435,11 +435,11 @@ export default async function ship(_page, h) {
       off();
     });
   });
-  // The deck's own calm track plays with its drum layer silent (idea act2-music-layers).
+  // The deck's own calm track plays, without a layer: an alarm will switch the track.
   await h.waitFor(() => window.nasa.services.audio.currentMusic === 'music-flight', 2000);
   const calm = await h.eval(() => window.nasa.services.audio.debugInfo());
-  if (calm.layerOn || calm.tracks[0]?.layer?.key !== 'music-flight-drums') {
-    throw new Error(`no silent drum layer on the deck: ${JSON.stringify(calm)}`);
+  if (calm.layerOn || calm.tracks[0]?.layer) {
+    throw new Error(`the deck's music has a layer: ${JSON.stringify(calm)}`);
   }
   await h.mark();
   await h.eval(() => window.nasa.services.simulation.release('pause'));
@@ -557,25 +557,13 @@ export default async function ship(_page, h) {
     throw new Error('the radio opened the hull breach card');
   }
   await expectBar('on the deck');
-  // The alarm raises the drum layer over the same flight track; the two loops stay in time.
+  // The alarm switches to its own track; the flight track fades out and stops.
   await h.waitFor(() => {
     const info = window.nasa.services.audio.debugInfo();
-    return info.layerOn && info.tracks[0]?.layer?.gain === 1;
+    return info.music === 'music-alarm' && info.tracks.length === 1;
   }, 2000);
   const alarmMusic = await h.eval(() => window.nasa.services.audio.debugInfo());
   h.log(`alarm music: ${JSON.stringify(alarmMusic)}`);
-  const alarmTrack = alarmMusic.tracks[0];
-  if (alarmMusic.music !== 'music-flight' || alarmMusic.tracks.length !== 1) {
-    throw new Error(`the alarm switched the track: ${JSON.stringify(alarmMusic)}`);
-  }
-  // Positions within the loop; a seam between the two reads would wrap one of them.
-  if (alarmTrack.duration !== alarmTrack.layer.duration) {
-    throw new Error(`melody and drums differ in length: ${JSON.stringify(alarmTrack)}`);
-  }
-  const drift = Math.abs(alarmTrack.seek - alarmTrack.layer.seek);
-  if (Math.min(drift, alarmTrack.duration - drift) > 0.05) {
-    throw new Error(`the drums drifted from the melody by ${drift} s`);
-  }
   // The blinking pointer over the airlock (S5).
   const marker = (await h.eval(() => window.nasa.game.scene.getScene('World').debugInfo())).marker;
   h.log(`station marker: ${JSON.stringify(marker)}`);
@@ -634,10 +622,10 @@ export default async function ship(_page, h) {
   await h.press('Enter');
   await h.waitFor(() => window.nasa.services.simulation.voyage?.phase === 'flying', 2000);
   await h.waitFor(() => !window.nasa.game.scene.isActive('EventStation'), 2000);
-  // The alarm is off: the drums fade out, the melody plays on (the same instance, never stopped).
+  // The alarm is off: the flight track comes back where it stopped, not from its start.
   await h.waitFor(() => {
     const info = window.nasa.services.audio.debugInfo();
-    return !info.layerOn && info.tracks.length === 1 && info.tracks[0].layer?.gain === 0;
+    return info.music === 'music-flight' && info.tracks.length === 1 && info.tracks[0].seek > 0.5;
   }, 3000);
   h.log(
     `music after the alarm: ${JSON.stringify(await h.eval(() => window.nasa.services.audio.debugInfo()))}`,

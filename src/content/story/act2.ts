@@ -1,5 +1,4 @@
 import type { Act } from '@/content/story/types';
-import { TODO } from '@/core/locale/text';
 
 /**
  * Act 2: on board the ship. Reached through the `hatch` of the warehouse. The ship deck
@@ -7,7 +6,7 @@ import { TODO } from '@/core/locale/text';
  * voyage (the ship simulation, gates, events) runs for the whole act (docs/HOWTO-simulation.md).
  */
 export const act2: Act = {
-  title: { en: 'Act 2', uk: TODO }, // OWNER: script
+  title: { en: 'Act 2', uk: 'Акт 2' }, // OWNER: script
   async start(flow) {
     await flow.goTo('ship-deck', 'spawn-default');
     flow.startVoyage();

@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import type { Controls } from '@/core/input/controls';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { formatText } from '@/core/text/format';
 import type { LegForecast } from '@/core/voyage/forecast';
 import type { ColonyTier } from '@/core/voyage/colony';
@@ -53,15 +53,21 @@ const CHOICES_Y = 208;
  */
 const TEXTS = {
   // budget: 10 chars, top right beside the gate's name in title glyphs ("Gate 3/6")
-  gate: { en: 'Gate {gate}/{total}', uk: TODO },
+  gate: { en: 'Gate {gate}/{total}', uk: 'Ворота {gate}/{total}' },
   // budget: 37 chars, the card's width ("Day 42. Next leg: GANYMEDE"), and for lastGate
-  subtitle: { en: 'Day {day}. Next leg: {next}', uk: TODO },
-  lastGate: { en: 'Day {day}. The last gate.', uk: TODO },
-  hazard: { en: 'Events on the way are not in the forecast.', uk: TODO },
-  onlyStop: { en: 'Only Stop here: no gate lies beyond.', uk: TODO },
-  computing: { en: 'Computing the forecast...', uk: TODO, max: 37 },
+  subtitle: { en: 'Day {day}. Next leg: {next}', uk: 'День {day}. Далі: {next}' },
+  lastGate: { en: 'Day {day}. The last gate.', uk: 'День {day}. Останні ворота.' },
+  hazard: {
+    en: 'Events on the way are not in the forecast.',
+    uk: 'Події в дорозі не входять у прогноз.',
+  },
+  onlyStop: {
+    en: 'Only Stop here: no gate lies beyond.',
+    uk: 'Лише «Зупинитися тут»: далі воріт немає.',
+  },
+  computing: { en: 'Computing the forecast...', uk: 'Обчислення прогнозу...', max: 37 },
   // budget: 37 chars, a choice row ("Go on to GANYMEDE"); it would wrap
-  goOn: { en: 'Go on to {next}', uk: TODO },
+  goOn: { en: 'Go on to {next}', uk: 'Летіти до {next}' },
 } as const satisfies Record<string, LocalText>;
 
 /**
@@ -69,9 +75,9 @@ const TEXTS = {
  * OWNER: script
  */
 const STOP_TEXTS: Readonly<Record<ColonyTier, LocalText>> = {
-  outpost: { en: 'Stop here: build an outpost', uk: TODO },
-  settlement: { en: 'Stop here: build a settlement', uk: TODO },
-  colony: { en: 'Stop here: build a colony', uk: TODO },
+  outpost: { en: 'Stop here: build an outpost', uk: 'Зупинитися тут: форпост' },
+  settlement: { en: 'Stop here: build a settlement', uk: 'Зупинитися тут: поселення' },
+  colony: { en: 'Stop here: build a colony', uk: 'Зупинитися тут: колонія' },
 };
 
 /**

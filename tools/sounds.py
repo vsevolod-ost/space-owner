@@ -83,75 +83,11 @@ def sfx_alarm() -> np.ndarray:
     return np.concatenate(parts)
 
 
-def music_demo() -> np.ndarray:
-    """4 s quiet loop: a soft chord whose partials complete whole cycles, so it loops cleanly."""
-    duration = 4.0
-    t = seconds(duration)
-    # Frequencies are multiples of 1/duration, so the loop seam has no jump.
-    chord = [110.0, 165.0, 220.0, 277.5]
-    pad = sum(np.sin(2 * np.pi * f * t) for f in chord) / len(chord)
-    pulse = 0.6 + 0.4 * np.sin(2 * np.pi * t / duration * 4) ** 2
-    return pad * pulse * 0.12
-
-
-def music_alarm() -> np.ndarray:
-    """4 s tense loop for the station alarm: a minor second over a low drone, pulsing 2 times a second."""
-    duration = 4.0
-    t = seconds(duration)
-    # Frequencies are multiples of 1/duration, so the loop seam has no jump.
-    drone = np.sin(2 * np.pi * 98.0 * t) + 0.6 * np.sin(2 * np.pi * 103.0 * t)
-    high = np.sin(2 * np.pi * 440.0 * t) + np.sin(2 * np.pi * 466.0 * t)
-    pulse = 0.5 + 0.5 * np.sin(2 * np.pi * t / duration * 8) ** 2
-    return (drone * 0.5 + high * 0.25) / 1.6 * pulse * 0.16
-
-
-def music_flight() -> np.ndarray:
-    """4 s calm loop for act 2's flight on the deck: an open fifth with a slow shimmer on top."""
-    duration = 4.0
-    t = seconds(duration)
-    # Frequencies are multiples of 1/duration, so the loop seam has no jump.
-    pad = np.sin(2 * np.pi * 146.75 * t) + np.sin(2 * np.pi * 220.0 * t)
-    shimmer = np.sin(2 * np.pi * 587.0 * t) * (0.5 + 0.5 * np.sin(2 * np.pi * t / duration * 2))
-    return (pad * 0.5 + shimmer * 0.2) / 1.2 * 0.12
-
-
-def music_flight_drums() -> np.ndarray:
-    """Drum layer of music_flight: 4 s (2 bars at 120 BPM) of kick, snare and hats, the same
-    length as the melody so the two loops stay in time; silent until a station alarm."""
-    duration = 4.0
-    samples = int(RATE * duration)
-    out = np.zeros(samples)
-    noise = np.random.default_rng(7).uniform(-1, 1, RATE)  # fixed seed: the same file every run
-    sixteenth = duration / 32
-
-    def hit(at: int, sound: np.ndarray) -> None:
-        start = int(at * sixteenth * RATE)
-        end = min(samples, start + len(sound))
-        out[start:end] += sound[: end - start]
-
-    t = seconds(0.25)
-    kick = np.sin(2 * np.pi * (50 * t + 120 * 0.04 * (1 - np.exp(-t / 0.04)))) * np.exp(-t / 0.09)
-    snare = (noise[: len(t)] * 0.6 + np.sin(2 * np.pi * 190 * t) * 0.4) * np.exp(-t / 0.06)
-    hat = noise[: int(RATE * 0.03)] * np.exp(-seconds(0.03) / 0.008)
-    # A broken beat over two bars: kicks off the grid, snares on 2 and 4, hats on eighths.
-    for at in (0, 3, 8, 10, 16, 19, 22, 26):
-        hit(at, kick * 0.9)
-    for at in (4, 12, 20, 28, 30):
-        hit(at, snare * 0.5)
-    for at in range(0, 32, 2):
-        hit(at, hat * 0.18)
-    return out * 0.5
-
-
 def main() -> None:
     print(f'Writing placeholder sounds into {AUDIO}')
     write_wav('ui-click.wav', ui_click())
     write_wav('sfx-door.wav', sfx_door())
     write_wav('sfx-alarm.wav', sfx_alarm())
-    write_wav('music-demo.wav', music_demo())
-    write_wav('music-alarm.wav', music_alarm())
-    write_wav('music-flight.wav', music_flight())
-    write_wav('music-flight-drums.wav', music_flight_drums())
 
 
 if __name__ == '__main__':

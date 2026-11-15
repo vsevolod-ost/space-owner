@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { stationName } from '@/content/locations/ship-deck';
 import { bodyName } from '@/core/locale/names';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import { deltaVMS } from '@/core/simulation/rocket';
 import type { Telemetry } from '@/core/simulation/telemetry';
@@ -106,25 +106,25 @@ const MAP_SIZE = 288;
 const COLUMN_GAP = 12;
 const CLOSE_BUTTON = { width: 104, height: 24 };
 /** The key legend over the buttons; max 37: the column's width. OWNER: script */
-const LEGEND: LocalText = { en: 'E/Esc: close', uk: TODO, max: 37 };
+const LEGEND: LocalText = { en: 'E/Esc: close', uk: 'E/Esc: закрити', max: 37 };
 /** The legend's distance above the column's bottom, px. */
 const LEGEND_Y = 36;
 /** The Close button's label; max 11: the button's 104 px. OWNER: script */
-const CLOSE_LABEL: LocalText = { en: 'Close', uk: TODO, max: 11 };
+const CLOSE_LABEL: LocalText = { en: 'Close', uk: 'Закрити', max: 11 };
 /** The ribbon's first node when the system has no home planet. OWNER: script */
-const HOME_FALLBACK: LocalText = { en: 'Earth', uk: TODO };
+const HOME_FALLBACK: LocalText = { en: 'Earth', uk: 'Земля' };
 /**
  * The log's lines: `{body}` a body's name in capitals, `{cause}` a death cause (`causeText`);
  * each goes after "Day N: " (`LOG_ENTRY`). They wrap. OWNER: script
  */
 const LOG_LINES: Readonly<Record<'onCourse' | 'reached' | 'landed' | 'lost', LocalText>> = {
-  onCourse: { en: 'on course for {body}', uk: TODO },
-  reached: { en: 'reached {body}', uk: TODO },
-  landed: { en: 'landed on {body}', uk: TODO },
-  lost: { en: 'LOST: {cause}', uk: TODO },
+  onCourse: { en: 'on course for {body}', uk: 'курс на {body}' },
+  reached: { en: 'reached {body}', uk: 'досягнуто {body}' },
+  landed: { en: 'landed on {body}', uk: 'приземлення на {body}' },
+  lost: { en: 'LOST: {cause}', uk: 'ВТРАЧЕНО: {cause}' },
 };
 /** A log entry: `{day}` the shown day, `{text}` the line. OWNER: script */
-const LOG_ENTRY: LocalText = { en: 'Day {day}: {text}', uk: TODO };
+const LOG_ENTRY: LocalText = { en: 'Day {day}: {text}', uk: 'День {day}: {text}' };
 /**
  * The column's "next" line (body text, one line): `{gate}` the gate flown to in capitals,
  * `{body}` the landing body in capitals, `{cause}` a death cause, `{day}` a shown day, `{days}`
@@ -134,23 +134,26 @@ const LOG_ENTRY: LocalText = { en: 'Day {day}: {text}', uk: TODO };
 const NEXT_LINES: Readonly<
   Record<'offline' | 'next' | 'nextIn' | 'landed' | 'lost' | 'drifting' | 'atGate', LocalText>
 > = {
-  offline: { en: 'Simulation not running (act 2 only)', uk: TODO },
-  next: { en: 'Next: {gate}', uk: TODO },
-  nextIn: { en: 'Next: {gate} in {days} d', uk: TODO },
-  landed: { en: 'Landed on {body}', uk: TODO },
-  lost: { en: 'Lost: {cause}, day {day}', uk: TODO },
-  drifting: { en: 'Out of fuel before {gate}', uk: TODO },
-  atGate: { en: 'At {gate}', uk: TODO },
+  offline: { en: 'Simulation not running (act 2 only)', uk: 'Симуляція не працює (лише акт 2)' },
+  next: { en: 'Next: {gate}', uk: 'Далі: {gate}' },
+  nextIn: { en: 'Next: {gate} in {days} d', uk: 'Далі: {gate} через {days} д' },
+  landed: { en: 'Landed on {body}', uk: 'Приземлення на {body}' },
+  lost: { en: 'Lost: {cause}, day {day}', uk: 'Втрачено: {cause}, день {day}' },
+  drifting: { en: 'Out of fuel before {gate}', uk: 'Без палива перед {gate}' },
+  atGate: { en: 'At {gate}', uk: 'Біля {gate}' },
 };
 /** The day at the top right of the column: `{day}` the shown day. OWNER: script */
 // budget: 8 chars, beside the status word ("Day 123")
-const DAY_LABEL: LocalText = { en: 'Day {day}', uk: TODO };
+const DAY_LABEL: LocalText = { en: 'Day {day}', uk: 'День {day}' };
 /**
  * The detail line: `{leg}` of `{legs}`, `{engine}` what the engine does (`ENGINE_WORDS`).
  * OWNER: script
  */
 // budget: 37 chars, the column's width ("Leg 3/6 · docking")
-const DETAIL_LINE: LocalText = { en: 'Leg {leg}/{legs} · {engine}', uk: TODO };
+const DETAIL_LINE: LocalText = {
+  en: 'Leg {leg}/{legs} · {engine}',
+  uk: 'Етап {leg}/{legs} · {engine}',
+};
 /** Most trail points kept: older ones are thinned out (every other one dropped). */
 const TRAIL_MAX = 600;
 /** Log entries kept (the column shows those that fit). */
@@ -678,11 +681,11 @@ type EngineState = 'burn' | 'coast' | 'docking' | 'parked' | 'drift';
 
 /** What the engine does, for the detail line (`{engine}` of `DETAIL_LINE`). OWNER: script */
 const ENGINE_WORDS: Readonly<Record<EngineState, LocalText>> = {
-  burn: { en: 'burn', uk: TODO },
-  coast: { en: 'coast', uk: TODO },
-  docking: { en: 'docking', uk: TODO },
-  parked: { en: 'parked', uk: TODO },
-  drift: { en: 'drift', uk: TODO },
+  burn: { en: 'burn', uk: 'тяга' },
+  coast: { en: 'coast', uk: 'вибіг' },
+  docking: { en: 'docking', uk: 'стикування' },
+  parked: { en: 'parked', uk: 'на стоянці' },
+  drift: { en: 'drift', uk: 'дрейф' },
 };
 
 /** What the engine does now. */

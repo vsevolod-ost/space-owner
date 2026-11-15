@@ -1,5 +1,5 @@
 import { bodyName } from '@/core/locale/names';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { DAY_S } from '@/core/simulation/constants';
 import type { Telemetry } from '@/core/simulation/telemetry';
 import type { Resource, SimulationSnapshot } from '@/core/simulation/types';
@@ -40,12 +40,12 @@ export type RowId = (typeof ROW_IDS)[number];
  * less one for the gap before the bar or the amount. OWNER: script
  */
 export const ROW_LABELS: Readonly<Record<RowId, LocalText>> = {
-  oxygen: { en: 'OXYGEN', uk: TODO, max: 8 },
-  supplies: { en: 'SUPPLIES', uk: TODO, max: 8 },
-  power: { en: 'POWER', uk: TODO, max: 8 },
-  fuel: { en: 'FUEL', uk: TODO, max: 8 },
-  heat: { en: 'HEAT', uk: TODO, max: 8 },
-  comms: { en: 'COMMS', uk: TODO, max: 8 },
+  oxygen: { en: 'OXYGEN', uk: 'КИСЕНЬ', max: 8 },
+  supplies: { en: 'SUPPLIES', uk: 'ЗАПАСИ', max: 8 },
+  power: { en: 'POWER', uk: 'ЕНЕРГІЯ', max: 8 },
+  fuel: { en: 'FUEL', uk: 'ПАЛИВО', max: 8 },
+  heat: { en: 'HEAT', uk: 'ТЕПЛО', max: 8 },
+  comms: { en: 'COMMS', uk: 'ЗВ’ЯЗОК', max: 8 },
 };
 
 /** Frame of each row's icon in the `panel-icons` sheet (art-order row 27, same order). */
@@ -85,9 +85,9 @@ const ROW_CAUSES: Readonly<Record<RowId, readonly DeathCause[]>> = {
  * name, a space and the trend arrow. OWNER: script
  */
 const COMMS_NAMES: Readonly<Record<CommsLevel, LocalText>> = {
-  ok: { en: 'OK', uk: TODO, max: 10 },
-  weak: { en: 'Weak', uk: TODO, max: 10 },
-  lost: { en: 'Lost', uk: TODO, max: 10 },
+  ok: { en: 'OK', uk: 'OK', max: 10 },
+  weak: { en: 'Weak', uk: 'Слабкий', max: 10 },
+  lost: { en: 'Lost', uk: 'Втрачено', max: 10 },
 };
 const COMMS_RANK: Readonly<Record<CommsLevel, number>> = { ok: 2, weak: 1, lost: 0 };
 
@@ -181,12 +181,12 @@ export type Status = 'RUN' | 'HOLD' | 'DRIFTING' | 'LOST' | 'LANDED' | 'OFFLINE'
  * also holds the day at its right. OWNER: script
  */
 export const STATUS_LABELS: Readonly<Record<Status, LocalText>> = {
-  RUN: { en: 'RUN', uk: TODO, max: 12 },
-  HOLD: { en: 'HOLD', uk: TODO, max: 12 },
-  DRIFTING: { en: 'DRIFTING', uk: TODO, max: 12 },
-  LOST: { en: 'LOST', uk: TODO, max: 12 },
-  LANDED: { en: 'LANDED', uk: TODO, max: 12 },
-  OFFLINE: { en: 'OFFLINE', uk: TODO, max: 12 },
+  RUN: { en: 'RUN', uk: 'ХІД', max: 12 },
+  HOLD: { en: 'HOLD', uk: 'ПАУЗА', max: 12 },
+  DRIFTING: { en: 'DRIFTING', uk: 'ДРЕЙФ', max: 12 },
+  LOST: { en: 'LOST', uk: 'ВТРАЧЕНО', max: 12 },
+  LANDED: { en: 'LANDED', uk: 'ПРИЗЕМЛЕНО', max: 12 },
+  OFFLINE: { en: 'OFFLINE', uk: 'ОФЛАЙН', max: 12 },
 };
 
 /**
@@ -243,7 +243,7 @@ export function dayOfTime(timeS: number): number {
  * amount (`AMOUNT_CHARS`, 6). OWNER: script
  */
 // budget: 6 chars with the number ("123 d")
-const DAYS: LocalText = { en: '{days} d', uk: TODO };
+const DAYS: LocalText = { en: '{days} d', uk: '{days} д' };
 
 /** Days of stock, rounded down (GDD `ux-panel-layout`: stock down, ETA up). */
 export function daysText(days: number): string {
@@ -252,7 +252,7 @@ export function daysText(days: number): string {
 
 /** A state row's value: `{state}` the state's name, `{arrow}` its trend. OWNER: script */
 // budget: 12 chars, the row's value ("Freezing ↓")
-const STATE_VALUE: LocalText = { en: '{state} {arrow}', uk: TODO };
+const STATE_VALUE: LocalText = { en: '{state} {arrow}', uk: '{state} {arrow}' };
 
 /**
  * The telemetry lines (`telemetryLines`): `{mass}` tonnes, `{arrow}` the trend of `{rate}`
@@ -262,8 +262,14 @@ const STATE_VALUE: LocalText = { en: '{state} {arrow}', uk: TODO };
 // budget: 37 chars each, the column's width ("Mass 160.6t ↓0.07kg/s · a 0.012m/s²"); no room to
 // grow: keep units as short as in English (pseudo, which doubles their letters, runs over here)
 const TELEMETRY: Readonly<Record<'mass' | 'gravity', LocalText>> = {
-  mass: { en: 'Mass {mass}t {arrow}{rate}kg/s · a {accel}m/s²', uk: TODO },
-  gravity: { en: 'g {g}m/s² · v_esc {body} {escape}km/s', uk: TODO },
+  mass: {
+    en: 'Mass {mass}t {arrow}{rate}kg/s · a {accel}m/s²',
+    uk: 'Маса {mass}т {arrow}{rate}кг/с · a {accel}м/с²',
+  },
+  gravity: {
+    en: 'g {g}m/s² · v_esc {body} {escape}km/s',
+    uk: 'g {g}м/с² · v_esc {body} {escape}км/с',
+  },
 };
 
 /**
@@ -295,7 +301,7 @@ export function telemetryLines(t: Telemetry): [string, string] {
 
 /** The FUEL row's value: `{tonnes}` of fuel, `{dv}` km/s they give. OWNER: script */
 // budget: 12 chars, the row's room (plan variable-mass K14): "31.9t Δv8.6"
-const FUEL_VALUE: LocalText = { en: '{tonnes}t Δv{dv}', uk: TODO };
+const FUEL_VALUE: LocalText = { en: '{tonnes}t Δv{dv}', uk: '{tonnes}т Δv{dv}' };
 
 /**
  * The FUEL row's value (plan variable-mass D6): tonnes of fuel and the delta-v they give at
@@ -314,9 +320,9 @@ export type HeatState = 'normal' | 'cold' | 'freezing';
  * 3 + 8 + 1 + `VERDICT_WORD` 8). OWNER: script
  */
 const HEAT_NAMES: Readonly<Record<HeatState, LocalText>> = {
-  normal: { en: 'Normal', uk: TODO, max: 8 },
-  cold: { en: 'Cold', uk: TODO, max: 8 },
-  freezing: { en: 'Freezing', uk: TODO, max: 8 },
+  normal: { en: 'Normal', uk: 'Норма', max: 8 },
+  cold: { en: 'Cold', uk: 'Холодно', max: 8 },
+  freezing: { en: 'Freezing', uk: 'Мороз', max: 8 },
 };
 
 /** Cabin warmth as a state: full normal, at least half cold, under half freezing. */
@@ -343,11 +349,11 @@ export interface ForecastLine {
 
 /** Names of the forecast's stocks in warnings (`{stock}`, nominative). OWNER: script */
 const STOCK_NAMES: Readonly<Record<FlowId, LocalText>> = {
-  oxygen: { en: 'Oxygen', uk: TODO },
-  water: { en: 'Water', uk: TODO },
-  food: { en: 'Food', uk: TODO },
-  power: { en: 'Power', uk: TODO },
-  heat: { en: 'Cabin warmth', uk: TODO },
+  oxygen: { en: 'Oxygen', uk: 'Кисень' },
+  water: { en: 'Water', uk: 'Вода' },
+  food: { en: 'Food', uk: 'Їжа' },
+  power: { en: 'Power', uk: 'Енергія' },
+  heat: { en: 'Cabin warmth', uk: 'Тепло кабіни' },
 };
 
 /**
@@ -356,8 +362,8 @@ const STOCK_NAMES: Readonly<Record<FlowId, LocalText>> = {
  */
 const VERDICT_WORD: Readonly<Record<ForecastVerdict, LocalText | null>> = {
   ok: null,
-  tight: { en: 'TIGHT', uk: TODO, max: 8 },
-  short: { en: 'SHORT', uk: TODO, max: 8 },
+  tight: { en: 'TIGHT', uk: 'МАЛО', max: 8 },
+  short: { en: 'SHORT', uk: 'БРАК', max: 8 },
 };
 
 const VERDICT_LEVEL: Readonly<Record<ForecastVerdict, Level>> = {
@@ -372,13 +378,13 @@ const AMOUNT_CHARS = 6;
 
 /** The forecast block's column names, each over an amount (`AMOUNT_CHARS`). OWNER: script */
 const FORECAST_COLUMNS: Readonly<Record<'now' | 'arrive', LocalText>> = {
-  now: { en: 'NOW', uk: TODO, max: AMOUNT_CHARS },
-  arrive: { en: 'ARRIVE', uk: TODO, max: AMOUNT_CHARS },
+  now: { en: 'NOW', uk: 'ЗАРАЗ', max: AMOUNT_CHARS },
+  arrive: { en: 'ARRIVE', uk: 'ПРИЛІТ', max: AMOUNT_CHARS },
 };
 
 /** The fuel row's name in the forecast (the others are `ROW_LABELS`). OWNER: script */
 // max 8: the name column less the gap before the amount, as `ROW_LABELS`
-const FORECAST_FUEL: LocalText = { en: 'FUEL t', uk: TODO, max: 8 };
+const FORECAST_FUEL: LocalText = { en: 'FUEL t', uk: 'ПАЛИВО т', max: 8 };
 
 /** The forecast block's heading: column names over `forecastRows`. */
 export function forecastHeading(): string {
@@ -438,7 +444,10 @@ export function dvLine(f: LegForecast): ForecastLine {
 
 /** The delta-v line: `{need}` km/s ("6.5" or ">5.7"), `{have}` km/s. OWNER: script */
 // budget: 37 chars, the card's width ("Δv need 6.5, have 8.3 km/s")
-const DV_LINE: LocalText = { en: 'Δv need {need}, have {have} km/s', uk: TODO };
+const DV_LINE: LocalText = {
+  en: 'Δv need {need}, have {have} km/s',
+  uk: 'Δv потрібно {need}, маємо {have} км/с',
+};
 
 /**
  * The leg line: `{days}` the leg's length, `{day}` the shown arrival day; `planned` when the
@@ -446,8 +455,8 @@ const DV_LINE: LocalText = { en: 'Δv need {need}, have {have} km/s', uk: TODO }
  */
 // budget: 37 chars, the card's width ("Leg 41 d, arrive day 53")
 const LEG_LINE: Readonly<Record<'arrives' | 'planned', LocalText>> = {
-  arrives: { en: 'Leg {days} d, arrive day {day}', uk: TODO },
-  planned: { en: 'Leg {days} d planned', uk: TODO },
+  arrives: { en: 'Leg {days} d, arrive day {day}', uk: 'Переліт {days} д, прибуття {day} день' },
+  planned: { en: 'Leg {days} d planned', uk: 'Переліт {days} д за планом' },
 };
 
 /** The leg's length and arrival day: "Leg 41 d, arrive day 53". */
@@ -464,14 +473,23 @@ export function legLine(f: LegForecast): string {
 const WARNINGS: Readonly<
   Record<'gaveUp' | 'driftOnDay' | 'drift' | 'runsOut' | 'tight', LocalText>
 > = {
-  gaveUp: { en: 'The autopilot finds no way to {target}.', uk: TODO },
+  gaveUp: {
+    en: 'The autopilot finds no way to {target}.',
+    uk: 'Автопілот не бачить шляху до {target}.',
+  },
   driftOnDay: {
     en: 'NOT ENOUGH FUEL: the ship drifts on day {day} and the crew is lost.',
-    uk: TODO,
+    uk: 'НЕ ВИСТАЧАЄ ПАЛИВА: корабель дрейфує на {day} день, екіпаж загинув.',
   },
-  drift: { en: 'NOT ENOUGH FUEL: the ship drifts and the crew is lost.', uk: TODO },
-  runsOut: { en: '{stock} runs out on day {day} (x on the map).', uk: TODO },
-  tight: { en: 'Tight: little is left on arrival.', uk: TODO },
+  drift: {
+    en: 'NOT ENOUGH FUEL: the ship drifts and the crew is lost.',
+    uk: 'НЕ ВИСТАЧАЄ ПАЛИВА: корабель дрейфує, екіпаж загинув.',
+  },
+  runsOut: {
+    en: '{stock} runs out on day {day} (x on the map).',
+    uk: '{stock} закінчиться на {day} день (x на карті).',
+  },
+  tight: { en: 'Tight: little is left on arrival.', uk: 'Впритул: на прибуття лишиться мало.' },
 };
 
 /**
@@ -505,15 +523,15 @@ export function forecastWarning(f: LegForecast, target: string): ForecastLine | 
  * unknown cause shows `UNKNOWN_ALARM` with its id. They wrap. OWNER: script
  */
 const ALARMS: Readonly<Record<string, LocalText>> = {
-  hypoxia: { en: 'ALARM: oxygen ends in {days}', uk: TODO },
-  dehydration: { en: 'ALARM: water ends in {days}', uk: TODO },
-  starvation: { en: 'ALARM: food ends in {days}', uk: TODO },
-  frozen: { en: 'ALARM: cabin freezes in {days}', uk: TODO },
-  drift: { en: 'ALARM: out of fuel, drifting', uk: TODO },
+  hypoxia: { en: 'ALARM: oxygen ends in {days}', uk: 'ТРИВОГА: кисень закінчиться через {days}' },
+  dehydration: { en: 'ALARM: water ends in {days}', uk: 'ТРИВОГА: вода закінчиться через {days}' },
+  starvation: { en: 'ALARM: food ends in {days}', uk: 'ТРИВОГА: їжа закінчиться через {days}' },
+  frozen: { en: 'ALARM: cabin freezes in {days}', uk: 'ТРИВОГА: кабіна замерзне через {days}' },
+  drift: { en: 'ALARM: out of fuel, drifting', uk: 'ТРИВОГА: паливо закінчилося, дрейф' },
 };
 
 /** The alarm of a cause without an `ALARMS` line: `{cause}` its id. OWNER: script */
-const UNKNOWN_ALARM: LocalText = { en: 'ALARM: {cause}', uk: TODO };
+const UNKNOWN_ALARM: LocalText = { en: 'ALARM: {cause}', uk: 'ТРИВОГА: {cause}' };
 
 /** The toast and log line of an alarm (plan D14) for death `cause`, `days` simulated days away. */
 export function alarmText(cause: string, days: number): string {
@@ -528,18 +546,18 @@ export function alarmText(cause: string, days: number): string {
 // max 16 chars: the column's "Lost: {cause}, day {day}" (NavigationScene, 37 chars) keeps about
 // 21 for the rest of a translated line with a 3-digit day
 const CAUSE_LABELS: Readonly<Record<string, LocalText>> = {
-  hypoxia: { en: 'hypoxia', uk: TODO, max: 16 },
-  dehydration: { en: 'dehydration', uk: TODO, max: 16 },
-  starvation: { en: 'starvation', uk: TODO, max: 16 },
-  frozen: { en: 'frozen', uk: TODO, max: 16 },
-  drift: { en: 'drift', uk: TODO, max: 16 },
-  'event:hull-breach': { en: 'hull-breach', uk: TODO, max: 16 },
-  'event:asteroid-belt': { en: 'asteroid-belt', uk: TODO, max: 16 },
-  'event:reactor-failure': { en: 'reactor-failure', uk: TODO, max: 16 },
-  'event:dusty-panels': { en: 'dusty-panels', uk: TODO, max: 16 },
-  'event:lost-signal': { en: 'lost-signal', uk: TODO, max: 16 },
-  'event:solar-flare': { en: 'solar-flare', uk: TODO, max: 16 },
-  'event:greenhouse-leak': { en: 'greenhouse-leak', uk: TODO, max: 16 },
+  hypoxia: { en: 'hypoxia', uk: 'гіпоксія', max: 16 },
+  dehydration: { en: 'dehydration', uk: 'зневоднення', max: 16 },
+  starvation: { en: 'starvation', uk: 'голод', max: 16 },
+  frozen: { en: 'frozen', uk: 'замерзання', max: 16 },
+  drift: { en: 'drift', uk: 'дрейф', max: 16 },
+  'event:hull-breach': { en: 'hull-breach', uk: 'пробоїна', max: 16 },
+  'event:asteroid-belt': { en: 'asteroid-belt', uk: 'астероїди', max: 16 },
+  'event:reactor-failure': { en: 'reactor-failure', uk: 'збій реактора', max: 16 },
+  'event:dusty-panels': { en: 'dusty-panels', uk: 'запилені панелі', max: 16 },
+  'event:lost-signal': { en: 'lost-signal', uk: 'втрата сигналу', max: 16 },
+  'event:solar-flare': { en: 'solar-flare', uk: 'сонячний спалах', max: 16 },
+  'event:greenhouse-leak': { en: 'greenhouse-leak', uk: 'витік оранжереї', max: 16 },
 };
 
 /** A death cause as shown: its `CAUSE_LABELS` entry, else the id ("event:x" without "event:"). */

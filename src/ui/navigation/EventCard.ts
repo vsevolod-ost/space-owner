@@ -1,7 +1,7 @@
 import type Phaser from 'phaser';
 import { characters } from '@/content/characters';
 import type { Controls } from '@/core/input/controls';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { formatText } from '@/core/text/format';
 import type { OpenEvent } from '@/core/voyage/voyageEvents';
 import { Card } from '@/ui/navigation/Card';
@@ -19,7 +19,7 @@ const CHOICES_Y = 164;
  * A choice the cargo does not allow: `{choice}` its text, `{needs}` what it needs (`?` when the
  * event does not say). It wraps. OWNER: script
  */
-const NEEDS: LocalText = { en: '{choice} (needs: {needs})', uk: TODO };
+const NEEDS: LocalText = { en: '{choice} (needs: {needs})', uk: '{choice} (потрібно: {needs})' };
 
 /**
  * The card of an event on the way (plan D15, GDD `evt-presentation` A): the speaker's portrait

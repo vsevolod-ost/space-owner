@@ -3,7 +3,7 @@ import type { EndingId } from '@/content/endings';
 import type { BackgroundLayer, Binding, LocationDef } from '@/content/locations/types';
 import type { ColonyBodyId } from '@/content/voyage/colony';
 import { bodyName as registeredBodyName } from '@/core/locale/names';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import type { GameState } from '@/core/state/GameState';
 import type { ColonyTier } from '@/core/voyage/colony';
 import type { ColonyAxis } from '@/core/voyage/types';
@@ -16,9 +16,18 @@ import type { WorldContext } from '@/world/WorldContext';
  * OWNER: script
  */
 const SHELTER_LINES: Readonly<Record<ColonyTier, LocalText>> = {
-  outpost: { en: 'The shelter on {body} barely holds; an outpost.', uk: TODO },
-  settlement: { en: 'The shelter on {body} holds; a settlement.', uk: TODO },
-  colony: { en: 'The shelter on {body} is a home; a colony.', uk: TODO },
+  outpost: {
+    en: 'The shelter on {body} barely holds; an outpost.',
+    uk: '{body}. Притулок ледве тримається; це форпост.',
+  },
+  settlement: {
+    en: 'The shelter on {body} holds; a settlement.',
+    uk: '{body}. Притулок тримається; це поселення.',
+  },
+  colony: {
+    en: 'The shelter on {body} is a home; a colony.',
+    uk: '{body}. Притулок став домом; це колонія.',
+  },
 };
 
 /**
@@ -27,33 +36,57 @@ const SHELTER_LINES: Readonly<Record<ColonyTier, LocalText>> = {
  */
 const SYSTEM_LINES: Readonly<Record<ColonyAxis, { met: LocalText; short: LocalText }>> = {
   power: {
-    met: { en: 'Power holds ({have}/{need}).', uk: TODO },
-    short: { en: 'Power falls short ({have}/{need}).', uk: TODO },
+    met: { en: 'Power holds ({have}/{need}).', uk: 'Енергії вистачає ({have}/{need}).' },
+    short: { en: 'Power falls short ({have}/{need}).', uk: 'Енергії бракує ({have}/{need}).' },
   },
   heat: {
-    met: { en: 'The modules stay warm ({have}/{need}).', uk: TODO },
-    short: { en: 'The cold gets in ({have}/{need}).', uk: TODO },
+    met: { en: 'The modules stay warm ({have}/{need}).', uk: 'Модулі в теплі ({have}/{need}).' },
+    short: {
+      en: 'The cold gets in ({have}/{need}).',
+      uk: 'Холод пробивається всередину ({have}/{need}).',
+    },
   },
   shielding: {
-    met: { en: 'The shielding holds the radiation off ({have}/{need}).', uk: TODO },
-    short: { en: 'The radiation gets through ({have}/{need}).', uk: TODO },
+    met: {
+      en: 'The shielding holds the radiation off ({have}/{need}).',
+      uk: 'Захист стримує радіацію ({have}/{need}).',
+    },
+    short: {
+      en: 'The radiation gets through ({have}/{need}).',
+      uk: 'Радіація проходить крізь захист ({have}/{need}).',
+    },
   },
   life: {
-    met: { en: 'Air and food will last ({have}/{need}).', uk: TODO },
-    short: { en: 'Air and food run thin ({have}/{need}).', uk: TODO },
+    met: {
+      en: 'Air and food will last ({have}/{need}).',
+      uk: 'Повітря та їжі вистачить ({have}/{need}).',
+    },
+    short: {
+      en: 'Air and food run thin ({have}/{need}).',
+      uk: 'Повітря та їжа на межі ({have}/{need}).',
+    },
   },
 };
 
 /** The systems' line for a body with no needs. OWNER: script */
-const SYSTEMS_NO_NEEDS: LocalText = { en: 'Nothing here asks for more.', uk: TODO };
+const SYSTEMS_NO_NEEDS: LocalText = {
+  en: 'Nothing here asks for more.',
+  uk: 'Більше тут нічого не потрібно.',
+};
 
 /**
  * The overlook's line per body, before the ending (GDD `act3-content` A: the view, then the
  * signal home). OWNER: script
  */
 const OVERLOOK_LINES: Readonly<Record<ColonyBodyId, LocalText>> = {
-  moon: { en: 'The Earth over the horizon; the signal takes a second.', uk: TODO },
-  mars: { en: 'A small Sun over red dunes; the signal is minutes old.', uk: TODO },
+  moon: {
+    en: 'The Earth over the horizon; the signal takes a second.',
+    uk: 'Земля над горизонтом; сигнал іде одну секунду.',
+  },
+  mars: {
+    en: 'A small Sun over red dunes; the signal is minutes old.',
+    uk: 'Мале Сонце над рудими дюнами; сигнал іде хвилини.',
+  },
 };
 
 /** The colony site the colony stands on now (`voyage.stopBody`, the Moon without a landing). */
@@ -104,7 +137,7 @@ async function overlook(voyage: VoyageService, ctx: WorldContext): Promise<void>
   const body = bodyOf(voyage, ctx);
   const line: LocalText = Object.hasOwn(OVERLOOK_LINES, body)
     ? OVERLOOK_LINES[body as ColonyBodyId]
-    : { en: 'The view.', uk: TODO }; // OWNER: script - a body without its own line
+    : { en: 'The view.', uk: 'Краєвид.' }; // OWNER: script - a body without its own line
   await ctx.ui.say('narrator', line, ctx);
   // The colony registry and the endings registry list the same bodies (`colony-<body>`);
   // `flow.finish` warns about an id it does not know.
@@ -159,7 +192,8 @@ function builtPicture(voyage: VoyageService, s: GameState): boolean {
 
 /**
  * The pictures of the body the colony stands on (`voyage.colonyBody`): empty, or built when
- * the colony is full (`builtPicture`); then the base (lander and shelter) over it.
+ * the colony is full (`builtPicture`); over the empty one the base (lander and shelter). A built
+ * picture has its own base drawn in, so it gets none (two bases otherwise).
  */
 function background(voyage: VoyageService): readonly BackgroundLayer[] {
   const on = (s: GameState, body: string) => voyage.colonyBody(s.flags) === body;
@@ -171,22 +205,24 @@ function background(voyage: VoyageService): readonly BackgroundLayer[] {
         : []),
     ],
   );
-  return [...bodies, { image: 'location-colony-base' }];
+  return [...bodies, { image: 'location-colony-base', when: (s) => !builtPicture(voyage, s) }];
 }
 
 /**
  * Act 3: the colony on the body where the hero stopped (plan D19, GDD `act3-content` A,
  * `colony-location-variants`), one map for every body. The background is the picture of the
  * body (`BODY_BACKGROUNDS`: `voyage.stopBody`, the Moon without a landing; with the colony
- * drawn in when it is a full one) under the base (`location-colony-base`). The places
+ * drawn in when it is a full one) under the base (`location-colony-base`; none over a full one,
+ * which has its own). The places
  * `build-1..7` show a building per colony item taken. `shelter` tells the colony's tier, `systems` each need of the body,
  * `overlook` the view and then the body's ending (`colony-<body>`, the tier line on the end
  * screen). Lines are placeholders. OWNER: script
  */
 export const colony: LocationDef = {
-  title: { en: 'Colony', uk: TODO }, // OWNER: script
+  title: { en: 'Colony', uk: 'Колонія' }, // OWNER: script
   background: ({ voyage }) => background(voyage),
   map: 'colony',
+  music: 'music-act3', // OWNER: art
   bindings: ({ voyage }) => ({
     ...buildPlaces(voyage),
     shelter: { kind: 'interactable', run: (ctx) => shelter(voyage, ctx) },

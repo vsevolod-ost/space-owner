@@ -13,7 +13,7 @@ import type { EventBus } from '@/core/events/EventBus';
 import type { CutsceneService } from '@/core/cutscene/CutsceneService';
 import type { GameEvents } from '@/core/events/events';
 import { RUN_FLAGS } from '@/core/flow/runFlags';
-import { type LocalText, TODO, tr } from '@/core/locale/text';
+import { type LocalText, tr } from '@/core/locale/text';
 import type { SceneDriver } from '@/core/flow/SceneDriver';
 import type { SimulationService } from '@/core/simulation/SimulationService';
 import type { GameSave, GameState } from '@/core/state/GameState';
@@ -26,7 +26,7 @@ import type { VoyageOutcome } from '@/core/voyage/Voyage';
 /** Act id used when a location is opened outside the story (`?location=<id>`). */
 const NO_ACT = 'debug';
 /** Text of the toast shown when a checkpoint is saved (`tr` when shown). OWNER: script */
-const CHECKPOINT_TOAST: LocalText = { en: 'Checkpoint', uk: TODO };
+const CHECKPOINT_TOAST: LocalText = { en: 'Checkpoint', uk: 'Контрольна точка' };
 /**
  * Real time the navigation panel shows a lost voyage (LOST, the cause) before the death loop
  * takes the player away, ms (GDD `loop-scene-format` A: at most 2 s from the loss to the first

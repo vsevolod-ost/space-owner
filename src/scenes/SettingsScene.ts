@@ -3,7 +3,6 @@ import {
   LANGUAGE_NAMES,
   LANGUAGES,
   pseudo,
-  TODO,
   tr,
   type DisplayLanguage,
   type LocalText,
@@ -61,16 +60,16 @@ export interface SettingsDebugInfo {
  * of the "-" button. OWNER: script - the labels.
  */
 const ROWS = [
-  { setting: 'music', label: { en: 'Music', uk: TODO, max: 13 } },
-  { setting: 'sfx', label: { en: 'SFX', uk: TODO, max: 13 } },
-  { setting: 'language', label: { en: 'Language', uk: TODO, max: 13 } },
+  { setting: 'music', label: { en: 'Music', uk: 'Музика', max: 13 } },
+  { setting: 'sfx', label: { en: 'SFX', uk: 'Ефекти', max: 13 } },
+  { setting: 'language', label: { en: 'Language', uk: 'Мова', max: 13 } },
 ] as const satisfies readonly { setting: SettingsRow; label: LocalText }[];
 /** The panel's title (title glyphs, max 14) and the Back button (96 px, max 10). OWNER: script */
-const TITLE: LocalText = { en: 'Settings', uk: TODO, max: 14 };
-const BACK_LABEL: LocalText = { en: 'Back', uk: TODO, max: 10 };
+const TITLE: LocalText = { en: 'Settings', uk: 'Налаштування', max: 14 };
+const BACK_LABEL: LocalText = { en: 'Back', uk: 'Назад', max: 10 };
 /** A volume as shown: `{percent}` 0..100. OWNER: script */
 // budget: 7 chars, between "-" and "+" ("100%")
-const PERCENT: LocalText = { en: '{percent}%', uk: TODO };
+const PERCENT: LocalText = { en: '{percent}%', uk: '{percent}%' };
 /** Change of a volume per "+" / "-" press. */
 const STEP = 0.1;
 /**

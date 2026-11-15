@@ -1,4 +1,3 @@
-import { TODO } from '@/core/locale/text';
 import type { VoyageEventDef } from '@/core/voyage/voyageEvents';
 
 /**
@@ -14,10 +13,10 @@ export const lostSignal: VoyageEventDef = {
   chance: () => 0.65,
   speaker: 'computer',
   // OWNER: script
-  title: { en: 'Lost signal', uk: TODO },
+  title: { en: 'Lost signal', uk: 'Втрачений сигнал' },
   text: {
     en: 'The link to Earth is all static. The flight update is stuck. Restart the radio, or shout louder with full power.',
-    uk: TODO,
+    uk: 'Зв’язок із Землею — суцільний тріск. Оновлення польоту застрягло. Перезапусти радіо або гукай гучніше на повній потужності.',
   },
   // OWNER: design - the deck station the alarm is answered at, and the choice applied when its
   // timer runs out: the transmitter at full power, the dearer one (no risk: plan act2-stations
@@ -28,8 +27,11 @@ export const lostSignal: VoyageEventDef = {
     {
       id: 'reboot',
       // OWNER: script
-      text: { en: 'Restart the radio.', uk: TODO },
-      result: { en: 'Cold restart. Link back. Earth says hello. We say hello back.', uk: TODO },
+      text: { en: 'Restart the radio.', uk: 'Перезапустити радіо.' },
+      result: {
+        en: 'Cold restart. Link back. Earth says hello. We say hello back.',
+        uk: 'Холодний перезапуск. Зв’язок повернувся. Земля вітається. Ми відповідаємо.',
+      },
       // OWNER: physics - days of power (small: under the 16 days of oxygen of "Seal the
       // module", plan act2-stations D11).
       effect: { stocks: { power: -6 } },
@@ -37,8 +39,14 @@ export const lostSignal: VoyageEventDef = {
     {
       id: 'boost',
       // OWNER: script
-      text: { en: 'Push the transmitter to full power.', uk: TODO },
-      result: { en: 'Signal punches through. Batteries pay for it. Earth is loud.', uk: TODO },
+      text: {
+        en: 'Push the transmitter to full power.',
+        uk: 'Витиснути з передавача повну потужність.',
+      },
+      result: {
+        en: 'Signal punches through. Batteries pay for it. Earth is loud.',
+        uk: 'Сигнал пробивається. Батареї за це платять. Земля чути гучно.',
+      },
       // OWNER: physics - days of power.
       effect: { stocks: { power: -14 } },
     },

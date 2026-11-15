@@ -280,7 +280,7 @@ the timer (`STATION_TIMER_S` = 10 s real time, OWNER: design) counts from the mo
 fires, also while the station's card is open, and stands only in the pause menu and while the tab is hidden. On the deck
 a box in the top-right corner shows the event, the station, the seconds and a bar (red in the
 last third, `AlarmBarScene`; on the navigation panel it sits above the Close button, clear of
-the gate ribbon); a pointer blinks over the station (`StationMarker`); the drums of the deck's music come in
+the gate ribbon); a pointer blinks over the station (`StationMarker`); the deck's music switches to the alarm track
 (docs/HOWTO-audio.md). E at the right station opens the
 card (`EventStationScene`; Esc closes it, the timer runs on); at another station a toast says
 where to go. The result is a toast on the deck; then the player walks back to the navigation

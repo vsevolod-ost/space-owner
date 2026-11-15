@@ -8,6 +8,7 @@ import { tr } from '@/core/locale/text';
 import { ChoiceList } from '@/ui/kit/ChoiceList';
 import { Panel } from '@/ui/kit/Panel';
 import { fillArrow, strokeChamfered } from '@/ui/kit/shapes';
+import { StepGate } from '@/ui/kit/StepGate';
 import { createText } from '@/ui/kit/text';
 import { theme } from '@/ui/theme';
 
@@ -78,8 +79,8 @@ export class DialogueBox {
   private shownChars = 0;
   private typingMs = 0;
   private blinkMs = 0;
-  /** Game frame in which the current line appeared: `confirm` in that frame is ignored. */
-  private shownFrame = -1;
+  /** Closed while the step the current line appeared in runs: `confirm` then is ignored. */
+  private readonly lineGate: StepGate;
   /** The dialogue has ended (or the box was destroyed): no more input, `finished` resolved. */
   private closed = false;
   /** The window's parts are gone. */
@@ -93,6 +94,7 @@ export class DialogueBox {
     private readonly runner: DialogueRunner,
     private readonly depth: number,
   ) {
+    this.lineGate = new StepGate(scene.game);
     this.finished = new Promise((resolve, reject) => {
       this.resolveFinished = resolve;
       this.rejectFinished = reject;
@@ -216,7 +218,7 @@ export class DialogueBox {
 
   /** Enter, Space or a click: finish the typing, else turn the page, else move past a line. */
   private confirm(): void {
-    if (this.closed || this.scene.game.loop.frame === this.shownFrame) return;
+    if (this.closed || this.lineGate.isClosed) return;
     if (this.isTyping()) this.reveal(this.fullText.length);
     else if (this.hasNextPage()) this.showPage(this.pageIndex + 1);
     else if (this.step.kind === 'line') this.run(() => this.runner.advance());
@@ -280,7 +282,7 @@ export class DialogueBox {
     this.shownChars = 0;
     this.typingMs = 0;
     this.blinkMs = 0;
-    this.shownFrame = this.scene.game.loop.frame;
+    this.lineGate.close();
     this.reveal(0);
   }
 

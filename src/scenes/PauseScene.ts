@@ -1,4 +1,4 @@
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import { ABORT_CAUSE } from '@/core/voyage/flightSummary';
 import { SceneKey } from '@/scenes/keys';
@@ -20,13 +20,13 @@ type PauseChoice = 'resume' | 'settings' | 'returnToWarehouse' | 'mainMenu';
 const CHOICES: readonly PauseChoice[] = ['resume', 'settings', 'returnToWarehouse', 'mainMenu'];
 /** The options as shown; they wrap at the list's width. OWNER: script */
 const CHOICE_LABELS: Readonly<Record<PauseChoice, LocalText>> = {
-  resume: { en: 'Resume', uk: TODO },
-  settings: { en: 'Settings', uk: TODO },
-  returnToWarehouse: { en: 'Return to warehouse', uk: TODO },
-  mainMenu: { en: 'Main menu', uk: TODO },
+  resume: { en: 'Resume', uk: 'Продовжити' },
+  settings: { en: 'Settings', uk: 'Налаштування' },
+  returnToWarehouse: { en: 'Return to warehouse', uk: 'Повернутися на склад' },
+  mainMenu: { en: 'Main menu', uk: 'Головне меню' },
 };
 /** The panel's title: title glyphs across the panel, max 12. OWNER: script */
-const TITLE: LocalText = { en: 'Paused', uk: TODO, max: 12 };
+const TITLE: LocalText = { en: 'Paused', uk: 'Пауза', max: 12 };
 const PANEL_WIDTH = 224;
 /** Height of the panel without its option list (title, padding), px. */
 const PANEL_FRAME_HEIGHT = 48;

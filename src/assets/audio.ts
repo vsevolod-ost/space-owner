@@ -7,16 +7,21 @@ export const audio = {
   'ui-click': { paths: ['assets/audio/ui-click.wav'] },
   'sfx-door': { paths: ['assets/audio/sfx-door.wav'] },
   'sfx-alarm': { paths: ['assets/audio/sfx-alarm.wav'] },
-  'music-demo': { paths: ['assets/audio/music-demo.wav'] },
-  // Act 1 theme (the warehouse), variant 1 of 2 from the sound designer; mp3 only so far.
-  // OWNER: art
+  // The music is the sound designer's, mp3 only so far, numbered by act in the delivery
+  // (`00.mp3`..`04.mp3`, `al1.mp3`). OWNER: art
+  // Prologue (the hero's flat): 63 s, fades in from silence.
+  'music-prologue': { paths: ['assets/audio/music-prologue.mp3'] },
+  // Act 1 theme (the warehouse): 35 s.
   'music-act1': { paths: ['assets/audio/music-act1.mp3'] },
-  // Station alarm of act 2 over music without a drum layer (the fallback). OWNER: art
-  'music-alarm': { paths: ['assets/audio/music-alarm.wav'] },
-  // Act 2 on the ship deck: the calm flight melody and its drum layer, the same length and
-  // tempo; the drums come in during a station alarm. OWNER: art
-  'music-flight': { paths: ['assets/audio/music-flight.wav'] },
-  'music-flight-drums': { paths: ['assets/audio/music-flight-drums.wav'] },
+  // Act 2 on the ship deck, calm flight: 44.5 s.
+  'music-flight': { paths: ['assets/audio/music-flight.mp3'] },
+  // Station alarm of act 2: 12 s, from its start at every alarm; the flight track comes back
+  // where it stopped.
+  'music-alarm': { paths: ['assets/audio/music-alarm.mp3'] },
+  // Act 3 (the colony): 44.5 s, the same length and tempo as `music-flight`.
+  'music-act3': { paths: ['assets/audio/music-act3.mp3'] },
+  // The end screen: 51 s, silent at both ends.
+  'music-ending': { paths: ['assets/audio/music-ending.mp3'] },
 } as const satisfies Record<string, AudioEntry>;
 
 /** One entry of the audio registry. */

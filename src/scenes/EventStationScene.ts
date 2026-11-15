@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { stationName } from '@/content/locations/ship-deck';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import { SceneKey } from '@/scenes/keys';
 import { PanelScene } from '@/ui/PanelScene';
@@ -27,7 +27,7 @@ const PANEL_HEIGHT = 312;
  * with the card's legend (src/ui/navigation/Card.ts, max 26); the two can trade room.
  * OWNER: script
  */
-const LEAVE_HINT: LocalText = { en: 'Esc: leave', uk: TODO, max: 10 };
+const LEAVE_HINT: LocalText = { en: 'Esc: leave', uk: 'Esc: вийти', max: 10 };
 
 /**
  * The card of the open event at its deck station (plan act2-stations D1, D4): the same

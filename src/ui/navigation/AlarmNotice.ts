@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { formatText } from '@/core/text/format';
 import { createText } from '@/ui/kit/text';
 import { theme } from '@/ui/theme';
@@ -20,11 +20,11 @@ const HINT_Y = 68;
  * The notice's lines: the heading (title glyphs, one line of the column: max 18), where to go
  * (`{station}` the station's name in capitals) and the hint; those two wrap. OWNER: script
  */
-const HEADING: LocalText = { en: 'ALARM', uk: TODO, max: 18 };
-const GO_TO: LocalText = { en: 'Go to: {station}', uk: TODO };
+const HEADING: LocalText = { en: 'ALARM', uk: 'ТРИВОГА', max: 18 };
+const GO_TO: LocalText = { en: 'Go to: {station}', uk: 'Перейдіть до: {station}' };
 const HINT: LocalText = {
   en: 'Answer it at the station before the timer runs out. E/Esc: close',
-  uk: TODO,
+  uk: 'Дайте відповідь на станції, поки не минув час. E/Esc: закрити',
 };
 
 /**

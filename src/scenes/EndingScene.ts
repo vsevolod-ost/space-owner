@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
+import type { AudioKey } from '@/assets';
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config';
 import { endings, isEndingId, tierLine } from '@/content/endings';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import type { ColonyTier } from '@/core/voyage/colony';
 import { SceneKey } from '@/scenes/keys';
@@ -35,9 +36,11 @@ export interface EndingDebugInfo {
 const CHOICES = ['flyAgain', 'mainMenu'] as const;
 /** The options as shown; they wrap at the list's width. OWNER: script */
 const CHOICE_LABELS: Readonly<Record<(typeof CHOICES)[number], LocalText>> = {
-  flyAgain: { en: 'Fly again', uk: TODO },
-  mainMenu: { en: 'Main menu', uk: TODO },
+  flyAgain: { en: 'Fly again', uk: 'Летіти знову' },
+  mainMenu: { en: 'Main menu', uk: 'Головне меню' },
 };
+/** Music of the end screen, from its start for every ending. OWNER: art */
+const ENDING_MUSIC: AudioKey = 'music-ending';
 /** Prefix of a colony ending's id before the body id: `colony-mars`. */
 const COLONY_PREFIX = 'colony-';
 /** Gap between the ending's text and its tier line: one empty line. */
@@ -57,6 +60,7 @@ const CHOICES_WIDTH = 200;
  * the warehouse with the cargo) and "Main menu" (`flow.toMainMenu()`) - by keyboard (arrows,
  * Enter) or mouse. A full scene, not a panel: the world is stopped behind it. Started by
  * `services.flow.finish`; deaths do not come here (`flow.die`, the scientists' debrief).
+ * Plays `music-ending`; the warehouse's track or the menu's silence replaces it.
  */
 export class EndingScene extends Phaser.Scene {
   private endingId = '';
@@ -85,6 +89,7 @@ export class EndingScene extends Phaser.Scene {
   }
 
   create(): void {
+    services.audio.playMusic(ENDING_MUSIC);
     const centerX = GAME_WIDTH / 2;
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, theme.faderColor).setOrigin(0);
 

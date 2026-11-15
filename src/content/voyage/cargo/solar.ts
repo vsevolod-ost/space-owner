@@ -1,4 +1,3 @@
-import { TODO } from '@/core/locale/text';
 import type { CargoDef } from '@/core/voyage/types';
 
 /**
@@ -10,8 +9,12 @@ export const SOLAR_COLONY_MIN_SUN = 0.25;
 /** Solar panels: power from the Sun, weaker with every leg out (`sunFactor`). */
 export const solar: CargoDef = {
   // OWNER: script
-  label: { en: 'Solar panels', uk: TODO, max: 14 },
-  line: { en: 'Power from the Sun, fading past Mars.', uk: TODO, max: 60 },
+  label: { en: 'Solar panels', uk: 'Сонячні панелі', max: 14 },
+  line: {
+    en: 'Power from the Sun, fading past Mars.',
+    uk: 'Енергія від Сонця, слабшає за Марсом.',
+    max: 60,
+  },
   // OWNER: physics - deployable arrays, about 100 W/kg at the Earth's distance.
   dryMassKg: 2_000,
   // OWNER: design - bays taken and copies allowed

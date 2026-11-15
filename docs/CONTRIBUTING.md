@@ -37,7 +37,7 @@ formats on save.
 | `npm run lint:fix`              | ESLint with automatic fixes.                                                     |
 | `npm run format`                | Formats every file (code and Markdown) with Prettier.                            |
 | `npm run typecheck`             | TypeScript only (`tsc --noEmit`).                                                |
-| `npm run check:links`           | Checks that relative links in `README.md` and `docs/` resolve.      |
+| `npm run check:links`           | Checks that relative links in `README.md` and `docs/` resolve.                   |
 | `npm run balance`               | Balance invariants I1-I8 over every loadout (~6.5 min on 16 threads); see below. |
 | `npm run voyage-check -- --all` | The loadout sweep: summary, CSV in `tools/out/`, check against the game.         |
 | `npm run i18n:todo`             | Ukrainian strings still `TODO`, by file, and strings over their `max`.           |

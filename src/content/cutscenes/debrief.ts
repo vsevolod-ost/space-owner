@@ -1,7 +1,7 @@
 import type { Cutscene } from '@/core/cutscene/types';
 import { RUN_FLAGS } from '@/core/flow/runFlags';
 import { bodyName } from '@/core/locale/names';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import type { FlagValue, GameState } from '@/core/state/GameState';
 import { formatText, type StateText } from '@/core/text/format';
 
@@ -31,56 +31,86 @@ const LINES: Readonly<Record<string, DebriefLines>> = {
   hypoxia: {
     what: {
       en: 'User Segment analysis: The air ran out on day {day}, on the way from {gate} to {next}.',
-      uk: TODO,
+      uk: 'Аналіз користувацького сегмента: повітря закінчилося на {day} день на шляху від {gate} до {next}.',
     },
     why: {
       en: 'The space segment oxygen supply failed the trade study; life support did not last the leg.',
-      uk: TODO,
+      uk: 'Запас кисню космічного сегмента не пройшов перевірку технічних вимог; система життєзабезпечення не витримала перельоту.',
     },
     advice: {
       en: 'MDL recommendation: An oxygen crate or greenhouse is required for this mission concept.',
-      uk: TODO,
+      uk: 'Рекомендація MDL: Для цієї концепції місії необхідний контейнер з киснем або оранжерея.',
     },
   },
   dehydration: {
     what: {
       en: 'User Segment analysis: The water ran out on day {day}, on the way from {gate} to {next}.',
-      uk: TODO,
+      uk: 'Аналіз користувацького сегмента: вода закінчилася на {day} день на шляху від {gate} до {next}.',
     },
-    why: { en: 'The water stock was too short for so long a flight.', uk: TODO },
-    advice: { en: 'Take supplies or the greenhouse next time.', uk: TODO },
+    why: {
+      en: 'The water stock was too short for so long a flight.',
+      uk: 'Запас води був замалим для такого тривалого перельоту.',
+    },
+    advice: {
+      en: 'Take supplies or the greenhouse next time.',
+      uk: 'Наступного разу візьміть запаси або оранжерею.',
+    },
   },
   starvation: {
     what: {
       en: 'User Segment analysis: The food ran out on day {day}, on the way from {gate} to {next}.',
-      uk: TODO,
+      uk: 'Аналіз користувацького сегмента: їжа закінчилася на {day} день на шляху від {gate} до {next}.',
     },
-    why: { en: 'The food stock was too short for so long a flight.', uk: TODO },
-    advice: { en: 'Take supplies or the greenhouse next time.', uk: TODO },
+    why: {
+      en: 'The food stock was too short for so long a flight.',
+      uk: 'Запас їжі був занадто малим для такого тривалого перельоту.',
+    },
+    advice: {
+      en: 'Take supplies or the greenhouse next time.',
+      uk: 'Наступного разу візьміть запаси або оранжерею.',
+    },
   },
   frozen: {
     what: {
       en: 'User Segment analysis: The ship froze on day {day}, on the way from {gate} to {next}.',
-      uk: TODO,
+      uk: 'Аналіз користувацького сегмента: корабель замерз на {day} день на шляху від {gate} до {next}.',
     },
-    why: { en: 'Without power the space segment heaters stopped.', uk: TODO },
-    advice: { en: 'Power: the reactor, batteries or solar panels near the Sun.', uk: TODO },
+    why: {
+      en: 'Without power the space segment heaters stopped.',
+      uk: 'Без енергії нагрівачі космічного сегмента зупинилися.',
+    },
+    advice: {
+      en: 'Power: the reactor, batteries or solar panels near the Sun.',
+      uk: 'Енергія: реактор, батареї або сонячні панелі поблизу Сонця.',
+    },
   },
   drift: {
     what: {
       en: 'User Segment analysis: The fuel ran out after {gate}; the ship drifted past {next}.',
-      uk: TODO,
+      uk: 'Аналіз користувацького сегмента: паливо закінчилося після {gate}; корабель пройшов повз {next} за інерцією.',
     },
-    why: { en: 'The trajectory model said the fuel would not reach the next gate.', uk: TODO },
-    advice: { en: 'More fuel, or stop where the fuel still reaches.', uk: TODO },
+    why: {
+      en: 'The trajectory model said the fuel would not reach the next gate.',
+      uk: 'Модель траєкторії показала, що палива не вистачить до наступних воріт.',
+    },
+    advice: {
+      en: 'More fuel, or stop where the fuel still reaches.',
+      uk: 'Більше палива, або зупиніться там, куди паливо ще дозволяє дістатися.',
+    },
   },
   abort: {
     what: {
       en: 'Ground Segment report: You turned back on day {day}, on the way from {gate} to {next}.',
-      uk: TODO,
+      uk: 'Звіт наземного сегмента: ви повернули назад на {day} день на шляху від {gate} до {next}.',
     },
-    why: { en: 'No harm done; the cargo is still in the bays.', uk: TODO },
-    advice: { en: 'Change what you take and fly again.', uk: TODO },
+    why: {
+      en: 'No harm done; the cargo is still in the bays.',
+      uk: 'Жодної шкоди; вантаж усе ще у відсіках.',
+    },
+    advice: {
+      en: 'Change what you take and fly again.',
+      uk: 'Змініть те, що берете, і летить знову.',
+    },
   },
 };
 
@@ -88,10 +118,10 @@ const LINES: Readonly<Record<string, DebriefLines>> = {
 const GENERIC: DebriefLines = {
   what: {
     en: 'We lost the ship on day {day}, on the way from {gate} to {next}: {cause}.',
-    uk: TODO,
+    uk: 'Ми втратили корабель на {day} день на шляху від {gate} до {next}: {cause}.',
   },
-  why: { en: 'The flight log says: {cause}.', uk: TODO },
-  advice: { en: 'Think over the cargo and try again.', uk: TODO },
+  why: { en: 'The flight log says: {cause}.', uk: 'Бортовий журнал каже: {cause}.' },
+  advice: { en: 'Think over the cargo and try again.', uk: 'Продумайте вантаж і спробуйте знову.' },
 };
 
 /**
@@ -99,19 +129,19 @@ const GENERIC: DebriefLines = {
  * nominative (plan uk-localization D5). OWNER: script
  */
 const CAUSE_WORDS: Readonly<Record<string, LocalText>> = {
-  'event:hull-breach': { en: 'hull breach', uk: TODO },
-  'event:asteroid-belt': { en: 'asteroid belt', uk: TODO },
-  'event:reactor-failure': { en: 'reactor failure', uk: TODO },
-  'event:dusty-panels': { en: 'dusty panels', uk: TODO },
-  'event:lost-signal': { en: 'lost signal', uk: TODO },
-  'event:solar-flare': { en: 'solar flare', uk: TODO },
-  'event:greenhouse-leak': { en: 'greenhouse leak', uk: TODO },
+  'event:hull-breach': { en: 'hull breach', uk: 'пробоїна в корпусі' },
+  'event:asteroid-belt': { en: 'asteroid belt', uk: 'пояс астероїдів' },
+  'event:reactor-failure': { en: 'reactor failure', uk: 'збій реактора' },
+  'event:dusty-panels': { en: 'dusty panels', uk: 'запилені панелі' },
+  'event:lost-signal': { en: 'lost signal', uk: 'втрата сигналу' },
+  'event:solar-flare': { en: 'solar flare', uk: 'сонячний спалах' },
+  'event:greenhouse-leak': { en: 'greenhouse leak', uk: 'витік в оранжереї' },
 };
 
 /** `{gate}` when no gate was reached yet. OWNER: script */
-const NO_GATE: LocalText = { en: 'the Earth', uk: TODO };
+const NO_GATE: LocalText = { en: 'the Earth', uk: 'Землі' };
 /** `{next}` when the body flown to is not known. OWNER: script */
-const NO_NEXT: LocalText = { en: 'the Moon', uk: TODO };
+const NO_NEXT: LocalText = { en: 'the Moon', uk: 'Місяця' };
 
 /**
  * How a cause reads in a line: its `CAUSE_WORDS` entry, else words from the id

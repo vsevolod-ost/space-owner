@@ -119,7 +119,7 @@ export const storeroom: LocationDef = {
   title: { en: 'Storeroom', uk: TODO }, // OWNER: script
   background: 'location-storeroom',
   map: 'storeroom',
-  music: 'music-demo',
+  music: 'music-act1',
   bindings: {
     'door-warehouse': { kind: 'door', to: 'warehouse', spawn: 'spawn-from-storeroom' },
     'npc-engineer': { kind: 'npc', character: 'engineer', dialogue: 'engineer-advice' },

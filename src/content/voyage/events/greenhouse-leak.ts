@@ -1,4 +1,3 @@
-import { TODO } from '@/core/locale/text';
 import type { VoyageEventDef } from '@/core/voyage/voyageEvents';
 
 /**
@@ -15,10 +14,10 @@ export const greenhouseLeak: VoyageEventDef = {
   chance: (ctx) => (ctx.has('greenhouse') ? 0.6 : 0),
   speaker: 'computer',
   // OWNER: script
-  title: { en: 'Greenhouse leak', uk: TODO },
+  title: { en: 'Greenhouse leak', uk: 'Витік в оранжереї' },
   text: {
     en: 'The greenhouse irrigation line is leaking. Water on the floor, dignity on the ceiling. Your call.',
-    uk: TODO,
+    uk: 'Труба поливу в оранжереї протікає. Вода на підлозі, гідність на стелі. Вирішуй.',
   },
   // OWNER: design - the deck station the alarm is answered at (the bay of the greenhouse), and
   // the choice applied when its timer runs out: the main valve, the dearer one (no risk: plan
@@ -29,10 +28,10 @@ export const greenhouseLeak: VoyageEventDef = {
     {
       id: 'clamp',
       // OWNER: script
-      text: { en: 'Clamp it at the crate.', uk: TODO },
+      text: { en: 'Clamp it at the crate.', uk: 'Затиснути біля контейнера.' },
       result: {
         en: 'Clamp held. A few litres on the floor. The plants are dramatic but alive.',
-        uk: TODO,
+        uk: 'Хомут тримає. Кілька літрів на підлозі. Рослини драматизують, але живі.',
       },
       // OWNER: physics - days of water (small: under the 16 days of oxygen of "Seal the
       // module", plan act2-stations D11).
@@ -41,10 +40,10 @@ export const greenhouseLeak: VoyageEventDef = {
     {
       id: 'shut-valve',
       // OWNER: script
-      text: { en: 'Shut the bay main valve.', uk: TODO },
+      text: { en: 'Shut the bay main valve.', uk: 'Перекрити головний клапан відсіку.' },
       result: {
         en: 'Leak stopped. The water in the line is gone. The plants will sulk.',
-        uk: TODO,
+        uk: 'Витік спинився. Вода в трубі пішла. Рослини ображено помовчать.',
       },
       // OWNER: physics - days of water.
       effect: { stocks: { water: -14 } },

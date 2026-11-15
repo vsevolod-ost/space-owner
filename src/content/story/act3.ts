@@ -1,6 +1,6 @@
 import type { Act } from '@/content/story/types';
 import { bodyName } from '@/core/locale/names';
-import { TODO, tr } from '@/core/locale/text';
+import { tr } from '@/core/locale/text';
 import type { GameState } from '@/core/state/GameState';
 import { formatText } from '@/core/text/format';
 
@@ -14,10 +14,10 @@ function landingTitle(state: GameState): string {
   const body = state.flags.get('voyage.stopBody');
   const day = state.flags.get('voyage.day');
   if (typeof body !== 'string' || !body || typeof day !== 'number') {
-    return tr({ en: 'Act 3', uk: TODO });
+    return tr({ en: 'Act 3', uk: 'Акт 3' });
   }
   const name = bodyName(body);
-  return formatText(tr({ en: '{body} · day {day}', uk: TODO }), {
+  return formatText(tr({ en: '{body} · day {day}', uk: '{body} · день {day}' }), {
     body: name ? tr(name) : body,
     day: day + 1,
   });

@@ -1,5 +1,4 @@
 import type { Cutscene } from '@/core/cutscene/types';
-import { TODO } from '@/core/locale/text';
 
 /**
  * The hero's first steps into the warehouse (trigger `arrival`, once): the engineer walks up
@@ -20,11 +19,11 @@ export const warehouseArrival: Cutscene = {
     api.face('player', 'npc-engineer');
     await api.say('engineer', {
       en: 'Ah, the new pilot. Welcome aboard - and sorry about the lighting, the warehouse is allergic to cheerfulness.',
-      uk: TODO,
+      uk: 'А, новий пілот. Ласкаво просимо на борт — і вибачте за освітлення, склад має алергію на життєрадісність.',
     });
     await api.say('engineer', {
       en: "Seven bays, ten kinds of cargo. Load what you can carry; the hatch to the ship is over there - check it when you think you're ready. Or when I say so.",
-      uk: TODO,
+      uk: 'Сім відсіків, десять видів вантажу. Завантажуй те, що зможеш донести; люк до корабля он там — перевір його, коли вирішиш, що готовий. Або коли я скажу.',
     });
 
     // Both look at the hatch, then he goes back.

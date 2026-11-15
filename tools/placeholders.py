@@ -59,7 +59,12 @@ LOCATIONS: dict[str, dict] = {
         'wall': 16,
         'floor': (104, 84, 64),
         'doorways': [('right', 148, 212)],  # door-warehouse, centred on y = 180
-        'obstacles': [(32, 32, 96, 48, 'bed'), (464, 16, 96, 32, 'wardrobe'), (256, 248, 96, 48, 'table')],
+        'obstacles': [
+            (32, 32, 96, 48, 'bed'),
+            (464, 16, 96, 32, 'wardrobe'),
+            (256, 248, 96, 48, 'table'),
+            (36, 276, 64, 50, 'boxes'),  # the stacked boxes the artists drew bottom left
+        ],
         'markup': True,
     },
     # Act 1: one screen 640x368 (the camera scrolls 8 px). The scientists' glass booth top left,

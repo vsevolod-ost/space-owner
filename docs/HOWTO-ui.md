@@ -171,9 +171,11 @@ never jumps to another, maybe irreversible, row by itself), `select(i)`, `choose
 `rowCenter(i)`; `width` / `height` are its size after `setChoices`; `destroy()` removes it.
 
 `controls` must be the controls of the scene the list lives in (`ui.controls` in UiScene,
-`this.controls` in a panel scene), not the world's — those are locked during dialogue. A key
-pressed in the same frame the list was filled is ignored, so the key that opened it does not
-choose at once.
+`this.controls` in a panel scene), not the world's — those are locked during dialogue. Keys are
+ignored for the rest of the game step the list was filled in (`StepGate` in
+`src/ui/kit/StepGate.ts`), so the key that opened it does not choose at once; a list filled
+between steps (from an awaited script) takes keys from the next step on. The dialogue window
+does the same with each new line.
 
 ```ts
 const panel = new Panel(this, 200, 120, 240, 0); // create the background first: it draws below

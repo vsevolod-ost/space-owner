@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH } from '@/config';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { formatText } from '@/core/text/format';
 import type { FlagReader } from '@/core/voyage/loadout';
 import type { VoyageService } from '@/core/voyage/VoyageService';
@@ -23,7 +23,7 @@ const CAPTION_WIDTH = 64;
 // budget: 23 chars ("HOLD 7/7" is 8; 184 px of 8 px glyphs, at most 186 px): the strip (caption
 // + 136 px) then ends at x <= 481, clear of the alarm box on the deck, whose left edge is at
 // x 484 at its narrowest (AlarmBarScene: 640 - margin 4 - MIN_WIDTH 152)
-const CAPTION: LocalText = { en: 'HOLD {used}/{bays}', uk: TODO };
+const CAPTION: LocalText = { en: 'HOLD {used}/{bays}', uk: 'ВІДСІК {used}/{bays}' };
 /** Distance of the strip from the top of the screen, px. */
 const TOP = 4;
 /**

@@ -6,8 +6,9 @@
  *    `navigator.languages` that is Ukrainian or English decides (`['uk-UA', 'en']` gives uk,
  *    `['en-US']` en, `['de-DE', 'uk']` uk, `['en-GB', 'uk-UA']` en).
  * 2. From the menu: Settings -> Language row, Right switches to Ukrainian (value "Українська",
- *    the service, `<html lang>`, the stored setting); the selected row stays; labels stay English
- *    (every `uk` is still TODO). The choice survives a reload and beats the browser.
+ *    the service, `<html lang>`, the stored setting); the selected row stays; the settings and the
+ *    menu under them show the Ukrainian labels (`UK`). The choice survives a reload and beats the
+ *    browser.
  * 3. `?lang=en` shows English for that load and stores nothing: the next plain load is Ukrainian.
  * 4. From the pause: Esc -> Settings, the "-" button (mouse) back to English; the panels and the
  *    world stay paused, the pause keeps its selected option.
@@ -67,6 +68,22 @@ const EN = {
   menu: ['Continue', 'New Game', 'Settings', 'About'],
   pause: ['Resume', 'Settings', 'Main menu'],
 };
+/**
+ * The same labels in Ukrainian, as the `uk` slots of their pairs (SettingsScene, StubScene,
+ * MainMenuScene); a changed translation changes them here too.
+ */
+const UK = {
+  title: 'Налаштування',
+  back: 'Назад',
+  settingsRows: [
+    ['Музика', null],
+    ['Ефекти', null],
+    ['Мова', 'Українська'],
+  ],
+  menu: ['Продовжити', 'Нова гра', 'Налаштування', 'Про гру'],
+};
+/** The English panel title and Back button, beside `EN`. */
+const EN_PANEL = { title: 'Settings', back: 'Back' };
 const UK_NAME = 'Українська';
 const WAREHOUSE = '/?location=warehouse&spawn=spawn-default';
 
@@ -137,9 +154,8 @@ async function switchFromMenu(page, h) {
   if (after.settings.selected !== SETTINGS_ROW.language) {
     throw new Error(`selected row ${after.settings.selected} after the change, not Language`);
   }
-  // Every uk is TODO: the labels show the English text.
-  expectEnglishSettings({ ...after.settings, rows: after.settings.rows.slice(0, 2) }, 'uk');
-  expectSame(after.menu, EN.menu, 'menu labels in uk');
+  expectSettings(after.settings, UK, 'uk');
+  expectSame(after.menu, UK.menu, 'menu labels in uk');
   await h.shot('locale-settings-uk');
   await closePanels(h, 'Settings');
   if (!(await h.eval(() => window.nasa.game.scene.isActive('MainMenu')))) {
@@ -319,13 +335,18 @@ function expectValue(settings, value) {
 }
 
 function expectEnglishSettings(settings, where) {
+  expectSettings(settings, { ...EN_PANEL, settingsRows: EN.settingsRows }, where);
+}
+
+/** The settings panel shows `labels`: its title, Back button and rows (null: any value). */
+function expectSettings(settings, labels, where) {
   if (!settings) throw new Error(`${where}: the settings panel is not open`);
-  if (settings.title !== 'Settings' || settings.back !== 'Back') {
+  if (settings.title !== labels.title || settings.back !== labels.back) {
     throw new Error(`${where}: title/back ${settings.title}/${settings.back}`);
   }
   settings.rows.forEach(([label, value], i) => {
-    const [enLabel, enValue] = EN.settingsRows[i];
-    if (label !== enLabel || (enValue !== null && value !== enValue)) {
+    const [wantLabel, wantValue] = labels.settingsRows[i];
+    if (label !== wantLabel || (wantValue !== null && value !== wantValue)) {
       throw new Error(`${where}: row ${i} is ${JSON.stringify([label, value])}`);
     }
   });

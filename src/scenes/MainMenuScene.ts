@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { ImageKey } from '@/assets';
 import type { Controls } from '@/core/input/controls';
 import { GAME_HEIGHT, GAME_WIDTH } from '@/config';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import { SceneKey } from '@/scenes/keys';
 import type { SettingsScene } from '@/scenes/SettingsScene';
@@ -26,13 +26,13 @@ const SHIP_RIGHT = GAME_WIDTH - 16;
 const SHIP_BOTTOM = GAME_HEIGHT - 24;
 /** The buttons' labels; max 18: the button's 160 px. OWNER: script */
 const LABELS = {
-  continue: { en: 'Continue', uk: TODO, max: 18 },
-  newGame: { en: 'New Game', uk: TODO, max: 18 },
-  settings: { en: 'Settings', uk: TODO, max: 18 },
-  about: { en: 'About', uk: TODO, max: 18 },
+  continue: { en: 'Continue', uk: 'Продовжити', max: 18 },
+  newGame: { en: 'New Game', uk: 'Нова гра', max: 18 },
+  settings: { en: 'Settings', uk: 'Налаштування', max: 18 },
+  about: { en: 'About', uk: 'Про гру', max: 18 },
 } as const satisfies Record<string, LocalText>;
 /** Heading of the About panel (`StubScene`): title glyphs, max 24. OWNER: script */
-const ABOUT_TITLE: LocalText = { en: 'About', uk: TODO, max: 24 };
+const ABOUT_TITLE: LocalText = { en: 'About', uk: 'Про гру', max: 24 };
 /** The ship bobs up by this much and back, px, once per period, ms. OWNER: design */
 const SHIP_BOB_PX = 6;
 const SHIP_BOB_MS = 3500;

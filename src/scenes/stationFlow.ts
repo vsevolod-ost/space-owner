@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { stationName } from '@/content/locations/ship-deck';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import { formatText } from '@/core/text/format';
 import type { EventStationScene } from '@/scenes/EventStationScene';
@@ -11,14 +11,20 @@ import type { UiScene } from '@/scenes/UiScene';
 /** Lines of the deck's toasts about the voyage (they wrap). OWNER: script */
 const LINES = {
   /** An event's result (`{result}`) when its alarm ran out. */
-  tooLate: { en: 'Too late! {result}', uk: TODO },
+  tooLate: { en: 'Too late! {result}', uk: 'Запізно! {result}' },
   /** A gate was reached behind an answered event: the gate card waits on the panel. */
-  gate: { en: 'Gate reached: back to the navigation station.', uk: TODO },
+  gate: {
+    en: 'Gate reached: back to the navigation station.',
+    uk: 'Досягнуто воріт: поверніться до навігаційної станції.',
+  },
   /**
    * A new alarm came on while the panel is closed (the next event of the queue): `{event}` the
    * event's title, `{station}` the deck station's name in lower case.
    */
-  alarm: { en: 'ALARM: {event} - go to the {station}!', uk: TODO },
+  alarm: {
+    en: 'ALARM: {event} - go to the {station}!',
+    uk: 'ТРИВОГА: {event} — рушайте до об’єкта: {station}!',
+  },
 } as const satisfies Record<string, LocalText>;
 
 /**

@@ -109,6 +109,12 @@ export default async function ui(_page, h) {
       });
   });
   await h.waitFor(() => window.nasa.game.scene.getScene('Ui').debugInfo().choices !== null);
+  // Phaser takes new interactive objects into its hit list at the next step's input preUpdate,
+  // but handles a DOM click at once: a click before that step would hit nothing. Wait one step.
+  await h.eval(() => {
+    window.__shownAt = window.nasa.game.loop.frame;
+  });
+  await h.waitFor(() => window.nasa.game.loop.frame > window.__shownAt);
   const third = await h.eval(() => window.nasa.game.scene.getScene('Ui').debugChoiceCenter(2));
   await h.click(third.x, third.y);
   await h.waitFor(() => window.__choice !== undefined);

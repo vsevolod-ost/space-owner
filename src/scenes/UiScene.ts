@@ -6,7 +6,7 @@ import type { ImageKey } from '@/assets';
 import { DialogueRunner } from '@/core/dialogue/DialogueRunner';
 import { defineDialogue } from '@/core/dialogue/types';
 import type { Dialogue, Speaker } from '@/core/dialogue/types';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import { services } from '@/core/services';
 import type { StateText } from '@/core/text/format';
 import type { Controls } from '@/core/input/controls';
@@ -33,7 +33,7 @@ const DEBUG_CHOICES_WIDTH = 160;
  * The hint over a focused object: the interact key's name (keep it the key on the keyboard).
  * OWNER: script
  */
-const INTERACT_HINT: LocalText = { en: 'E', uk: TODO, max: 3 };
+const INTERACT_HINT: LocalText = { en: 'E', uk: 'E', max: 3 };
 /** Lock reason `openDialogue` puts on the world's controls. */
 const DIALOGUE_LOCK = 'dialogue';
 /** Dialogue id reported (events, debugInfo) for a single line shown by `say`. */

@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import type { Controls } from '@/core/input/controls';
-import { TODO, tr, type LocalText } from '@/core/locale/text';
+import { tr, type LocalText } from '@/core/locale/text';
 import type { Point } from '@/world/Actor';
 import { ChoiceList } from '@/ui/kit/ChoiceList';
 import { createText } from '@/ui/kit/text';
@@ -18,7 +18,11 @@ export const CARD_INPUT_LOCK_S = 0.4;
  * line (37 characters) with `LEAVE_HINT` (src/scenes/EventStationScene.ts, max 10); the two can
  * trade room. OWNER: script
  */
-const LEGEND: LocalText = { en: '↑↓: select   Enter: choose', uk: TODO, max: 26 };
+const LEGEND: LocalText = {
+  en: '↑↓: select   Enter: choose',
+  uk: '↑↓: вибір   Enter: обрати',
+  max: 26,
+};
 
 /** What a card's `debugInfo` returns. */
 export interface CardInfo {

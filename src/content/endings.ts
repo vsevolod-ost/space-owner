@@ -1,5 +1,5 @@
 import type { ColonyBodyId } from '@/content/voyage/colony';
-import { TODO, type LocalText } from '@/core/locale/text';
+import type { LocalText } from '@/core/locale/text';
 import type { ColonyTier } from '@/core/voyage/colony';
 
 /**
@@ -27,9 +27,18 @@ export interface Ending {
  * OWNER: script
  */
 export const TIER_LINES: Readonly<Record<ColonyTier, LocalText>> = {
-  outpost: { en: 'Outpost. It barely holds, but it holds.', uk: TODO },
-  settlement: { en: 'Settlement. Most of what the place asks for is there.', uk: TODO },
-  colony: { en: 'Colony. Everything this world asks for, you brought.', uk: TODO },
+  outpost: {
+    en: 'Outpost. It barely holds, but it holds.',
+    uk: 'Аванпост. Він ледве тримається, але тримається.',
+  },
+  settlement: {
+    en: 'Settlement. Most of what the place asks for is there.',
+    uk: 'Поселення. Більшість із того, що потребує це місце, тут є.',
+  },
+  colony: {
+    en: 'Colony. Everything this world asks for, you brought.',
+    uk: 'Колонія. Ти привіз усе, чого просив цей світ.',
+  },
 };
 
 /**
@@ -39,12 +48,18 @@ export const TIER_LINES: Readonly<Record<ColonyTier, LocalText>> = {
  */
 export const endings = {
   'colony-moon': {
-    title: { en: 'Moon', uk: TODO },
-    text: { en: 'A colony in sight of home; the Earth hangs in a black sky.', uk: TODO },
+    title: { en: 'Moon', uk: 'Місяць' },
+    text: {
+      en: 'A colony in sight of home; the Earth hangs in a black sky.',
+      uk: 'Колонія у полі зору дому; Земля висить у чорному небі.',
+    },
   },
   'colony-mars': {
-    title: { en: 'Mars', uk: TODO },
-    text: { en: 'A colony under a butterscotch sky; the first to stay.', uk: TODO },
+    title: { en: 'Mars', uk: 'Марс' },
+    text: {
+      en: 'A colony under a butterscotch sky; the first to stay.',
+      uk: 'Колонія під небом кольору іриски; перші, хто залишився.',
+    },
   },
 } as const satisfies Record<`colony-${ColonyBodyId}`, Ending>;
 
