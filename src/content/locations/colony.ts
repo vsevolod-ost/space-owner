@@ -216,7 +216,7 @@ function background(voyage: VoyageService): readonly BackgroundLayer[] {
  * which has its own). The places
  * `build-1..7` show a building per colony item taken. `shelter` tells the colony's tier, `systems` each need of the body,
  * `overlook` the view and then the body's ending (`colony-<body>`, the tier line on the end
- * screen). Lines are placeholders. OWNER: script
+ * screen). OWNER: script
  */
 export const colony: LocationDef = {
   title: { en: 'Colony', uk: 'Колонія' }, // OWNER: script

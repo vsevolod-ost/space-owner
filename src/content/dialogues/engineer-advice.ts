@@ -5,8 +5,7 @@ import type { GameState } from '@/core/state/GameState';
 const gaveCargoAdvice = (s: GameState): boolean => s.flags.get('advice.engineer.cargo') === true;
 
 /**
- * The engineer in the warehouse (placeholder lines; the real advice comes with the warehouse
- * mechanics). The first visit opens with `greeting` (it sets `engineer.met`); later visits
+ * The engineer in the warehouse. The first visit opens with `greeting` (it sets `engineer.met`); later visits
  * skip it and start at `question`. The cargo question sets `advice.engineer.cargo` (advice
  * flags survive deaths, plan D17), after which it is replaced by a reminder.
  * OWNER: script

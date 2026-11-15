@@ -6,7 +6,7 @@ import type { Cutscene } from '@/core/cutscene/types';
  * the warehouse is as wide as the screen, so the hatch is always in view, and a pan could only
  * nudge the camera up and down by the few pixels the map is taller than the screen. Sets `warehouse.arrivalSeen`. The trigger is `once`, so the
  * scene does not replay when the hero comes back here after a death (plan D18).
- * Lines are placeholders. OWNER: script
+ * OWNER: script
  */
 export const warehouseArrival: Cutscene = {
   async run(api) {

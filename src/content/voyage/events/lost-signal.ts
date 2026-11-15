@@ -3,7 +3,6 @@ import type { VoyageEventDef } from '@/core/voyage/voyageEvents';
 /**
  * A late-leg event at the radio (plan act2-stations D10, D11): the link to the Earth drops to
  * static between the Moon and Mars - restart the radio, or push the transmitter to full power.
- * A placeholder for the team: theme, texts and numbers are to be rewritten.
  */
 export const lostSignal: VoyageEventDef = {
   // OWNER: design - the leg (1: Moon -> Mars), the point and the chance (late on the leg, where

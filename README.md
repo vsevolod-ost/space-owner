@@ -8,8 +8,8 @@ shows the ship moving through a simulated solar system.
 The whole loop is playable, in English and Ukrainian: the flat (prologue), the warehouse where the
 cargo is chosen (act 1), the voyage through two gates (the Moon, Mars) on the navigation panel
 (act 2), the colony and its ending (act 3), and the death loop back to the warehouse. The music
-and part of the art are final; the rest of the art and the sound effects are still placeholders
-(see "Systems"). `grep -rn "OWNER:" src` lists every number and text a team member owns, marked
+and most of the art are final; the colony buildings, a few small pictures and the sound effects
+are still placeholders (see "Systems"). `grep -rn "OWNER:" src` lists every number and text a team member owns, marked
 `physics`, `design`, `script` or `art`.
 
 ## NASA & Space Agency Compliance
@@ -70,23 +70,23 @@ menu, F3 for the debug overlay. Open a location directly with
 
 ## Systems
 
-| System                | Status | Scope                                                                                                                     |
-| --------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
-| Locations and doors   | done   | Home, warehouse, ship deck, colony: generated maps, props, flag conditions, a colony picture per body                     |
-| Dialogue              | done   | Typed nodes with choices, conditions, flags and state-function texts; the advisers, the crate stands                      |
-| Cutscenes             | done   | Async scripts over a small API (walk, say, pan, fade); the warehouse arrival, the scientists' debrief                     |
-| Story flow and saving | done   | Acts with title cards, checkpoints in localStorage, Continue, the death loop, landing, Fly again                          |
-| Cargo (act 1)         | done   | 10 kinds of cargo, 7 bays, crate stands, advisers, the hatch check, the HOLD strip                                        |
-| Voyage (act 2)        | done   | Autopilot on a live integrator through 2 gates, resources per item, alarms, drift, gate forecast, events                  |
-| Navigation panel      | done   | System map, gate ribbon, status column, gate cards, alarm flash; time runs while it is open                               |
-| Colony and endings    | done   | One colony per gate body, tiers by cargo against the body's needs, two endings                                            |
-| Balance tools         | done   | `npm run voyage-check`, `npm run balance`: headless voyages, the loadout sweep, invariants I1-I8                          |
-| UI kit                | done   | 9-slice panel, button, text, label, toast, choice list, fader, panel scenes, pause menu                                   |
-| Audio                 | done   | Music per location with crossfade, UI, door and alarm sounds, volume settings panel                                       |
-| Debug overlay         | done   | F3 or `?overlay=1`: FPS, location, hero coordinates, act, music, simulation, flags                                        |
-| Localization          | done   | English and Ukrainian text pairs, language choice with a live rebuild, a pseudo-locale check                              |
-| Smoke test            | done   | 19 headless Chromium scenarios over the production build, the whole voyage included                                       |
-| Art and sound effects | partly | Final: music, ship deck, colony pictures, computer portrait, menu ship and logo, prologue card; the rest are placeholders |
+| System                | Status | Scope                                                                                                                                                                                                                 |
+| --------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Locations and doors   | done   | Home, warehouse, ship deck, colony: generated maps, props, flag conditions, a colony picture per body                                                                                                                 |
+| Dialogue              | done   | Typed nodes with choices, conditions, flags and state-function texts; the advisers, the crate stands                                                                                                                  |
+| Cutscenes             | done   | Async scripts over a small API (walk, say, pan, fade); the warehouse arrival, the scientists' debrief                                                                                                                 |
+| Story flow and saving | done   | Acts with title cards, checkpoints in localStorage, Continue, the death loop, landing, Fly again                                                                                                                      |
+| Cargo (act 1)         | done   | 10 kinds of cargo, 7 bays, crate stands, advisers, the hatch check, the HOLD strip                                                                                                                                    |
+| Voyage (act 2)        | done   | Autopilot on a live integrator through 2 gates, resources per item, alarms, drift, gate forecast, events                                                                                                              |
+| Navigation panel      | done   | System map, gate ribbon, status column, gate cards, alarm flash; time runs while it is open                                                                                                                           |
+| Colony and endings    | done   | One colony per gate body, tiers by cargo against the body's needs, two endings                                                                                                                                        |
+| Balance tools         | done   | `npm run voyage-check`, `npm run balance`: headless voyages, the loadout sweep, invariants I1-I8                                                                                                                      |
+| UI kit                | done   | 9-slice panel, button, text, label, toast, choice list, fader, panel scenes, pause menu                                                                                                                               |
+| Audio                 | done   | Music per location with crossfade, UI, door and alarm sounds, volume settings panel                                                                                                                                   |
+| Debug overlay         | done   | F3 or `?overlay=1`: FPS, location, hero coordinates, act, music, simulation, flags                                                                                                                                    |
+| Localization          | done   | English and Ukrainian text pairs, language choice with a live rebuild, a pseudo-locale check                                                                                                                          |
+| Smoke test            | done   | 19 headless Chromium scenarios over the production build, the whole voyage included                                                                                                                                   |
+| Art and sound effects | partly | Final: music, logo, menu ship, locations, colony pictures, characters, portraits, crates, cargo icons, prologue card. Placeholders: colony buildings, two extra hero portraits, navigation panel icons, sound effects |
 
 The placeholders are drawn and synthesised by plain scripts (`tools/placeholders.py`,
 `tools/sounds.py`), not by generative AI; each placeholder picture carries its file name and a

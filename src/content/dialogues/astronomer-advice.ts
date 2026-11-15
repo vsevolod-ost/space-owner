@@ -6,7 +6,7 @@ const gaveBodiesAdvice = (s: GameState): boolean =>
   s.flags.get('advice.astronomer.bodies') === true;
 
 /**
- * The astronomer in the warehouse (placeholder lines): knows the bodies on the way and what
+ * The astronomer in the warehouse: knows the bodies on the way and what
  * a colony needs there; the engineer knows the ship (GDD `act1-knowledge-map` A, D16). The
  * first visit opens with `greeting` (it sets `astronomer.met`); later visits start at
  * `question`. The bodies question sets `advice.astronomer.bodies` (advice flags survive deaths,

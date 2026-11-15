@@ -3,8 +3,7 @@ import type { VoyageEventDef } from '@/core/voyage/voyageEvents';
 /**
  * A late-leg event in the hold (plan act2-stations D10, D11): the greenhouse's irrigation line
  * springs a leak - clamp it at the crate, or shut the bay's main valve and lose what is in the
- * line. Only with a greenhouse aboard; answered at the access point above its bay. A
- * placeholder for the team: theme, texts and numbers are to be rewritten.
+ * line. Only with a greenhouse aboard; answered at the access point above its bay.
  */
 export const greenhouseLeak: VoyageEventDef = {
   // OWNER: design - the leg (1: Moon -> Mars), the point and the chance (late on the leg, where

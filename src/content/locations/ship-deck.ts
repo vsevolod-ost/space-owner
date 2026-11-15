@@ -148,7 +148,7 @@ function bayAccess(voyage: VoyageService): Record<string, Binding> {
  * right one when it is elsewhere, and are stubs otherwise. A death still shows on the
  * navigation panel: it opens by itself with LOST (D9, `src/scenes/stationFlow.ts`). The hold's
  * bays (`bay-1..7` for the 7 bays, class `prop`) show the cargo taken aboard, and so does the
- * HOLD strip at the top. Lines are placeholders. OWNER: script
+ * HOLD strip at the top. OWNER: script
  * Music: `music-flight`, act 2's calm flight; a station alarm switches to `music-alarm` and its
  * end brings the flight track back where it stopped (`src/scenes/stationSound.ts`). The track
  * has no drum layer (`musicLayer`) so far.

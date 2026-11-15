@@ -3,8 +3,7 @@ import type { VoyageEventDef } from '@/core/voyage/voyageEvents';
 /**
  * A late-leg event at the porthole (plan act2-stations D10, D11): a flare lights up the Sun's
  * side of the sky - the crew sits the radiation storm out in the shelter, or keeps working and
- * some food is spoiled. A placeholder for the team: theme, texts and numbers are to be
- * rewritten.
+ * some food is spoiled.
  */
 export const solarFlare: VoyageEventDef = {
   // OWNER: design - the leg (1: Moon -> Mars), the point and the chance (late on the leg, where
