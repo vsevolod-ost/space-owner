@@ -23,7 +23,7 @@ const DETAILS: LocalText = { en: '(in development)', uk: '(у розробці)'
 const BACK_LABEL: LocalText = { en: 'Back', uk: 'Назад', max: 18 };
 
 /**
- * Temporary panel for sections that do not exist yet: a heading, details and a Back button
+ * A plain text panel (the menu's About): a heading, details and a Back button
  * (or Esc). Opens over the menu with `open(data)`; also the smallest working `PanelScene`.
  */
 export class StubScene extends PanelScene<StubSceneData> {

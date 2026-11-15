@@ -106,7 +106,7 @@ Registered in this order in `src/main.ts` (later scenes draw above earlier ones)
 | -------------- | --------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `Boot`         | `BootScene`           | Loads every asset registry and the font, creates the animations       | Phaser (first in the list)                                                     |
 | `MainMenu`     | `MainMenuScene`       | Continue / New Game / Settings / About                                | Boot (no URL parameters), `PhaserSceneDriver.toMainMenu`                       |
-| `Stub`         | `StubScene`           | Placeholder panel ("About"); smallest `PanelScene` example            | MainMenu                                                                       |
+| `Stub`         | `StubScene`           | Text panel ("About"); smallest `PanelScene` example                   | MainMenu                                                                       |
 | `World`        | `WorldScene`          | The current location: background, walls, hero, NPCs, interactables    | `PhaserSceneDriver.goTo` (from `flow.goTo`); restarted for every location      |
 | `Ending`       | `EndingScene`         | End screen of an ending: title, text, tier line, Fly again, Main menu | `PhaserSceneDriver.showEnding` (from `flow.finish`)                            |
 | `Ui`           | `UiScene`             | Overlay: "E" hint, toasts, dialogue window, act titles, fader         | Boot (`scene.launch`), runs for the whole game                                 |

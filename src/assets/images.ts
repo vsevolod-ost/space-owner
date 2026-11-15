@@ -4,8 +4,7 @@
  *
  * To replace a placeholder, overwrite the file with real art of the same size - no code
  * changes. To add an image, put the file into `public/assets/` and add a line here.
- * OWNER: art - every file listed here is a placeholder to draw (sizes and the art order in
- * docs/HOWTO-art.md).
+ * OWNER: art - sizes, the art order and which files are still placeholders: docs/HOWTO-art.md.
  */
 export const images = {
   'menu-background': { path: 'assets/menu/background.png' },

@@ -104,12 +104,8 @@ merge by convention: fix it on your branch and push again. `npm run smoke` is no
 a Chromium, so run it locally; a CI job for it can come later together with a Playwright browser
 install.
 
-**Play online:** not before the release. The repository is private and every free hosting
-either makes the site public or asks for a payment card for access control, so until the release
-everybody plays locally with `npm run dev`; artists get screenshots or screen recordings from the
-programmers. At the release the repository goes public and `.github/workflows/deploy.yml`
-publishes the build to GitHub Pages at <https://vsevolod-ost.github.io/space-owner/>; the steps
-are in the comment at the top of that file.
+**Play online:** <https://vsevolod-ost.github.io/space-owner/>, published to GitHub Pages by
+`.github/workflows/deploy.yml` (run by hand: Actions -> "Deploy to GitHub Pages" -> Run workflow).
 
 ## Branches and pull requests
 

@@ -17,14 +17,13 @@ The _Space Owner_ implements the four major mission segments defined in [Design 
 - **Ground segment**: The navigation panel and mission-control facilities responsible for communication, trajectory tracking, and mission management.
 - **User segment**: The scientists and colonists who apply mission outcomes in Act 3 and the colony ending.
 
-### 2. GMAT (General Mission Analysis Tool) Integration
+### 2. GMAT-inspired simulation
 
-Our ship simulation (`src/core/simulation/`) implements high-fidelity physical models inspired by the principles of the [General Mission Analysis Tool (GMAT)](https://software.nasa.gov/software/GSC-19468-1), including:
+Our ship simulation (`src/core/simulation/`) implements physical models inspired by the principles of the [General Mission Analysis Tool (GMAT)](https://software.nasa.gov/software/GSC-19468-1), including:
 
 - Numerical orbital propagation (Verlet integration).
 - Lambert trajectory solving.
 - Rocket equation for fuel/thrust calculations.
-- Orbit determination and maneuver planning.
 
 ### 3. Concept Maturity Levels (CMLs)
 

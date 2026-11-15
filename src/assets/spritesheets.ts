@@ -2,8 +2,7 @@
  * Registry of sprite sheets: images cut into equal frames, left to right, top to bottom.
  * The object key is the texture key (`SpritesheetKey`). Characters reference these keys in
  * src/content/characters.ts, which also says which rows hold which direction.
- * OWNER: art - every sheet listed here is a placeholder to draw (frame layout in
- * docs/HOWTO-art.md).
+ * OWNER: art - the frame layout is in docs/HOWTO-art.md.
  */
 export const spritesheets = {
   hero: { path: 'assets/sprites/hero.png', frameWidth: 32, frameHeight: 48 },
